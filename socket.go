@@ -5,7 +5,7 @@ import (
 	events "github.com/kataras/go-events"
 )
 
-type Socket struct {
+type socket struct {
 	id                  string
 	server              interface{}
 	upgrading           bool
@@ -24,8 +24,13 @@ type Socket struct {
 	EventEmitter events.EventEmmiter
 }
 
-func NewSocket(id string, server interface{}, transport interface{}, req interface{}) *Socket {
-	this := &Socket{}
+/**
+ * Client class (abstract).
+ *
+ * @api private
+ */
+func newSocket(id string, server interface{}, transport interface{}, req interface{}) *socket {
+	this := &socket{}
 
 	this.id = id
 	this.server = server
@@ -63,7 +68,7 @@ func NewSocket(id string, server interface{}, transport interface{}, req interfa
  * @api private
  */
 
-func (this *Socket) onOpen() {
+func (this *socket) onOpen() {
 	this.readyState = `open`
 
 	// sends an `open` packet
@@ -92,7 +97,7 @@ func (this *Socket) onOpen() {
  * @api private
  */
 
-func (this *Socket) onPacket(packet Packet) {
+func (this *socket) onPacket(packet Packet) {
 	if `open` == this.readyState {
 		// export packet event
 		// debug(`packet`)
@@ -130,7 +135,7 @@ func (this *Socket) onPacket(packet Packet) {
  * @api private
  */
 
-func (this *Socket) onError(err error) {
+func (this *socket) onError(err error) {
 	// debug(`transport error`);
 	this.onClose(`transport error`, err)
 }
@@ -141,7 +146,7 @@ func (this *Socket) onError(err error) {
  * @api private
  */
 
-func (this *Socket) setPingTimeout() {
+func (this *socket) setPingTimeout() {
 	this.pingTimeoutTimer.Stop()
 	this.pingTimeoutTimer = time.NewTimer((this.server.pingInterval + this.server.pingTimeout) * time.Microsecond)
 
@@ -158,7 +163,7 @@ func (this *Socket) setPingTimeout() {
  * @api private
  */
 
-func (this *Socket) setTransport(transport interface{}) {
+func (this *socket) setTransport(transport interface{}) {
 	onError := this.onError
 	onPacket := this.onPacket
 	flush := this.flush
@@ -187,7 +192,7 @@ func (this *Socket) setTransport(transport interface{}) {
  * @api private
  */
 
-func (this *Socket) maybeUpgrade(transport interface{}) {
+func (this *socket) maybeUpgrade(transport interface{}) {
 	// debug(`might upgrade socket transport from "%s" to "%s"` , this.transport.name, transport.name);
 	this.upgrading = true
 
@@ -281,7 +286,7 @@ func (this *Socket) maybeUpgrade(transport interface{}) {
  * @api private
  */
 
-func (this *Socket) clearTransport() {
+func (this *socket) clearTransport() {
 	for cleanup := range toCleanUp {
 		cleanup()
 	}
@@ -302,7 +307,7 @@ func (this *Socket) clearTransport() {
  * `transport error`, `server close`, `transport close`
  */
 
-func (this *Socket) onClose(reason string, description string) {
+func (this *socket) onClose(reason string, description string) {
 	if `closed` != this.readyState {
 		this.readyState = `closed`
 		clearTimeout(this.pingTimeoutTimer)
@@ -327,7 +332,7 @@ func (this *Socket) onClose(reason string, description string) {
  * @api private
  */
 
-func (this *Socket) setupSendCallback() {
+func (this *socket) setupSendCallback() {
 	// the message was sent successfully, execute the callback
 	onDrain := func() {
 		if len(this.sentCallbackFn) > 0 {
@@ -364,11 +369,11 @@ func (this *Socket) setupSendCallback() {
  * @api public
  */
 
-func (this *Socket) Send(data interface{}, options interface{}, callback interface{}) *Socket {
+func (this *socket) Send(data interface{}, options interface{}, callback interface{}) *socket {
 	this.sendPacket(`message`, data, options, callback)
 	return this
 }
-func (this *Socket) Write(data interface{}, options interface{}, callback interface{}) *Socket {
+func (this *socket) Write(data interface{}, options interface{}, callback interface{}) *socket {
 	return this.Send(`message`, data, options, callback)
 }
 
@@ -381,7 +386,7 @@ func (this *Socket) Write(data interface{}, options interface{}, callback interf
  * @api private
  */
 
-func (this *Socket) sendPacket(packet_type string, data string, options interface{}, callback func()) {
+func (this *socket) sendPacket(packet_type string, data string, options interface{}, callback func()) {
 	// if (`function` === typeof options) {
 	//   callback = options;
 	//   options = null;
@@ -421,7 +426,7 @@ func (this *Socket) sendPacket(packet_type string, data string, options interfac
  * @api private
  */
 
-func (this *Socket) flush() {
+func (this *socket) flush() {
 	if `closed` != this.readyState && this.transport.writable && this.writeBuffer.length {
 		debug(`flushing buffer to transport`)
 		this.EventEmitter.Emit(`flush`, this.writeBuffer)
@@ -446,7 +451,7 @@ func (this *Socket) flush() {
  * @api private
  */
 
-func (this *Socket) getAvailableUpgrades() {
+func (this *socket) getAvailableUpgrades() {
 	availableUpgrades := []byte{}
 	allUpgrades = this.server.upgrades(this.transport.name)
 
@@ -466,7 +471,7 @@ func (this *Socket) getAvailableUpgrades() {
  * @api public
  */
 
-func (this *Socket) Close(discard bool) {
+func (this *socket) Close(discard bool) {
 	if `open` != this.readyState {
 		return
 	}
@@ -490,7 +495,7 @@ func (this *Socket) Close(discard bool) {
  * @api private
  */
 
-func (this *Socket) closeTransport(discard bool) {
+func (this *socket) closeTransport(discard bool) {
 	if discard {
 		this.transport.discard()
 	}

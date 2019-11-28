@@ -57,37 +57,24 @@ func EncodePacket(packet *types.Packet, supportsBinary bool, utf8encode bool) (*
 	}
 
 	switch v := packet.Data.(type) {
-	case *bytes.Buffer:
-		if !supportsBinary {
-			encode.Write([]byte{'b', packets[packet.Type]})
-		} else {
-			encode.WriteByte(packets[packet.Type])
-		}
-		if !supportsBinary {
-			b64 := base64.NewEncoder(base64.StdEncoding, encode)
-			defer b64.Close()
-
-			v.WriteTo(b64)
-		} else {
-			v.WriteTo(encode)
-		}
-	case *bytes.Reader:
-		if !supportsBinary {
-			encode.Write([]byte{'b', packets[packet.Type]})
-		} else {
-			encode.WriteByte(packets[packet.Type])
-		}
-		if !supportsBinary {
-			b64 := base64.NewEncoder(base64.StdEncoding, encode)
-			defer b64.Close()
-
-			v.WriteTo(b64)
-		} else {
-			v.WriteTo(encode)
-		}
 	case *strings.Reader:
 		encode.WriteByte(packets[packet.Type])
 		v.WriteTo(encode)
+	case io.WriterTo:
+		if !supportsBinary {
+			encode.Write([]byte{'b', packets[packet.Type]})
+		} else {
+			encode.WriteByte(packets[packet.Type])
+		}
+		if !supportsBinary {
+			b64 := base64.NewEncoder(base64.StdEncoding, encode)
+			defer b64.Close()
+
+			v.WriteTo(b64)
+		} else {
+			v.WriteTo(encode)
+		}
+
 	default:
 	}
 

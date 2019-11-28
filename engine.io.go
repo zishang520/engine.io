@@ -1,7 +1,7 @@
 package engineio
 
-var (
-	Protocol int = 1
+const (
+	Protocol = 1
 
 	Attach = func(server, options) {
 		engine := NewServer(options)

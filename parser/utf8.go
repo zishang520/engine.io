@@ -19,7 +19,7 @@ func checkScalarValue(codePoint rune, strict bool) bool {
 	return true
 }
 
-func utf8encode(str string, opts *Opts) string {
+func Utf8encode(str string, opts *Opts) string {
 	if opts == nil {
 		opts = &Opts{false}
 	}
@@ -35,10 +35,7 @@ func utf8encode(str string, opts *Opts) string {
 	return buf.String()
 }
 
-// var byteArray;
-// var byteCount;
-// var byteIndex;
-func utf8decode(byteString string, opts *Opts) string {
+func Utf8decode(byteString string, opts *Opts) string {
 	if opts == nil {
 		opts = &Opts{false}
 	}
@@ -52,9 +49,3 @@ func utf8decode(byteString string, opts *Opts) string {
 	}
 	return buf.String()
 }
-
-var (
-	Version = `2.1.2`
-	Encode  = utf8encode
-	Decode  = utf8decode
-)

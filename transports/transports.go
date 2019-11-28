@@ -1,6 +1,6 @@
 package transports
 
-var (
+const (
 	Polling = func(req) {
 		if `string` == req._query.j {
 			return NewJSONP(req)

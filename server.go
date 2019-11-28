@@ -100,21 +100,21 @@ func NewServer(opts interface{}) *Server {
  * Protocol errors mappings.
  */
 
-var (
+const (
 	UNKNOWN_TRANSPORT    = 0
 	UNKNOWN_SID          = 1
 	BAD_HANDSHAKE_METHOD = 2
 	BAD_REQUEST          = 3
 	FORBIDDEN            = 4
-)
 
-var errorMessages = map[int]string{
-	0: `Transport unknown`,
-	1: `Session ID unknown`,
-	2: `Bad handshake method`,
-	3: `Bad request`,
-	4: `Forbidden`,
-}
+	errorMessages = map[int]string{
+		0: `Transport unknown`,
+		1: `Session ID unknown`,
+		2: `Bad handshake method`,
+		3: `Bad request`,
+		4: `Forbidden`,
+	}
+)
 
 /**
  * Initialize websocket server

@@ -44,11 +44,12 @@ var (
  *
  * Binary is encoded in an identical principle
  *
- * @api private
+ * @api public
  */
 
 func EncodePacket(packet types.Packet, supportsBinary bool, utf8encode bool) (*bytes.Buffer, error) {
 	encode := bytes.NewBuffer(nil)
+
 	if !supportsBinary {
 		encode.Write([]byte{'b', packets[packet.Type]})
 	} else {
@@ -63,12 +64,18 @@ func EncodePacket(packet types.Packet, supportsBinary bool, utf8encode bool) (*b
 	switch v := packet.Data.(type) {
 	case *bytes.Buffer:
 		dataByte = v.Bytes()
-	case *bytes.Reader, *strings.Reader:
+	case *bytes.Reader:
 		buf := new(bytes.Buffer)
 		if _, err := buf.ReadFrom(v); err != nil {
 			return nil, err
 		}
 		dataByte = buf.Bytes()
+	case *strings.Reader:
+		buf := new(bytes.Buffer)
+		if _, err := buf.ReadFrom(v); err != nil {
+			return nil, err
+		}
+		dataByte = Utf8encodeByte(buf.Bytes(), nil)
 	default:
 	}
 
@@ -83,3 +90,59 @@ func EncodePacket(packet types.Packet, supportsBinary bool, utf8encode bool) (*b
 
 	return encode, nil
 }
+
+/**
+ * Decodes a packet. Data also available as an ArrayBuffer if requested.
+ *
+ * @return {Object} with `type` and `data` (if any)
+ * @api private
+ */
+
+// exports.decodePacket = function (data *bytes.Buffer, binaryType string, utf8decode bool) {
+//   if (data === undefined) {
+//     return err;
+//   }
+
+//   var type;
+
+//   // String data
+//   if (typeof data === 'string') {
+
+//     type = data.charAt(0);
+
+//     if (type === 'b') {
+//       return exports.decodeBase64Packet(data.substr(1), binaryType);
+//     }
+
+//     if (utf8decode) {
+//       data = tryDecode(data);
+//       if (data === false) {
+//         return err;
+//       }
+//     }
+
+//     if (Number(type) != type || !packetslist[type]) {
+//       return err;
+//     }
+
+//     if (data.length > 1) {
+//       return { type: packetslist[type], data: data.substring(1) };
+//     } else {
+//       return { type: packetslist[type] };
+//     }
+//   }
+
+//   // Binary data
+//   if (binaryType === 'arraybuffer') {
+//     // wrap Buffer/ArrayBuffer data into an Uint8Array
+//     var intArray = new Uint8Array(data);
+//     type = intArray[0];
+//     return { type: packetslist[type], data: intArray.buffer.slice(1) };
+//   }
+
+//   if (data instanceof ArrayBuffer) {
+//     data = arrayBufferToBuffer(data);
+//   }
+//   type = data[0];
+//   return { type: packetslist[type], data: data.slice(1) };
+// };

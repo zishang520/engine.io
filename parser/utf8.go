@@ -35,6 +35,21 @@ func Utf8encode(str string, opts *Opts) string {
 	return buf.String()
 }
 
+func Utf8encodeByte(strs []byte, opts *Opts) []byte {
+	if opts == nil {
+		opts = &Opts{false}
+	}
+	var buf bytes.Buffer
+	for _, b := range strs {
+		rb := rune(b)
+		if !checkScalarValue(rb, opts.Strict) {
+			rb = 0xFFFD
+		}
+		buf.WriteRune(rb)
+	}
+	return buf.Bytes()
+}
+
 func Utf8decode(byteString string, opts *Opts) string {
 	if opts == nil {
 		opts = &Opts{false}

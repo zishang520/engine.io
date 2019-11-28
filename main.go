@@ -19,12 +19,12 @@ func main() {
 	}, true, false)
 	bufss, err := parser.EncodePacket(types.Packet{
 		Type: "ping",
-		Data: strings.NewReader(`[]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}`),
-	}, true, true)
+		Data: strings.NewReader(`[]byte{0, 1你好呀, 2, 3, 4, 5, 6, 7, 8, 9}`),
+	}, true, false)
 	bufsss, err := parser.EncodePacket(types.Packet{
 		Type: "ping",
-		Data: strings.NewReader(`[]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}`),
-	}, false, true)
+		Data: strings.NewReader(`[]byte{0, 1, 2, 3, 你好呀4, 5, 6, 7, 8, 9}`),
+	}, true, true)
 	fmt.Println(buf)
 	fmt.Println(bufs)
 	fmt.Println(bufss)

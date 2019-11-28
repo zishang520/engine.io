@@ -30,6 +30,8 @@ func main() {
 	fmt.Println(bufss)
 	fmt.Println(bufsss)
 	fmt.Println(err)
-	fmt.Println('3' + '0')
+	fmt.Println(byte(0) + '0')
+	fmt.Println('b')
+	fmt.Println(0x31)
 	fmt.Println(parser.EMPTY_BUFFER)
 }

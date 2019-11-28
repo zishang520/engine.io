@@ -74,7 +74,10 @@ func EncodePacket(packet types.Packet, supportsBinary bool, utf8encode bool) (*b
 	}
 
 	if !supportsBinary {
-		base64.NewEncoder(base64.StdEncoding, encode).Write(dataByte)
+		b64 := base64.NewEncoder(base64.StdEncoding, encode)
+		defer b64.Close()
+
+		b64.Write(dataByte)
 	} else {
 		encode.Write(dataByte)
 	}

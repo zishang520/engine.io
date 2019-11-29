@@ -115,7 +115,7 @@ func DecodePacket(data io.Reader, utf8decode bool) (*types.Packet, error) {
 			if _, err := v.Read(msgType); err != nil {
 				return errPacket, err
 			}
-			packetType, ok = packetslist[msgType[0]]
+			packetType, ok := packetslist[msgType[0]]
 			if !ok {
 				return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
 			}

@@ -65,18 +65,19 @@ func Utf8decodeBytes(dst, src []byte, opts *Opts) (int, error) {
 		opts = &Opts{false}
 	}
 	buf := bytes.NewReader(src)
-	l := buf.Len()
-	for i := 0; i < l; i++ {
+	i := 0
+	for buf.Len() > 0 {
 		r, _, e := buf.ReadRune()
-		if e != nil {
-			return 0, e
+		if e != nil && e != io.EOF {
+			return i, e
 		}
 		if !checkScalarValue(r, opts.Strict) {
 			r = 0xFFFD
 		}
 		dst[i] = byte(r)
+		i++
 	}
-	return l, nil
+	return i, nil
 }
 
 func checkScalarValue(codePoint rune, strict bool) bool {

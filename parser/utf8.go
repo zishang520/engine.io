@@ -121,11 +121,13 @@ func (e *utf8encoder) Write(p []byte) (n int, err error) {
 }
 
 type utf8decoder struct {
-	opts *Opts
-	r    io.Reader
-	err  error
-	in   []byte           // input buffer (encoded form)
-	arr  [bufferSize]byte // backing array for in
+	opts    *Opts
+	r       io.Reader
+	err     error
+	readErr error // error from r.Read
+	nbuf    int
+	out     []byte           // leftover decoded output
+	buf     [bufferSize]byte // backing array for in
 }
 
 // NewDecoder returns an io.Reader that decodes hexadecimal characters from r.
@@ -135,26 +137,28 @@ func NewUtf8Decoder(opts *Opts, r io.Reader) io.Reader {
 }
 
 func (d *utf8decoder) Read(p []byte) (n int, err error) {
-	// Fill internal buffer with sufficient bytes to decode
-	if len(d.in) == 0 && d.err == nil {
-		var numCopy, numRead int
-		numCopy = copy(d.arr[:], d.in) // Copies either 0 or 1 bytes
-		numRead, d.err = d.r.Read(d.arr[numCopy:])
-		d.in = d.arr[:numCopy+numRead]
+	// Use leftover decoded output from last read.
+	if len(d.out) > 0 {
+		n = copy(p, d.out)
+		d.out = d.out[n:]
+		return n, nil
 	}
 
-	// Decode internal buffer into output buffer
-	if numAvail := len(d.in); len(p) > numAvail {
-		p = p[:numAvail]
-	}
-	numDec, err := Utf8decodeBytes(p, d.in[:len(p)], d.opts)
-	d.in = d.in[numDec:]
-	if err != nil {
-		d.in, d.err = nil, err // Decode error; discard input remainder
+	if d.err != nil {
+		return 0, d.err
 	}
 
-	if len(d.in) == 0 {
-		return numDec, d.err // Only expose errors when buffer fully consumed
+	// Refill buffer.
+	for d.readErr == nil {
+		nn := len(p)
+		if nn > len(d.buf) {
+			nn = len(d.buf)
+		}
+		nn, d.readErr = d.r.Read(d.buf[d.nbuf:nn])
+		d.nbuf += nn
 	}
-	return numDec, nil
+
+	n, d.err = Utf8decodeBytes(p, d.buf[:d.nbuf], d.opts)
+
+	return n, d.err
 }

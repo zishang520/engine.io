@@ -104,19 +104,18 @@ func DecodePacket(data io.Reader, utf8decode bool) (*types.Packet, error) {
 	}
 
 	msgType := []byte{0XFF}
-	if _, err := v.Read(msgType); err != nil {
+	if _, err := data.Read(msgType); err != nil {
 		return errPacket, err
 	}
 
 	decode := bytes.NewBuffer(nil)
-
 	switch v := data.(type) {
 	case *strings.Reader:
 		if msgType[0] == 'b' {
 			if _, err := v.Read(msgType); err != nil {
 				return errPacket, err
 			}
-			packetType, ok := packetslist[msgType[0]]
+			packetType, ok = packetslist[msgType[0]]
 			if !ok {
 				return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
 			}
@@ -135,20 +134,25 @@ func DecodePacket(data io.Reader, utf8decode bool) (*types.Packet, error) {
 		} else {
 			decode.ReadFrom(v)
 		}
+		return &types.Packet{
+			Type: packetType,
+			Data: decode,
+		}, nil
 	case io.Reader:
 		packetType, ok := packetslist[msgType[0]]
 		if !ok {
 			return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
 		}
 		decode.ReadFrom(v)
+		return &types.Packet{
+			Type: packetType,
+			Data: decode,
+		}, nil
 	default:
 		return errPacket, errors.New(`unknown data type`)
 	}
 
-	return &types.Packet{
-		Type: packetType,
-		Data: decode,
-	}, nil
+	return errPacket, errors.New(`parser error`)
 }
 
 // func tryDecode(data ) {

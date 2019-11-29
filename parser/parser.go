@@ -3,6 +3,8 @@ package parser
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
+	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/types"
 	"io"
 	"strings"
@@ -30,7 +32,7 @@ var (
 
 	EMPTY_BUFFER *bytes.Buffer = new(bytes.Buffer)
 
-	err = types.Packet{Type: `error`, Data: strings.NewReader(`parser error`)}
+	errPacket = &types.Packet{Type: `error`, Data: strings.NewReader(`parser error`)}
 )
 
 /**
@@ -80,6 +82,7 @@ func EncodePacket(packet *types.Packet, supportsBinary bool, utf8encode bool) (*
 		}
 
 	default:
+		return encode, errors.New(`unknown packet.Data type`)
 	}
 
 	return encode, nil
@@ -92,102 +95,61 @@ func EncodePacket(packet *types.Packet, supportsBinary bool, utf8encode bool) (*
  * @api public
  */
 
-// func DecodePacket(data io.Reader, binaryType string, utf8decode bool) (*types.Packet, error) {
-// 	if data == nil {
-// 		return err
-// 	}
-// 	if c, ok := data.(io.Closer); ok {
-// 		defer c.Close()
-// 	}
-// 	msgType := []byte{0XFF}
-// 	decode := bytes.NewBuffer(nil)
+func DecodePacket(data io.Reader, utf8decode bool) (*types.Packet, error) {
+	if data == nil {
+		return errPacket, nil
+	}
+	if c, ok := data.(io.Closer); ok {
+		defer c.Close()
+	}
 
-// 	switch v := data.(type) {
-// 	case *bytes.Buffer:
-// 		dataByte = v.Bytes()
-// 	case *bytes.Reader:
-// 		buf := new(bytes.Buffer)
-// 		if _, err := buf.ReadFrom(v); err != nil {
-// 			return nil, err
-// 		}
-// 		dataByte = buf.Bytes()
-// 	case *strings.Reader:
-// 		if _, err := v.Read(msgType); err != nil {
-// 			return nil, err
-// 		}
-// 		if msgType[0] == 'b' {
-// 			if _, err := v.Read(msgType); err != nil {
-// 				return nil, err
-// 			}
-// 			Type := packetslist[msgType[0]]
-// 			buf := new(bytes.Buffer)
-// 			if _, err := buf.ReadFrom(v); err != nil {
-// 				return nil, err
-// 			}
-// 			b64 = base64.NewDecoder(base64.StdEncoding, decode)
-// 			defer b64.Close()
-// 			b64.Write(buf.Bytes())
-// 			return types.Packet{
-// 				Type: Type,
-// 				Data: decode,
-// 			}
-// 		}
-// 		if utf8decode {
-// 			data := tryDecode(data)
-// 			if data == false {
-// 				return err
-// 			}
-// 		}
-// 	// buf := new(bytes.Buffer)
-// 	// if _, err := buf.ReadFrom(v); err != nil {
-// 	// 	return nil, err
-// 	// }
-// 	// dataByte = Utf8encodeByte(buf.Bytes(), &Opts{Strict: false})
-// 	default:
-// 	}
-// 	//   var type;
+	msgType := []byte{0XFF}
+	if _, err := v.Read(msgType); err != nil {
+		return errPacket, err
+	}
 
-// 	// String data
-// 	//   if (typeof data === 'string') {
+	decode := bytes.NewBuffer(nil)
 
-// 	//     type = data.charAt(0);
+	switch v := data.(type) {
+	case *strings.Reader:
+		if msgType[0] == 'b' {
+			if _, err := v.Read(msgType); err != nil {
+				return errPacket, err
+			}
+			packetType, ok := packetslist[msgType[0]]
+			if !ok {
+				return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
+			}
+			decode.ReadFrom(base64.NewDecoder(base64.StdEncoding, v))
+			return &types.Packet{
+				Type: packetType,
+				Data: decode,
+			}, nil
+		}
+		packetType, ok := packetslist[msgType[0]]
+		if !ok {
+			return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
+		}
+		if utf8decode {
+			decode.ReadFrom(NewUtf8Decoder(&Opts{Strict: false}, v))
+		} else {
+			decode.ReadFrom(v)
+		}
+	case io.Reader:
+		packetType, ok := packetslist[msgType[0]]
+		if !ok {
+			return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
+		}
+		decode.ReadFrom(v)
+	default:
+		return errPacket, errors.New(`unknown data type`)
+	}
 
-// 	//     if (type === 'b') {
-// 	//       return exports.decodeBase64Packet(data.substr(1), binaryType);
-// 	//     }
-
-// 	//     if (utf8decode) {
-// 	//       data = tryDecode(data);
-// 	//       if (data === false) {
-// 	//         return err;
-// 	//       }
-// 	//     }
-
-// 	//     if (Number(type) != type || !packetslist[type]) {
-// 	//       return err;
-// 	//     }
-
-// 	//     if (data.length > 1) {
-// 	//       return { type: packetslist[type], data: data.substring(1) };
-// 	//     } else {
-// 	//       return { type: packetslist[type] };
-// 	//     }
-// 	//   }
-
-// 	//   // Binary data
-// 	//   if (binaryType === 'arraybuffer') {
-// 	//     // wrap Buffer/ArrayBuffer data into an Uint8Array
-// 	//     var intArray = new Uint8Array(data);
-// 	//     type = intArray[0];
-// 	//     return { type: packetslist[type], data: intArray.buffer.slice(1) };
-// 	//   }
-
-// 	//   if (data instanceof ArrayBuffer) {
-// 	//     data = arrayBufferToBuffer(data);
-// 	//   }
-// 	//   type = data[0];
-// 	//   return { type: packetslist[type], data: data.slice(1) };
-// }
+	return &types.Packet{
+		Type: packetType,
+		Data: decode,
+	}, nil
+}
 
 // func tryDecode(data ) {
 //   try {

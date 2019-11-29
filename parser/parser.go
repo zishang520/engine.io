@@ -60,7 +60,7 @@ func EncodePacket(packet *types.Packet, supportsBinary bool, utf8encode bool) (*
 	case *strings.Reader:
 		encode.WriteByte(packets[packet.Type])
 		if utf8encode {
-			v.WriteTo(Utf8NewEncoder(&Opts{Strict: false}, encode))
+			v.WriteTo(NewUtf8Encoder(&Opts{Strict: false}, encode))
 		} else {
 			v.WriteTo(encode)
 		}

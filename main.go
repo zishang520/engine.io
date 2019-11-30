@@ -26,7 +26,7 @@ func main() {
 		Data: strings.NewReader(``),
 	}, true, true)
 	fmt.Println(err)
-	dbufsss, err := parser.DecodePacket(bytes.NewBuffer([]byte{0x31, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}), false)
+	dbufsss, err := parser.DecodePacket(bytes.NewBuffer([]byte{0x31, 0x31, 1, 2, 3, 4, 5, 6, 7, 8, 9}), false)
 	fmt.Println(err)
 	dbufsssu, err := parser.DecodePacket(strings.NewReader(`2[]byte{0, 1ä½ å¥½å, 2, 3, 4, 5, 6, 7, 8, 9}`), true)
 	fmt.Println(err)

@@ -60,24 +60,24 @@ func Utf8decodeString(byteString string, opts *Opts) string {
 	return buf.String()
 }
 
-func Utf8decodeBytes(dst, src []byte, opts *Opts) (int, error) {
+func Utf8decodeBytes(dst, src []byte, opts *Opts) (ndst, nsrc int, err error) {
 	if opts == nil {
 		opts = &Opts{false}
 	}
 	buf := bytes.NewReader(src)
-	i := 0
 	for buf.Len() > 0 {
-		r, _, e := buf.ReadRune()
+		r, l, e := buf.ReadRune()
 		if e != nil && e != io.EOF {
-			return i, e
+			return ndst, nsrc, e
 		}
 		if !checkScalarValue(r, opts.Strict) {
 			r = 0xFFFD
 		}
-		dst[i] = byte(r)
-		i++
+		dst[ndst] = byte(r)
+		nsrc += l
+		ndst++
 	}
-	return i, nil
+	return
 }
 
 func checkScalarValue(codePoint rune, strict bool) bool {
@@ -120,45 +120,60 @@ func (e *utf8encoder) Write(p []byte) (n int, err error) {
 	return n, e.err
 }
 
-type utf8decoder struct {
-	opts    *Opts
-	r       io.Reader
-	err     error
-	readErr error // error from r.Read
-	nbuf    int
-	out     []byte           // leftover decoded output
-	buf     [bufferSize]byte // backing array for in
-}
-
-// NewDecoder returns an io.Reader that decodes hexadecimal characters from r.
-// NewDecoder expects that r contain only an even number of hexadecimal characters.
 func NewUtf8Decoder(opts *Opts, r io.Reader) io.Reader {
 	return &utf8decoder{opts: opts, r: r}
 }
 
+type utf8decoder struct {
+	opts    *Opts
+	err     error
+	readErr error
+	r       io.Reader
+	buf     [bufferSize]byte // leftover input
+	nbuf    int
+	out     []byte // leftover decoded output
+	outbuf  [bufferSize]byte
+}
+
 func (d *utf8decoder) Read(p []byte) (n int, err error) {
-	// Use leftover decoded output from last read.
-	if len(d.out) > 0 {
-		n = copy(p, d.out)
-		d.out = d.out[n:]
-		return n, nil
+	if len(p) == 0 {
+		return 0, nil
 	}
 
 	if d.err != nil {
 		return 0, d.err
 	}
 
-	// Refill buffer.
-	for d.readErr == nil {
-		nn := len(p)
-		if nn > len(d.buf) {
-			nn = len(d.buf)
+	for {
+		// Copy leftover output from last decode.
+		if len(d.out) > 0 {
+			n = copy(p, d.out)
+			d.out = d.out[n:]
+			return
 		}
-		nn, d.readErr = d.r.Read(d.buf[d.nbuf:nn])
+
+		// Decode leftover input from last read.
+		var nn, nsrc, ndst int
+		if d.nbuf > 0 {
+			ndst, nsrc, d.err = Utf8decodeBytes(d.outbuf[0:], d.buf[0:d.nbuf], d.opts)
+			if ndst > 0 {
+				d.out = d.outbuf[0:ndst]
+				d.nbuf = copy(d.buf[0:], d.buf[nsrc:d.nbuf])
+				continue // copy out and return
+			}
+		}
+
+		// Out of input, out of decoded output. Check errors.
+		if d.err != nil {
+			return 0, d.err
+		}
+		if d.readErr != nil {
+			d.err = d.readErr
+			return 0, d.err
+		}
+
+		// Read more data.
+		nn, d.readErr = d.r.Read(d.buf[d.nbuf:])
 		d.nbuf += nn
 	}
-
-	n, d.err = Utf8decodeBytes(p, d.buf[:d.nbuf], d.opts)
-
-	return n, d.err
 }

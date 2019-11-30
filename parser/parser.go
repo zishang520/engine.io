@@ -149,17 +149,7 @@ func DecodePacket(data io.Reader, utf8decode bool) (*types.Packet, error) {
 			Data: decode,
 		}, nil
 	default:
-		return errPacket, errors.New(`unknown data type`)
 	}
 
 	return errPacket, errors.New(`parser error`)
 }
-
-// func tryDecode(data ) {
-//   try {
-//     data = utf8.decode(data, { strict: false });
-//   } catch (e) {
-//     return false;
-//   }
-//   return data;
-// }

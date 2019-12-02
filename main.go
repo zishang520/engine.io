@@ -26,5 +26,5 @@ func main() {
 	}, true)
 	fmt.Println(err)
 	fmt.Println(hex.EncodeToString(buf.Bytes()))
-	// fmt.Println(buf.String())
+	fmt.Println(buf.String())
 }

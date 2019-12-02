@@ -7,7 +7,6 @@ import (
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/types"
 	"io"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -22,15 +21,15 @@ const Protocol = 3
  */
 var (
 	packets map[string]byte = map[string]byte{
-		"open":    0x30, // non-ws
-		"close":   0x31, // non-ws
-		"ping":    0x32,
-		"pong":    0x33,
-		"message": 0x34,
-		"upgrade": 0x35,
-		"noop":    0x36,
+		"open":    '0', // non-ws
+		"close":   '1', // non-ws
+		"ping":    '2',
+		"pong":    '3',
+		"message": '4',
+		"upgrade": '5',
+		"noop":    '6',
 	}
-	packetslist map[byte]string = map[byte]string{0x30: "open", 0x31: "close", 0x32: "ping", 0x33: "pong", 0x34: "message", 0x35: "upgrade", 0x36: "noop"}
+	packetslist map[byte]string = map[byte]string{'0': "open", '1': "close", '2': "ping", '3': "pong", '4': "message", '5': "upgrade", '6': "noop"}
 
 	EMPTY_BUFFER *bytes.Buffer = bytes.NewBuffer(nil)
 
@@ -76,7 +75,7 @@ func EncodePacket(packet *types.Packet, supportsBinary bool, utf8encode bool) (*
 
 			v.WriteTo(b64)
 		} else {
-			encode.WriteByte(packets[packet.Type])
+			encode.WriteByte(packets[packet.Type] - '0')
 			v.WriteTo(encode)
 		}
 	case nil:
@@ -103,7 +102,7 @@ func DecodePacket(data io.Reader, utf8decode bool) (*types.Packet, error) {
 		defer c.Close()
 	}
 
-	msgType := []byte{0XFF}
+	msgType := []byte{0xFF}
 	if _, err := data.Read(msgType); err != nil {
 		return errPacket, err
 	}
@@ -159,7 +158,7 @@ func hasBinary(packets []*types.Packet) bool {
 		return false
 	}
 	for _, packet := range packets {
-		switch v := packet.Data.(type) {
+		switch packet.Data.(type) {
 		case *strings.Reader:
 		case io.WriterTo:
 			return true
@@ -187,7 +186,7 @@ func hasBinary(packets []*types.Packet) bool {
  * @api private
  */
 
-func EncodePayload(packets []*types.Packet, supportsBinary bool) (io.Reader, error) {
+func EncodePayload(packets []*types.Packet, supportsBinary bool) (*bytes.Buffer, error) {
 	if supportsBinary && hasBinary(packets) {
 		return EncodePayloadAsBinary(packets)
 	}
@@ -210,24 +209,42 @@ func EncodePayload(packets []*types.Packet, supportsBinary bool) (io.Reader, err
 	return enPayload, nil
 }
 
-func encodeOneBinaryPacket(p, doneCallback) {
+func encodeOneBinaryPacket(packet *types.Packet) (*bytes.Buffer, error) {
+	binarypacket := bytes.NewBuffer(nil)
 
 	buf, err := EncodePacket(packet, true, true)
-	encodingLength := fmt.Sprintf(`%d`, packet.Len())
-	sizeBuffer := make([]byte, len(encodingLength)+2)
-	sizeBuffer[0] = 1 // is binary (true binary = 1)
-	for i = 0; i < len(sizeBuffer); i++ {
-		n, _ := strconv.ParseUint(encodingLength[i], 10, 8)
-		sizeBuffer[i+1] = byte(n)
+	if err != nil {
+		return binarypacket, err
 	}
-	sizeBuffer[len(sizeBuffer)-1] = 255
+	switch packet.Data.(type) {
+	case *strings.Reader:
+		encodingLength := fmt.Sprintf(`%d`, utf8.RuneCount(buf.Bytes()))
+		binarypacket.WriteByte(0)
+		for i := 0; i < len(encodingLength); i++ {
+			binarypacket.WriteByte(encodingLength[i] - '0')
+		}
+		binarypacket.WriteByte(0xFF)
+		for buf.Len() > 0 {
+			r, _, e := buf.ReadRune()
+			if e != nil && e != io.EOF {
+				return binarypacket, e
+			}
+			binarypacket.WriteByte(byte(r))
+		}
+	default:
+		encodingLength := fmt.Sprintf(`%d`, buf.Len())
+		binarypacket.WriteByte(1) // is binary (true binary = 1)
+		for i := 0; i < len(encodingLength); i++ {
+			binarypacket.WriteByte(encodingLength[i] - '0')
+		}
+		binarypacket.WriteByte(0xFF)
+		binarypacket.ReadFrom(buf)
+	}
 
-	// doneCallback(null, Buffer.concat([sizeBuffer, packet]));
-	// }
-
+	return binarypacket, nil
 }
 
-func EncodePayloadAsBinary(packets []*types.Packet) (io.Reader, error) {
+func EncodePayloadAsBinary(packets []*types.Packet) (*bytes.Buffer, error) {
 	if len(packets) == 0 {
 		return EMPTY_BUFFER, nil
 	}
@@ -237,7 +254,7 @@ func EncodePayloadAsBinary(packets []*types.Packet) (io.Reader, error) {
 		if buf, err := encodeOneBinaryPacket(packet); err != nil {
 			return enPayload, err
 		} else {
-			enPayload.WriteString(fmt.Sprintf(`%d:%s`, utf8.RuneCount(buf.Bytes()), buf.String()))
+			enPayload.ReadFrom(buf)
 		}
 	}
 

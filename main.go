@@ -9,26 +9,33 @@ import (
 )
 
 func main() {
-	buf, err := parser.EncodePacket(&types.Packet{
-		Type: "ping",
-		Data: bytes.NewBuffer([]byte(`[]byte{0, 1你好呀, 2, 3, 4, 5, 6, 7, 8, 9}b2W11ieXRlezAsIDHkvaDlpb3lkYAsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDl9`)),
-	}, false, false)
+	buf, err := parser.EncodePayload([]*types.Packet{
+		&types.Packet{
+			Type: "ping",
+			Data: strings.NewReader(`[]byte{0, 1你好呀, 2, 3, 4, 5, 6, 7, 8, 9}b2W11ieXRlezAsIDHkvaDlpb3lkYAsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDl9`),
+		},
+		&types.Packet{
+			Type: "close",
+			Data: strings.NewReader(`[]byte{0, 1你好呀, 2, 3, 4, 5, 6, 7, 8, 9}b2W11ieXRlezAsIDHkvaDlpb3lkYAsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDl9`),
+		},
+		&types.Packet{
+			Type: "noop",
+			Data: strings.NewReader(`[]byte{0, 1你好呀, 8, 9}b2W11ieXRlezAsIDHkvaDlpb3lkYAsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDl9`),
+		},
+	}, false)
 	bufs, err := parser.EncodePacket(&types.Packet{
 		Type: "ping",
 		Data: bytes.NewBuffer([]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}),
 	}, true, false)
 	bufss, err := parser.EncodePacket(&types.Packet{
-		Type: "ping",
-		Data: strings.NewReader(`[]byte{0, 1你好呀, 2, 3, 4, 5, 6, 7, 8, 9}1你好呀1你好呀1你好呀1你好呀`),
+		Type: "close",
 	}, true, true)
 	bufsss, err := parser.EncodePacket(&types.Packet{
 		Type: "pong",
-		Data: strings.NewReader(``),
+		Data: strings.NewReader(string([]rune{0x31, 0x31, 0xF800, 2, 3, 4, 5, 6, 7, 8, 9})),
 	}, true, true)
-	fmt.Println(err)
 	dbufsss, err := parser.DecodePacket(strings.NewReader(string([]rune{0x31, 0x31, 0xF800, 2, 3, 4, 5, 6, 7, 8, 9})), false)
-	fmt.Println(err)
-	dbufsssu, err := parser.DecodePacket(strings.NewReader(`1`), true)
+	dbufsssu, err := parser.DecodePacket(strings.NewReader(`b3`), true)
 	fmt.Println(err)
 	fmt.Println(buf)
 	fmt.Println(bufs)

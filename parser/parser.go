@@ -182,8 +182,8 @@ func hasBinary(packets []*types.Packet) bool {
  * If any contents are binary, they will be encoded as base64 strings. Base64
  * encoded strings are marked with a b before the length specifier
  *
- * @param {Array} packets
- * @api private
+ * @param {slice} packets
+ * @api public
  */
 
 func EncodePayload(packets []*types.Packet, supportsBinary bool) (*bytes.Buffer, error) {

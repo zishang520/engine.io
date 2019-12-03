@@ -12,7 +12,7 @@ import (
 	"unicode/utf8"
 )
 
-type PayloadCall func(*types.Packet, int, int) bool
+type Callback func(*types.Packet, int, int) bool
 
 /**
  * Current protocol version.
@@ -97,7 +97,7 @@ func EncodePacket(packet *types.Packet, supportsBinary bool, utf8encode bool) (*
 
 func DecodePacket(data io.Reader, utf8decode bool) (*types.Packet, error) {
 	if data == nil {
-		return errPacket, nil
+		return errPacket, errors.New(`parser error`)
 	}
 	if c, ok := data.(io.Closer); ok {
 		defer c.Close()
@@ -255,22 +255,22 @@ func EncodePayloadAsBinary(packets []*types.Packet) (*bytes.Buffer, error) {
 	return enPayload, nil
 }
 
-func DecodePayload(data *bufio.Reader, callback PayloadCall) bool {
+func DecodePayload(data io.Reader, callback Callback) bool {
 	switch v := data.(type) {
 	case *strings.Reader:
 		str := bytes.NewBuffer(nil)
 		v.WriteTo(str)
 		l := utf8.RuneCount(str.Bytes())
-		n := 0
-		for str.Len() > 0 {
+		for n := 0; str.Len() > 0; {
 			length, err := str.ReadString(':')
 			if err != nil {
 				return callback(errPacket, 0, 1)
 			}
-			if len(length) < 1 {
+			_l := len(length)
+			if _l < 1 {
 				return callback(errPacket, 0, 1)
 			}
-			packetLen, err := strconv.ParseInt(length, 10, 64)
+			packetLen, err := strconv.ParseInt(length[:_l-1], 10, 64)
 			if err != nil {
 				return callback(errPacket, 0, 1)
 			}
@@ -286,21 +286,55 @@ func DecodePayload(data *bufio.Reader, callback PayloadCall) bool {
 			}
 
 			if msg.Len() > 0 {
-				packet := DecodePacket(msg, false)
-				if errPacket.Type == packet.Type {
+				packet, err := DecodePacket(msg, false)
+				if err != nil {
 					// parser error in individual packet - ignoring payload
-					return callback(err, 0, 1)
+					return callback(errPacket, 0, 1)
 				}
-				if more := callback(packet, n+PACKETLEN, l); false == more {
+				if more := callback(packet, n+PACKETLEN+_l-1, l); false == more {
 					return more
 				}
 			}
 
-			n += PACKETLEN
+			n += PACKETLEN + _l
 		}
 	default:
-		return DecodePayloadAsBinary(data)
+		return DecodePayloadAsBinary(data, callback)
 	}
 
+	return true
+}
+
+func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 	return callback(errPacket, 0, 1)
+	// var bufferTail = data;
+	// var buffers = [];
+	// var i;
+
+	// while (bufferTail.length > 0) {
+	//     var strLen = '';
+	//     var isString = bufferTail[0] === 0;
+	//     for (i = 1;; i++) {
+	//         if (bufferTail[i] === 255) break;
+	//         // 310 = char length of Number.MAX_VALUE
+	//         if (strLen.length > 310) {
+	// 	return callback(errPacket, 0, 1)
+	//         }
+	//         strLen += '' + bufferTail[i];
+	//     }
+	//     bufferTail = bufferTail.slice(strLen.length + 1);
+
+	//     var msgLength = parseInt(strLen, 10);
+
+	//     var msg = bufferTail.slice(1, msgLength + 1);
+	//     if (isString) msg = bufferToString(msg);
+	//     buffers.push(msg);
+	//     bufferTail = bufferTail.slice(msgLength + 1);
+	// }
+
+	// var total = buffers.length;
+	// for (i = 0; i < total; i++) {
+	//     var buffer = buffers[i];
+	//     callback(exports.decodePacket(buffer, binaryType, true), i, total);
+	// }
 }

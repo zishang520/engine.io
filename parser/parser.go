@@ -216,7 +216,7 @@ func encodeOneBinaryPacket(packet *types.Packet) (*bytes.Buffer, error) {
 	if err != nil {
 		return binarypacket, err
 	}
-	switch v := packet.Data.(type) {
+	switch packet.Data.(type) {
 	case *strings.Reader:
 		encodingLength := fmt.Sprintf(`%d`, utf8.RuneCount(buf.Bytes()))
 		binarypacket.WriteByte(0)
@@ -224,7 +224,7 @@ func encodeOneBinaryPacket(packet *types.Packet) (*bytes.Buffer, error) {
 			binarypacket.WriteByte(encodingLength[i] - '0')
 		}
 		binarypacket.WriteByte(0xFF)
-		v.WriteTo(NewUtf8Encoder(&Opts{Strict: false}, binarypacket))
+		buf.WriteTo(NewUtf8Encoder(&Opts{Strict: false}, binarypacket))
 	default:
 		encodingLength := fmt.Sprintf(`%d`, buf.Len())
 		binarypacket.WriteByte(1) // is binary (true binary = 1)
@@ -260,8 +260,7 @@ func DecodePayload(data io.Reader, callback Callback) bool {
 	case *strings.Reader:
 		str := bytes.NewBuffer(nil)
 		v.WriteTo(str)
-		l := utf8.RuneCount(str.Bytes())
-		for n := 0; str.Len() > 0; {
+		for n, l := 0, utf8.RuneCount(str.Bytes()); str.Len() > 0; {
 			length, err := str.ReadString(':')
 			if err != nil {
 				return callback(errPacket, 0, 1)
@@ -286,7 +285,7 @@ func DecodePayload(data io.Reader, callback Callback) bool {
 			}
 
 			if msg.Len() > 0 {
-				packet, err := DecodePacket(msg, false)
+				packet, err := DecodePacket(strings.NewReader(msg.String()), false)
 				if err != nil {
 					// parser error in individual packet - ignoring payload
 					return callback(errPacket, 0, 1)
@@ -306,35 +305,70 @@ func DecodePayload(data io.Reader, callback Callback) bool {
 }
 
 func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
-	return callback(errPacket, 0, 1)
-	// var bufferTail = data;
-	// var buffers = [];
-	// var i;
+	bufferTail := bytes.NewBuffer(nil)
+	bufferTail.ReadFrom(data)
 
-	// while (bufferTail.length > 0) {
-	//     var strLen = '';
-	//     var isString = bufferTail[0] === 0;
-	//     for (i = 1;; i++) {
-	//         if (bufferTail[i] === 255) break;
-	//         // 310 = char length of Number.MAX_VALUE
-	//         if (strLen.length > 310) {
-	// 	return callback(errPacket, 0, 1)
-	//         }
-	//         strLen += '' + bufferTail[i];
-	//     }
-	//     bufferTail = bufferTail.slice(strLen.length + 1);
+	buffers := []io.Reader{}
 
-	//     var msgLength = parseInt(strLen, 10);
+	for bufferTail.Len() > 0 {
+		startByte, err := bufferTail.ReadByte()
+		if err != nil {
+			// parser error in individual packet - ignoring payload
+			return callback(errPacket, 0, 1)
+		}
+		isString := startByte == 0x00
+		length, err := bufferTail.ReadBytes(0xFF)
+		if err != nil {
+			return callback(errPacket, 0, 1)
+		}
+		_l := len(length)
+		if _l < 1 {
+			return callback(errPacket, 0, 1)
+		}
+		lenByte := length[:_l-1]
+		for k, l := 0, len(lenByte); k < l; k++ {
+			lenByte[k] = lenByte[k] + '0'
+		}
+		packetLen, err := strconv.ParseInt(string(lenByte), 10, 64)
+		if err != nil {
+			return callback(errPacket, 0, 1)
+		}
+		PACKETLEN := int(packetLen)
 
-	//     var msg = bufferTail.slice(1, msgLength + 1);
-	//     if (isString) msg = bufferToString(msg);
-	//     buffers.push(msg);
-	//     bufferTail = bufferTail.slice(msgLength + 1);
-	// }
+		msg := bytes.NewBuffer(nil)
+		if isString {
+			for i := 0; i < PACKETLEN; i++ {
+				r, _, e := bufferTail.ReadRune()
+				if e != nil {
+					return callback(errPacket, 0, 1)
+				}
+				msg.WriteRune(r)
+			}
+		} else {
+			buf := make([]byte, PACKETLEN)
+			if _, err := bufferTail.Read(buf); err != nil {
+				return callback(errPacket, 0, 1)
+			}
+			msg.Write(buf)
+		}
 
-	// var total = buffers.length;
-	// for (i = 0; i < total; i++) {
-	//     var buffer = buffers[i];
-	//     callback(exports.decodePacket(buffer, binaryType, true), i, total);
-	// }
+		if msg.Len() > 0 {
+			if isString {
+				buffers = append(buffers, NewUtf8Decoder(&Opts{Strict: false}, msg))
+			} else {
+				buffers = append(buffers, msg)
+			}
+		}
+	}
+	for k, bl := 0, len(buffers); k < bl; k++ {
+		packet, err := DecodePacket(buffers[k], false)
+		if err != nil {
+			// parser error in individual packet - ignoring payload
+			return callback(errPacket, 0, 1)
+		}
+		if more := callback(packet, k, bl); false == more {
+			return more
+		}
+	}
+	return true
 }

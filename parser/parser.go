@@ -139,9 +139,9 @@ func DecodePacket(data io.Reader, utf8decode bool) (*types.Packet, error) {
 			Data: decode,
 		}, nil
 	default:
-		packetType, ok := packetslist[msgType[0]]
+		packetType, ok := packetslist[msgType[0]+'0']
 		if !ok {
-			return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
+			return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]+'0'))
 		}
 		decode.ReadFrom(v)
 		return &types.Packet{
@@ -309,7 +309,6 @@ func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 	bufferTail.ReadFrom(data)
 
 	buffers := []io.Reader{}
-
 	for bufferTail.Len() > 0 {
 		startByte, err := bufferTail.ReadByte()
 		if err != nil {
@@ -334,32 +333,26 @@ func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 			return callback(errPacket, 0, 1)
 		}
 		PACKETLEN := int(packetLen)
-
-		msg := bytes.NewBuffer(nil)
 		if isString {
-			for i := 0; i < PACKETLEN; i++ {
-				r, _, e := bufferTail.ReadRune()
-				if e != nil {
-					return callback(errPacket, 0, 1)
-				}
-				msg.WriteRune(r)
-			}
-		} else {
-			buf := make([]byte, PACKETLEN)
-			if _, err := bufferTail.Read(buf); err != nil {
+			buf := make([]byte, bufferTail.Len())
+			if _, _, err := Utf8decodeBytes(buf, bufferTail.Bytes(), &Opts{Strict: false}); err != nil {
 				return callback(errPacket, 0, 1)
 			}
-			msg.Write(buf)
-		}
-
-		if msg.Len() > 0 {
-			if isString {
-				buffers = append(buffers, NewUtf8Decoder(&Opts{Strict: false}, msg))
-			} else {
+			msgByte := bytes.NewBuffer(nil)
+			strings.NewReader(string(bytes.Runes(buf)[0:PACKETLEN])).WriteTo(NewUtf8Encoder(&Opts{Strict: false}, msgByte))
+			msg := bytes.NewBuffer(nil)
+			msg.ReadFrom(NewUtf8Decoder(&Opts{Strict: false}, NewUtf8Decoder(&Opts{Strict: false}, bytes.NewBuffer(bufferTail.Next(msgByte.Len())))))
+			if msg.Len() > 0 {
+				buffers = append(buffers, strings.NewReader(msg.String()))
+			}
+		} else {
+			msg := bytes.NewBuffer(bufferTail.Next(PACKETLEN))
+			if msg.Len() > 0 {
 				buffers = append(buffers, msg)
 			}
 		}
 	}
+
 	for k, bl := 0, len(buffers); k < bl; k++ {
 		packet, err := DecodePacket(buffers[k], false)
 		if err != nil {

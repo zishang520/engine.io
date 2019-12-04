@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 )
 
 func main() {
@@ -33,7 +34,7 @@ func main() {
 	}, false)
 	fmt.Println(buf)
 	fmt.Println(err)
-
+	fmt.Println(utf8.ValidString(buf.String()))
 	boolss := parser.DecodePayload(strings.NewReader(`35:2102:2[]byte{0, 1你好呀, 2, 3, 4, 5, 658:b1MTAyOjJbXWJ5dGV7MCwgMeS9oOWlveWRgCwgMiwgMywgNCwgNSwgNg==35:6102:2[]byte{0, 1你好呀, 2, 3, 4, 5, 635:6102:2[]byte{0, 1你好呀, 2, 3, 4, 5, 6`), func(a *types.Packet, b int, c int) bool {
 		fmt.Println(a)
 		fmt.Println(b)

@@ -14,13 +14,13 @@ import (
 
 func main() {
 	buf, err := parser.EncodePayload([]*types.Packet{
-		// &types.Packet{
-		// 	Type: "ping",
-		// 	Data: strings.NewReader(`102:2[]byte{0, 1你好呀, 2, 3, 4, 5, 6`),
-		// },
+		&types.Packet{
+			Type: "ping",
+			Data: strings.NewReader(`102:2[]byte{0, 1你好呀, 2, 3, 4, 5, 6`),
+		},
 		&types.Packet{
 			Type: "close",
-			Data: bytes.NewReader([]byte(``)),
+			Data: bytes.NewReader([]byte(`xxxxxxx`)),
 		},
 		&types.Packet{
 			Type: "noop",
@@ -30,7 +30,7 @@ func main() {
 			Type: "noop",
 			Data: strings.NewReader(``),
 		},
-	}, true)
+	}, false)
 	fmt.Println(buf)
 	fmt.Println(err)
 
@@ -42,7 +42,7 @@ func main() {
 	})
 	fmt.Println(boolss)
 
-	bools := parser.DecodePayload(buf, func(a *types.Packet, b int, c int) bool {
+	bools := parser.DecodePayload(strings.NewReader(buf.String()), func(a *types.Packet, b int, c int) bool {
 		fmt.Println(a)
 		fmt.Println(b)
 		fmt.Println(c)

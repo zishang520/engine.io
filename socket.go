@@ -2,7 +2,7 @@ package engineio
 
 import (
 	"encoding/json"
-	events "github.com/kataras/go-events"
+	"github.com/zishang520/engine.io/events"
 )
 
 type socket struct {

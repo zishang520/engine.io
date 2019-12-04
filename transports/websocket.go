@@ -1,6 +1,7 @@
 package transports
 
 type WebSocket struct {
+	*Transport
 	Name            string
 	HandlesUpgrades bool
 	SupportsFraming bool
@@ -8,9 +9,8 @@ type WebSocket struct {
 
 func NewWebSocket(req) {
 
-	this := &WebSocket{}
+	this := &WebSocket{NewTransport(req)}
 
-	Transport.call(this, req)
 	onHeaders := func(headers) {
 		self.emit(`headers`, headers)
 	}

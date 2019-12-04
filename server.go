@@ -1,7 +1,7 @@
 package engineio
 
 import (
-	events "github.com/kataras/go-events"
+	"github.com/zishang520/engine.io/events"
 )
 
 type Server struct {

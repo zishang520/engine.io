@@ -1,6 +1,7 @@
 package transports
 
 type XHR struct {
+	*Polling
 }
 
 /**
@@ -9,7 +10,8 @@ type XHR struct {
  * @api public
  */
 
-func NewXHR(req) {
+func NewXHR(req) *XHR {
+	return &XHR{NewPolling(req)}
 	// Polling.call(this, req);
 }
 

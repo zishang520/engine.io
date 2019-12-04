@@ -17,7 +17,7 @@ func main() {
 	buf, err := parser.EncodePayload([]*types.Packet{
 		&types.Packet{
 			Type: "ping",
-			Data: strings.NewReader(`102:2[]byte{0, 1你好呀, 2, 3, 4, 5, 6`),
+			Data: strings.NewReader(`, 1Ã¤Â½Â Ã¥Â¥Â½Ã¥ÂÂ, 2, 3, 4,102:2[]byte{0, 1Ã¤Â½Â Ã¥Â¥Â½Ã¥ÂÂ, 2, 3, 4,, 1你好呀, 2, 3, 4, 5, 6`),
 		},
 		&types.Packet{
 			Type: "close",
@@ -25,16 +25,16 @@ func main() {
 		},
 		&types.Packet{
 			Type: "noop",
-			Data: strings.NewReader(``),
+			Data: strings.NewReader(`, 1Ã¤Â½Â Ã¥Â¥Â½Ã¥ÂÂ, 2, 3, 4,`),
 		},
 		&types.Packet{
 			Type: "noop",
-			Data: strings.NewReader(``),
+			Data: strings.NewReader(`, 1Ã¤Â½Â Ã¥Â¥Â½Ã¥ÂÂ, 2, 3, 4,`),
 		},
 	}, false)
 	fmt.Println(buf)
 	fmt.Println(err)
-	fmt.Println(utf8.ValidString(buf.String()))
+	fmt.Println(utf8.Valid(buf.Bytes()))
 	boolss := parser.DecodePayload(strings.NewReader(`35:2102:2[]byte{0, 1你好呀, 2, 3, 4, 5, 658:b1MTAyOjJbXWJ5dGV7MCwgMeS9oOWlveWRgCwgMiwgMywgNCwgNSwgNg==35:6102:2[]byte{0, 1你好呀, 2, 3, 4, 5, 635:6102:2[]byte{0, 1你好呀, 2, 3, 4, 5, 6`), func(a *types.Packet, b int, c int) bool {
 		fmt.Println(a)
 		fmt.Println(b)

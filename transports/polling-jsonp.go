@@ -1,10 +1,11 @@
 package transports
 
 type JSONP struct {
+	*Polling
 }
 
 func NewJSONP(res) *JSONP {
-	this := &JSONP{}
+	this := &JSONP{NewPolling(req)}
 
 	this.head = `___eio[` + /* (req._query.j || ``).replace(/[^0-9]/g, ``)*/ +`](`
 	this.foot = `);`

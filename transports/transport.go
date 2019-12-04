@@ -28,9 +28,9 @@ func NewTransport(req) *Transport {
 /**
  * Flags the transport as discarded.
  *
- * @api private
+ * @api public
  */
-func (this *Transport) discard() {
+func (this *Transport) Discard() {
 	this.discarded = true
 }
 
@@ -38,10 +38,10 @@ func (this *Transport) discard() {
  * Called with an incoming HTTP request.
  *
  * @param {http.IncomingMessage} request
- * @api private
+ * @api public
  */
 
-func (this *Transport) onRequest(req) {
+func (this *Transport) OnRequest(req) {
 	// debug(`setting request`);
 	this.req = req
 }
@@ -49,10 +49,10 @@ func (this *Transport) onRequest(req) {
 /**
  * Closes the transport.
  *
- * @api private
+ * @api public
  */
 
-func (this *Transport) close(fn) {
+func (this *Transport) Close(fn) {
 	if `closed` == this.readyState || `closing` == this.readyState {
 		return
 	}
@@ -66,10 +66,10 @@ func (this *Transport) close(fn) {
  *
  * @param {String} message error
  * @param {Object} error description
- * @api private
+ * @api public
  */
 
-func (this *Transport) onError(msg string) {
+func (this *Transport) OnError(msg string) {
 	if len(this.EventEmitter.Listeners(`error`)) > 0 {
 		// err.type = `TransportError`;
 		// err.description = desc;
@@ -83,10 +83,10 @@ func (this *Transport) onError(msg string) {
  * Called with parsed out a packets from the data stream.
  *
  * @param {Object} packet
- * @api private
+ * @api public
  */
 
-func (this *Transport) onPacket(packet *types.Packet) {
+func (this *Transport) OnPacket(packet *types.Packet) {
 	this.EventEmitter.Emit(`packet`, packet)
 }
 
@@ -94,20 +94,20 @@ func (this *Transport) onPacket(packet *types.Packet) {
  * Called with the encoded packet data.
  *
  * @param {String} data
- * @api private
+ * @api public
  */
 
-func (this *Transport) onData(data io.Reader) {
+func (this *Transport) OnData(data io.Reader) {
 	this.onPacket(parser.DecodePacket(data))
 }
 
 /**
  * Called upon transport close.
  *
- * @api private
+ * @api public
  */
 
-func (this *Transport) onClose() {
+func (this *Transport) OnClose() {
 	this.readyState = `closed`
 	this.EventEmitter.Emit(`close`)
 }

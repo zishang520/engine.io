@@ -12,7 +12,7 @@ func NewWebSocket(req) {
 	this := &WebSocket{NewTransport(req)}
 
 	onHeaders := func(headers) {
-		self.emit(`headers`, headers)
+		this.EventEmitter.emit(`headers`, headers)
 	}
 	this.socket = req.websocket
 	this.socket.on(`message`, this.onData.bind(this))
@@ -53,29 +53,29 @@ func NewWebSocket(req) {
  * Processes the incoming data.
  *
  * @param {String} encoded packet
- * @api private
+ * @api public
  */
 
-func (this *WebSocket) onData(data) {
+func (this *WebSocket) OnData(data) {
 	debug(`received "%s"`, data)
-	Transport.prototype.onData.call(this, data)
+	this.Transport.OnData(data)
 }
 
 /**
  * Writes a packet payload.
  *
  * @param {Array} packets
- * @api private
+ * @api public
  */
 
-func (this *WebSocket) send(packets []Packet) {
+func (this *WebSocket) Send(packets []Packet) {
 
 	onEnd := func(err) {
 		if err {
-			return this.onError(`write error`, err.stack)
+			return this.OnError(`write error`)
 		}
 		this.writable = true
-		this.emit(`drain`)
+		this.EventEmitter.Emit(`drain`)
 	}
 	send := func(data) {
 		debug(`writing "%s"`, data)
@@ -105,7 +105,7 @@ func (this *WebSocket) send(packets []Packet) {
 /**
  * Closes the transport.
  *
- * @api private
+ * @api public
  */
 
 func (this *WebSocket) doClose(fn) {

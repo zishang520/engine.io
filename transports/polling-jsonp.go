@@ -17,9 +17,9 @@ func NewJSONP(res) *JSONP {
  * Handles incoming data.
  * Due to a bug in \n handling by browsers, we expect a escaped string.
  *
- * @api private
+ * @api public
  */
-func (this *JSONP) onData(data) {
+func (this *JSONP) OnData(data) {
 	// we leverage the qs module so that we get built-in DoS protection
 	// and the fast alternative to decodeURIComponent
 	data = qs.parse(data).d
@@ -36,10 +36,10 @@ func (this *JSONP) onData(data) {
 /**
  * Performs the write.
  *
- * @api private
+ * @api public
  */
 
-func (this *JSONP) doWrite(data, options, callback) {
+func (this *JSONP) DoWrite(data, options, callback) {
 	// we must output valid javascript, not valid json
 	// see: http://timelessrepo.com/json-isnt-a-javascript-subset
 	// var js = JSON.stringify(data)

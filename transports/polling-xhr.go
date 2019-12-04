@@ -19,10 +19,10 @@ func NewXHR(req) *XHR {
  * Overrides `onRequest` to handle `OPTIONS`..
  *
  * @param {http.IncomingMessage}
- * @api private
+ * @api public
  */
 
-func (this *XHR) onRequest(req) {
+func (this *XHR) OnRequest(req) {
 	if `OPTIONS` == req.method {
 		res := req.res
 		headers := this.headers(req)
@@ -30,7 +30,7 @@ func (this *XHR) onRequest(req) {
 		res.writeHead(200, headers)
 		res.end()
 	} else {
-		Polling.prototype.onRequest.call(this, req)
+		this.Polling.OnRequest(req)
 	}
 }
 
@@ -39,10 +39,10 @@ func (this *XHR) onRequest(req) {
  *
  * @param {http.IncomingMessage} request
  * @param {Object} extra headers
- * @api private
+ * @api public
  */
 
-func (this *XHR) headers(req, headers) {
+func (this *XHR) Headers(req, headers) {
 	if req.headers.origin {
 		headers[`Access-Control-Allow-Credentials`] = `true`
 		headers[`Access-Control-Allow-Origin`] = req.headers.origin
@@ -50,5 +50,5 @@ func (this *XHR) headers(req, headers) {
 		headers[`Access-Control-Allow-Origin`] = `*`
 	}
 
-	return Polling.prototype.headers.call(this, req, headers)
+	return this.Polling.Headers(req, headers)
 }

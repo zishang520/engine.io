@@ -25,16 +25,16 @@ func NewPolling(req) *Polling {
  * Overrides onRequest.
  *
  * @param {http.IncomingMessage}
- * @api private
+ * @api public
  */
 
-func (this *Polling) onRequest(req) {
+func (this *Polling) OnRequest(req) {
 	var res = req.res
 
 	if `GET` == req.method {
-		this.onPollRequest(req, res)
+		this.OnPollRequest(req, res)
 	} else if `POST` == req.method {
-		this.onDataRequest(req, res)
+		this.OnDataRequest(req, res)
 	} else {
 		res.writeHead(500)
 		res.end()
@@ -44,12 +44,12 @@ func (this *Polling) onRequest(req) {
 /**
  * The client sends a request awaiting for us to send data.
  *
- * @api private
+ * @api public
  */
 
-func (this *Polling) onPollRequest(req, res) {
+func (this *Polling) OnPollRequest(req, res) {
 	if this.req {
-		debug(`request overlap`)
+		// debug(`request overlap`)
 		// assert: this.res, `.req and .res should be (un)set together`
 		this.onError(`overlap from client`)
 		res.writeHead(500)
@@ -57,7 +57,7 @@ func (this *Polling) onPollRequest(req, res) {
 		return
 	}
 
-	debug(`setting request`)
+	// debug(`setting request`)
 
 	this.req = req
 	this.res = res
@@ -87,10 +87,10 @@ func (this *Polling) onPollRequest(req, res) {
 /**
  * The client sends a request with data.
  *
- * @api private
+ * @api public
  */
 
-func (this *Polling) onDataRequest(req, res) {
+func (this *Polling) OnDataRequest(req, res) {
 	if this.dataReq {
 		// assert: this.dataRes, `.dataReq and .dataRes should be (un)set together`
 		this.onError(`data request overlap from client`)
@@ -161,10 +161,10 @@ func (this *Polling) onDataRequest(req, res) {
  * Processes the incoming data payload.
  *
  * @param {String} encoded payload
- * @api private
+ * @api public
  */
 
-func (this *Polling) onData(data) {
+func (this *Polling) OnData(data) {
 	debug(`received "%s"`, data)
 	callback := func(packet) {
 		if `close` == packet.Type {
@@ -182,10 +182,10 @@ func (this *Polling) onData(data) {
 /**
  * Overrides onClose.
  *
- * @api private
+ * @api public
  */
 
-func (this *Polling) onClose() {
+func (this *Polling) OnClose() {
 	if this.writable {
 		// close pending poll request
 		// this.send([{ type: `noop` }]);
@@ -197,10 +197,10 @@ func (this *Polling) onClose() {
  * Writes a packet payload.
  *
  * @param {Object} packet
- * @api private
+ * @api public
  */
 
-func (this *Polling) send(packets) {
+func (this *Polling) Send(packets) {
 	this.writable = false
 
 	if this.shouldClose {
@@ -210,12 +210,13 @@ func (this *Polling) send(packets) {
 		this.shouldClose = null
 	}
 
-	parser.encodePayload(packets, this.supportsBinary, func(data) {
-		// var compress = packets.some(func (packet) {
-		//   return packet.options && packet.options.compress;
-		// });
-		// this.write(data, { compress: compress });
-	})
+	if packet, err := parser.EncodePayload(packets, this.supportsBinary, false); err != nil {
+
+	}
+	// var compress = packets.some(func (packet) {
+	//   return packet.options && packet.options.compress;
+	// });
+	this.Write(data /*{ compress: compress }*/)
 }
 
 /**
@@ -223,12 +224,12 @@ func (this *Polling) send(packets) {
  *
  * @param {String} data
  * @param {Object} options
- * @api private
+ * @api public
  */
 
-func (this *Polling) write(data, options) {
-	debug(`writing "%s"`, data)
-	this.doWrite(data, options, func() {
+func (this *Polling) Write(data, options) {
+	// debug(`writing "%s"`, data)
+	this.DoWrite(data, options, func() {
 		this.req.cleanup()
 	})
 }
@@ -236,10 +237,10 @@ func (this *Polling) write(data, options) {
 /**
  * Performs the write.
  *
- * @api private
+ * @api public
  */
 
-func (this *Polling) doWrite(data, options, callback) {
+func (this *Polling) DoWrite(data, options, callback) {
 	// explicit UTF-8 is required for pages not served under utf
 	// var isString = typeof data == `string`;
 	// var contentType = isString
@@ -289,10 +290,10 @@ func (this *Polling) doWrite(data, options, callback) {
 /**
  * Compresses data.
  *
- * @api private
+ * @api public
  */
 
-func (this *Polling) compress(data, encoding, callback) {
+func (this *Polling) Compress(data, encoding, callback) {
 	debug(`compressing`)
 
 	// var buffers = [];
@@ -313,10 +314,10 @@ func (this *Polling) compress(data, encoding, callback) {
 /**
  * Closes the transport.
  *
- * @api private
+ * @api public
  */
 
-func (this *Polling) doClose(fn) {
+func (this *Polling) DoClose(fn) {
 	debug(`closing`)
 	onClose := func() {
 		clearTimeout(closeTimeoutTimer)
@@ -350,10 +351,10 @@ func (this *Polling) doClose(fn) {
  *
  * @param {http.IncomingMessage} request
  * @param {Object} extra headers
- * @api private
+ * @api public
  */
 
-func (this *Polling) headers(req, headers) {
+func (this *Polling) Headers(req, headers) {
 	// prevent XSS warnings on IE
 	// https://github.com/LearnBoost/socket.io/pull/1333
 	var ua = req.headers[`user-agent`]

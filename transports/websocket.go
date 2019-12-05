@@ -1,5 +1,10 @@
 package transports
 
+import (
+	"github.com/zishang520/engine.io/parser"
+	"github.com/zishang520/engine.io/types"
+)
+
 type WebSocket struct {
 	*Transport
 	Name            string
@@ -68,36 +73,20 @@ func (this *WebSocket) OnData(data) {
  * @api public
  */
 
-func (this *WebSocket) Send(packets []Packet) {
+func (this *WebSocket) Send(packets []*types.Packet) {
 
-	onEnd := func(err) {
+	onEnd := func(err error) {
 		if err {
 			return this.OnError(`write error`)
 		}
 		this.writable = true
 		this.EventEmitter.Emit(`drain`)
 	}
-	send := func(data) {
-		debug(`writing "%s"`, data)
-
-		// always creates a new object since ws modifies it
-		// var opts = {};
-		// if (packet.options) {
-		//   opts.compress = packet.options.compress;
-		// }
-
-		// if (this.perMessageDeflate) {
-		//   var len = `string` == typeof data ? Buffer.byteLength(data) : data.length;
-		//   if (len < this.perMessageDeflate.threshold) {
-		//     opts.compress = false;
-		//   }
-		// }
-
-		this.writable = false
-		this.socket.send(data, opts, onEnd)
-	}
-	for packet := range packets {
-		parser.encodePacket(packet, this.supportsBinary, send)
+	for _, packet := range packets {
+		if packet, err := parser.EncodePacket(packet, this.supportsBinary, false); err != nil {
+			this.writable = false
+			this.socket.Send(data, opts, onEnd)
+		}
 	}
 
 }
@@ -108,8 +97,8 @@ func (this *WebSocket) Send(packets []Packet) {
  * @api public
  */
 
-func (this *WebSocket) doClose(fn) {
-	debug(`closing`)
-	this.socket.close()
+func (this *WebSocket) DoClose(fn) {
+	// debug(`closing`)
+	this.socket.Close()
 	// fn && fn();
 }

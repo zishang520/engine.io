@@ -413,7 +413,7 @@ func (this *socket) sendPacket(packet_type string, data string, options interfac
 
 		// add send callback to object, if defined
 		if callback {
-			this.packetsFn.push(callback)
+			this.packetsFn = append(this.packetsFn, callback)
 		}
 
 		this.flush()

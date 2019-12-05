@@ -578,33 +578,33 @@ func checkInvalidHeaderChar(val string) bool {
 	if length < 1 {
 		return false
 	}
-	if !validHdrChars[byte(val[0:1])] {
+	if !validHdrChars[val[0]] {
 		// debug(`invalid header, index 0, char "%s"`, val.charCodeAt(0))
 		return true
 	}
 	if length < 2 {
 		return false
 	}
-	if !validHdrChars[byte(val[1:1])] {
+	if !validHdrChars[val[1]] {
 		// debug(`invalid header, index true, char "%s"`, val.charCodeAt(1))
 		return true
 	}
 	if length < 3 {
 		return false
 	}
-	if !validHdrChars[byte(val[2:1])] {
+	if !validHdrChars[val[2]] {
 		// debug(`invalid header, index 2, char "%s"`, val.charCodeAt(2))
 		return true
 	}
 	if length < 4 {
 		return false
 	}
-	if !validHdrChars[byte(val[3:1])] {
+	if !validHdrChars[val[3]] {
 		// debug(`invalid header, index 3, char "%s"`, val.charCodeAt(3))
 		return true
 	}
 	for i = 4; i < length; i += 1 {
-		if !validHdrChars[byte(val[i:1])] {
+		if !validHdrChars[val[i]] {
 			// debug(`invalid header, index "%i", char "%s"`, i, val.charCodeAt(i))
 			return true
 		}

@@ -3,13 +3,13 @@ package parser
 import (
 	"bytes"
 	"io"
+	"strings"
 	"unicode/utf8"
 )
 
 func Utf8encodeString(str string) string {
-	strs := []byte(str)
-	var buf bytes.Buffer
-	for _, b := range strs {
+	buf := bytes.NewBuffer(nil)
+	for _, b := range str {
 		rb := rune(b)
 		if !utf8.ValidRune(rb) {
 			rb = 0xFFFD
@@ -20,7 +20,7 @@ func Utf8encodeString(str string) string {
 }
 
 func Utf8encodeBytes(dst, src []byte) int {
-	var buf bytes.Buffer
+	buf := bytes.NewBuffer(nil)
 	for _, b := range src {
 		rb := rune(b)
 		if !utf8.ValidRune(rb) {
@@ -36,13 +36,16 @@ func Utf8encodeBytes(dst, src []byte) int {
 }
 
 func Utf8decodeString(byteString string) string {
-	strs := []rune(byteString)
-	var buf bytes.Buffer
-	for _, r := range strs {
-		if !utf8.ValidRune(r) {
-			r = 0xFFFD
+	strs := strings.NewReader(byteString)
+	buf := bytes.NewBuffer(nil)
+	for strs.Len() > 0 {
+		r, _, e := buf.ReadRune()
+		if e == nil {
+			if !utf8.ValidRune(r) {
+				r = 0xFFFD
+			}
+			buf.WriteByte(byte(r))
 		}
-		buf.WriteByte(byte(r))
 	}
 	return buf.String()
 }

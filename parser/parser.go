@@ -344,8 +344,7 @@ func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 				data.Write(Utf8decodeBytesReturn(buf[0:l]))
 				buf = buf[l:]
 			}
-			bufferTail.Next(msgByte.Len())
-			if data.Len() > 0 {
+			if bufferTail.Next(msgByte.Len()); data.Len() > 0 {
 				buffers = append(buffers, strings.NewReader(data.String()))
 			}
 		} else {

@@ -275,7 +275,7 @@ func DecodePayload(data io.Reader, callback Callback) bool {
 			}
 
 			PACKETLEN := int(packetLen)
-			msg := bytes.NewBuffer(nil)
+			msg := new(strings.Builder)
 			for i := 0; i < PACKETLEN; i++ {
 				r, _, e := str.ReadRune()
 				if e != nil {
@@ -352,9 +352,8 @@ func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 				buffers = append(buffers, strings.NewReader(data.String()))
 			}
 		} else {
-			msg := bytes.NewBuffer(bufferTail.Next(PACKETLEN))
-			if msg.Len() > 0 {
-				buffers = append(buffers, msg)
+			if data := bufferTail.Next(PACKETLEN); len(data) > 0 {
+				buffers = append(buffers, bytes.NewBuffer(data))
 			}
 		}
 	}

@@ -66,7 +66,7 @@ func EncodePacket(packet *types.Packet, supportsBinary bool, utf8encode bool) (*
 	case *strings.Reader:
 		encode.WriteByte(packets[packet.Type])
 		if utf8encode {
-			v.WriteTo(NewUtf8Encoder(&Opts{Strict: false}, encode))
+			v.WriteTo(NewUtf8Encoder(encode))
 		} else {
 			v.WriteTo(encode)
 		}
@@ -130,7 +130,7 @@ func DecodePacket(data io.Reader, utf8decode bool) (*types.Packet, error) {
 			return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
 		}
 		if utf8decode {
-			decode.ReadFrom(NewUtf8Decoder(&Opts{Strict: false}, v))
+			decode.ReadFrom(NewUtf8Decoder(v))
 		} else {
 			decode.ReadFrom(v)
 		}
@@ -224,7 +224,7 @@ func encodeOneBinaryPacket(packet *types.Packet) (*bytes.Buffer, error) {
 			binarypacket.WriteByte(encodingLength[i] - '0')
 		}
 		binarypacket.WriteByte(0xFF)
-		buf.WriteTo(NewUtf8Encoder(&Opts{Strict: false}, binarypacket))
+		buf.WriteTo(NewUtf8Encoder(binarypacket))
 	default:
 		encodingLength := fmt.Sprintf(`%d`, buf.Len())
 		binarypacket.WriteByte(1) // is binary (true binary = 1)
@@ -335,13 +335,13 @@ func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 		PACKETLEN := int(packetLen)
 		if isString {
 			buf := make([]byte, bufferTail.Len())
-			if _, _, err := Utf8decodeBytes(buf, bufferTail.Bytes(), &Opts{Strict: false}); err != nil {
+			if _, _, err := Utf8decodeBytes(buf, bufferTail.Bytes()); err != nil {
 				return callback(errPacket, 0, 1)
 			}
 			msgByte := bytes.NewBuffer(nil)
-			strings.NewReader(string(bytes.Runes(buf)[0:PACKETLEN])).WriteTo(NewUtf8Encoder(&Opts{Strict: false}, msgByte))
+			strings.NewReader(string(bytes.Runes(buf)[0:PACKETLEN])).WriteTo(NewUtf8Encoder(msgByte))
 			msg := bytes.NewBuffer(nil)
-			msg.ReadFrom(NewUtf8Decoder(&Opts{Strict: false}, NewUtf8Decoder(&Opts{Strict: false}, bytes.NewBuffer(bufferTail.Next(msgByte.Len())))))
+			msg.ReadFrom(NewUtf8Decoder(NewUtf8Decoder(bytes.NewBuffer(bufferTail.Next(msgByte.Len())))))
 			if msg.Len() > 0 {
 				buffers = append(buffers, strings.NewReader(msg.String()))
 			}

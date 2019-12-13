@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/zishang520/engine.io/parser"
 	"github.com/zishang520/engine.io/types"
@@ -16,24 +17,32 @@ func main() {
 	buf, err := parser.EncodePayload([]*types.Packet{
 		&types.Packet{
 			Type: "ping",
-			Data: strings.NewReader(`, 1Ã¤Â½Â Ã¥Â¥Â½Ã¥ÂÂ, 2, 3, 4,102:2[]byte{0, 1Ã¤Â½Â Ã¥Â¥Â½Ã¥ÂÂ, 2, 3, 4,, 1你好呀, 2, 3, 4, 5, 6`),
+			Data: strings.NewReader(`,你好呀, 2, 3, 4, 5, 6`),
 		},
-		// &types.Packet{
-		// 	Type: "close",
-		// 	Data: bytes.NewReader([]byte(`xxxxxxx`)),
-		// },
 		&types.Packet{
-			Type: "noop",
-			Data: strings.NewReader(`, 1Ã¤Â½Â Ã¥Â¥Â½Ã¥ÂÂ, 2, 3, 4,`),
+			Type: "close",
+			Data: bytes.NewReader([]byte(`xxxxxxx`)),
 		},
 		&types.Packet{
 			Type: "noop",
-			Data: strings.NewReader(`, 1Ã¤Â½Â Ã¥Â¥Â½Ã¥ÂÂ, 2, 3, 4,`),
+			Data: strings.NewReader(`, 你好呀, 2, 3, 4,`),
 		},
-	}, false)
+		&types.Packet{
+			Type: "noop",
+			Data: strings.NewReader(`, 你好呀, 2, 3, 4,`),
+		},
+	}, true)
 	fmt.Println(buf)
 	fmt.Println(err)
 	fmt.Println(utf8.Valid(buf.Bytes()))
+	fmt.Println(utf8.Valid(buf.Bytes()))
+	fmt.Println(parser.DecodePayload(buf, func(a *types.Packet, b int, c int) bool {
+		fmt.Println(a)
+		fmt.Println(b)
+		fmt.Println(c)
+		return true
+	}))
+
 	boolss := parser.DecodePayload(strings.NewReader(`102:2[]byte{0, 1你好呀, 2, 3, 4, 5, 6, 7, 8, 9}b2W11ieXRlezAsIDHkvaDlpb3lkYAsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDl9103:2[]by:te{0, 1你好呀, 2, 3, 4, 5, 6, 7, 8, 9}b2W11ieXRlezAsIDHkvaDlpb3lkYAsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDl987:6[]by:te{0, 1你好呀, 8, 9}b2W11ieXRlezAsIDHkvaDlpb3lkYAsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDl9`), func(a *types.Packet, b int, c int) bool {
 		fmt.Println(a)
 		fmt.Println(b)

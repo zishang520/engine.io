@@ -338,12 +338,18 @@ func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 			if _, _, err := Utf8decodeBytes(buf, bufferTail.Bytes()); err != nil {
 				return callback(errPacket, 0, 1)
 			}
+
 			msgByte := bytes.NewBuffer(nil)
-			strings.NewReader(string(bytes.Runes(buf)[0:PACKETLEN])).WriteTo(NewUtf8Encoder(msgByte))
-			msg := bytes.NewBuffer(nil)
-			msg.ReadFrom(NewUtf8Decoder(NewUtf8Decoder(bytes.NewBuffer(bufferTail.Next(msgByte.Len())))))
-			if msg.Len() > 0 {
-				buffers = append(buffers, strings.NewReader(msg.String()))
+			data := new(strings.Builder)
+			for k := 0; k < PACKETLEN; k++ {
+				_, l := utf8.DecodeRune(buf)
+				NewUtf8Encoder(msgByte).Write(buf[0:l])
+				data.Write(Utf8decodeBytesReturn(buf[0:l]))
+				buf = buf[l:]
+			}
+			bufferTail.Next(msgByte.Len())
+			if data.Len() > 0 {
+				buffers = append(buffers, strings.NewReader(data.String()))
 			}
 		} else {
 			msg := bytes.NewBuffer(bufferTail.Next(PACKETLEN))

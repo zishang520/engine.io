@@ -8,7 +8,7 @@ import (
 )
 
 func Utf8encodeString(str string) string {
-	buf := bytes.NewBuffer(nil)
+	buf := new(strings.Builder)
 	for _, b := range str {
 		rb := rune(b)
 		if !utf8.ValidRune(rb) {
@@ -37,9 +37,9 @@ func Utf8encodeBytes(dst, src []byte) int {
 
 func Utf8decodeString(byteString string) string {
 	strs := strings.NewReader(byteString)
-	buf := bytes.NewBuffer(nil)
+	buf := new(strings.Builder)
 	for strs.Len() > 0 {
-		r, _, e := buf.ReadRune()
+		r, _, e := strs.ReadRune()
 		if e == nil {
 			if !utf8.ValidRune(r) {
 				r = 0xFFFD
@@ -51,18 +51,27 @@ func Utf8decodeString(byteString string) string {
 }
 
 func Utf8decodeBytes(dst, src []byte) (ndst, nsrc int, err error) {
-	buf := bytes.NewReader(src)
-	for buf.Len() > 0 {
-		r, l, e := buf.ReadRune()
-		if e != nil && e != io.EOF {
-			return ndst, nsrc, e
-		}
+	for len(src) > 0 {
+		r, l := utf8.DecodeRune(src)
+		src = src[l:]
 		if !utf8.ValidRune(r) {
 			r = 0xFFFD
 		}
 		dst[ndst] = byte(r)
 		nsrc += l
 		ndst++
+	}
+	return
+}
+
+func Utf8decodeBytesReturn(src []byte) (dst []byte) {
+	for len(src) > 0 {
+		r, l := utf8.DecodeRune(src)
+		src = src[l:]
+		if !utf8.ValidRune(r) {
+			r = 0xFFFD
+		}
+		dst = append(dst, byte(r))
 	}
 	return
 }

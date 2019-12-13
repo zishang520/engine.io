@@ -334,10 +334,7 @@ func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 		}
 		PACKETLEN := int(packetLen)
 		if isString {
-			buf := make([]byte, bufferTail.Len())
-			if _, _, err := Utf8decodeBytes(buf, bufferTail.Bytes()); err != nil {
-				return callback(errPacket, 0, 1)
-			}
+			buf := Utf8decodeBytesReturn(bufferTail.Bytes())
 
 			msgByte := bytes.NewBuffer(nil)
 			data := new(strings.Builder)

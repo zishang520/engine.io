@@ -93,10 +93,6 @@ func (e *utf8encoder) Write(p []byte) (n int, err error) {
 	return n, e.err
 }
 
-func NewUtf8Decoder(r io.Reader) io.Reader {
-	return &utf8decoder{r: r}
-}
-
 type utf8decoder struct {
 	err     error
 	readErr error
@@ -105,6 +101,10 @@ type utf8decoder struct {
 	nbuf    int
 	out     []byte // leftover decoded output
 	outbuf  [bufferSize]byte
+}
+
+func NewUtf8Decoder(r io.Reader) io.Reader {
+	return &utf8decoder{r: r}
 }
 
 func (d *utf8decoder) Read(p []byte) (n int, err error) {

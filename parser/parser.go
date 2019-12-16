@@ -34,8 +34,6 @@ var (
 	}
 	packetslist map[byte]string = map[byte]string{'0': "open", '1': "close", '2': "ping", '3': "pong", '4': "message", '5': "upgrade", '6': "noop"}
 
-	EMPTY_BUFFER *bytes.Buffer = bytes.NewBuffer(nil)
-
 	errPacket = &types.Packet{Type: `error`, Data: strings.NewReader(`parser error`)}
 )
 
@@ -239,10 +237,11 @@ func encodeOneBinaryPacket(packet *types.Packet) (*bytes.Buffer, error) {
 }
 
 func EncodePayloadAsBinary(packets []*types.Packet) (*bytes.Buffer, error) {
-	if len(packets) == 0 {
-		return EMPTY_BUFFER, nil
-	}
 	enPayload := bytes.NewBuffer(nil)
+
+	if len(packets) == 0 {
+		return enPayload, nil
+	}
 
 	for _, packet := range packets {
 		if buf, err := encodeOneBinaryPacket(packet); err != nil {

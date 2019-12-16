@@ -82,7 +82,6 @@ func EncodePacket(packet *types.Packet, supportsBinary bool, utf8encode bool) (*
 	default:
 		encode.WriteByte(packets[packet.Type])
 	}
-
 	return encode, nil
 }
 
@@ -185,7 +184,8 @@ func hasBinary(packets []*types.Packet) bool {
  */
 
 func EncodePayload(packets []*types.Packet, supportsBinary bool) (*bytes.Buffer, error) {
-	if supportsBinary && hasBinary(packets) {
+	isBinary := hasBinary(packets)
+	if supportsBinary && isBinary {
 		return EncodePayloadAsBinary(packets)
 	}
 
@@ -197,10 +197,13 @@ func EncodePayload(packets []*types.Packet, supportsBinary bool) (*bytes.Buffer,
 	}
 
 	for _, packet := range packets {
+		if !isBinary {
+			supportsBinary = false
+		}
 		if buf, err := EncodePacket(packet, supportsBinary, false); err != nil {
 			return enPayload, err
 		} else {
-			enPayload.WriteString(fmt.Sprintf(`%d:%s`, utf8.RuneCount(buf.Bytes()), buf.String()))
+			enPayload.WriteString(fmt.Sprintf(`%d:%s`, Utf16Count(buf.Bytes()), buf.String()))
 		}
 	}
 
@@ -216,7 +219,7 @@ func encodeOneBinaryPacket(packet *types.Packet) (*bytes.Buffer, error) {
 	}
 	switch packet.Data.(type) {
 	case *strings.Reader:
-		encodingLength := fmt.Sprintf(`%d`, utf8.RuneCount(buf.Bytes()))
+		encodingLength := fmt.Sprintf(`%d`, Utf16Count(buf.Bytes()))
 		binarypacket.WriteByte(0)
 		for i := 0; i < len(encodingLength); i++ {
 			binarypacket.WriteByte(encodingLength[i] - '0')
@@ -259,7 +262,7 @@ func DecodePayload(data io.Reader, callback Callback) bool {
 	case *strings.Reader:
 		str := bytes.NewBuffer(nil)
 		v.WriteTo(str)
-		for n, l := 0, utf8.RuneCount(str.Bytes()); str.Len() > 0; {
+		for n, l := 0, Utf16Count(str.Bytes()); str.Len() > 0; {
 			length, err := str.ReadString(':')
 			if err != nil {
 				return callback(errPacket, 0, 1)
@@ -275,11 +278,12 @@ func DecodePayload(data io.Reader, callback Callback) bool {
 
 			PACKETLEN := int(packetLen)
 			msg := new(strings.Builder)
-			for i := 0; i < PACKETLEN; i++ {
+			for i := 0; i < PACKETLEN; {
 				r, _, e := str.ReadRune()
 				if e != nil {
 					return callback(errPacket, 0, 1)
 				}
+				i += Utf16Len(r)
 				msg.WriteRune(r)
 			}
 
@@ -337,8 +341,9 @@ func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 
 			msgByte := bytes.NewBuffer(nil)
 			data := new(strings.Builder)
-			for k := 0; k < PACKETLEN; k++ {
-				_, l := utf8.DecodeRune(buf)
+			for k := 0; k < PACKETLEN; {
+				r, l := utf8.DecodeRune(buf)
+				k += Utf16Len(r)
 				NewUtf8Encoder(msgByte).Write(buf[0:l])
 				data.Write(Utf8decodeBytesReturn(buf[0:l]))
 				buf = buf[l:]
@@ -354,7 +359,7 @@ func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 	}
 
 	for k, bl := 0, len(buffers); k < bl; k++ {
-		packet, err := DecodePacket(buffers[k], false)
+		packet, err := DecodePacket(buffers[k], true)
 		if err != nil {
 			// parser error in individual packet - ignoring payload
 			return callback(errPacket, 0, 1)

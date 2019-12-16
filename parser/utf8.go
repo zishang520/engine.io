@@ -7,6 +7,66 @@ import (
 	"unicode/utf8"
 )
 
+const (
+	replacementChar = '\uFFFD'     // Unicode replacement character
+	maxRune         = '\U0010FFFF' // Maximum valid Unicode code point.
+)
+
+const (
+	// 0xd800-0xdc00 encodes the high 10 bits of a pair.
+	// 0xdc00-0xe000 encodes the low 10 bits of a pair.
+	// the value is those 20 bits plus 0x10000.
+	surr1 = 0xd800
+	surr2 = 0xdc00
+	surr3 = 0xe000
+
+	surrSelf = 0x10000
+)
+
+func Utf16Len(v rune) int {
+	switch {
+	case 0 <= v && v < surr1, surr3 <= v && v < surrSelf:
+		return 1
+	case surrSelf <= v && v <= maxRune:
+		return 2
+	default:
+		return 1
+	}
+	return 0
+}
+
+func Utf16Count(src []byte) (n int) {
+	for len(src) > 0 {
+		v, l := utf8.DecodeRune(src)
+		src = src[l:]
+		switch {
+		case 0 <= v && v < surr1, surr3 <= v && v < surrSelf:
+			n++
+		case surrSelf <= v && v <= maxRune:
+			n += 2
+		default:
+			n++
+		}
+	}
+	return
+}
+
+func Utf16CountString(src string) (n int) {
+	for len(src) > 0 {
+		v, l := utf8.DecodeRuneInString(src)
+		src = src[l:]
+		switch {
+		case 0 <= v && v < surr1, surr3 <= v && v < surrSelf:
+			n++
+		case surrSelf <= v && v <= maxRune:
+			n += 2
+		default:
+			n++
+		}
+	}
+	return
+}
+
 func Utf8encodeString(str string) string {
 	buf := new(strings.Builder)
 	for _, b := range str {
@@ -33,6 +93,18 @@ func Utf8encodeBytes(dst, src []byte) int {
 		return 0
 	}
 	return l
+}
+
+func Utf8encodeBytesReturn(src []byte) []byte {
+	buf := bytes.NewBuffer(nil)
+	for _, b := range src {
+		rb := rune(b)
+		if !utf8.ValidRune(rb) {
+			rb = 0xFFFD
+		}
+		buf.WriteRune(rb)
+	}
+	return buf.Bytes()
 }
 
 func Utf8decodeString(byteString string) string {

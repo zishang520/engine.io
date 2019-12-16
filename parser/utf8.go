@@ -39,8 +39,7 @@ func Utf8decodeString(byteString string) string {
 	strs := strings.NewReader(byteString)
 	buf := new(strings.Builder)
 	for strs.Len() > 0 {
-		r, _, e := strs.ReadRune()
-		if e == nil {
+		if r, _, e := strs.ReadRune(); e == nil {
 			if !utf8.ValidRune(r) {
 				r = 0xFFFD
 			}

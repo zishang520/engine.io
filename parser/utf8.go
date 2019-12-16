@@ -8,18 +8,9 @@ import (
 )
 
 const (
-	replacementChar = '\uFFFD'     // Unicode replacement character
-	maxRune         = '\U0010FFFF' // Maximum valid Unicode code point.
-)
-
-const (
-	// 0xd800-0xdc00 encodes the high 10 bits of a pair.
-	// 0xdc00-0xe000 encodes the low 10 bits of a pair.
-	// the value is those 20 bits plus 0x10000.
-	surr1 = 0xd800
-	surr2 = 0xdc00
-	surr3 = 0xe000
-
+	maxRune  = '\U0010FFFF'
+	surr1    = 0xd800
+	surr3    = 0xe000
 	surrSelf = 0x10000
 )
 

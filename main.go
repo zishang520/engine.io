@@ -26,7 +26,7 @@ func main() {
 			Type: "noop",
 			Data: strings.NewReader(``),
 		},
-	}, true)
+	}, false)
 	fmt.Println(err)
 	fmt.Println(buf.String())
 	fmt.Println(parser.DecodePayload(strings.NewReader(buf.String()), func(a *types.Packet, b int, c int) bool {

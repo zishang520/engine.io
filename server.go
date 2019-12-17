@@ -101,11 +101,11 @@ func NewServer(opts interface{}) *Server {
  */
 
 const (
-	UNKNOWN_TRANSPORT    = 0
-	UNKNOWN_SID          = 1
-	BAD_HANDSHAKE_METHOD = 2
-	BAD_REQUEST          = 3
-	FORBIDDEN            = 4
+	UNKNOWN_TRANSPORT    int = 0
+	UNKNOWN_SID          int = 1
+	BAD_HANDSHAKE_METHOD int = 2
+	BAD_REQUEST          int = 3
+	FORBIDDEN            int = 4
 
 	errorMessages = map[int]string{
 		0: `Transport unknown`,
@@ -126,18 +126,19 @@ func (this *Server) init() {
 	// if (!~this.transports.Index(`websocket`)) return;
 
 	if this.ws {
-		this.ws.close()
+		this.ws.Close()
 	}
 
 	var wsModule Ws
 	switch this.wsEngine {
 	case `uws`:
-		wsModule = require(`uws`)
+		// wsModule = require(`uws`)
 	case `ws`:
-		wsModule = require(`ws`)
+		// wsModule = require(`ws`)
 	default:
 		panic(`unknown wsEngine`)
 	}
+	this.ws = websocket.Upgrader{}
 	// this.ws = new wsModule.Server({
 	//   noServer: true,
 	//   clientTracking: false,

@@ -30,14 +30,7 @@ func Utf16Count(src []byte) (n int) {
 	for len(src) > 0 {
 		v, l := utf8.DecodeRune(src)
 		src = src[l:]
-		switch {
-		case 0 <= v && v < surr1, surr3 <= v && v < surrSelf:
-			n++
-		case surrSelf <= v && v <= maxRune:
-			n += 2
-		default:
-			n++
-		}
+		n += Utf16Len(v)
 	}
 	return
 }
@@ -46,14 +39,7 @@ func Utf16CountString(src string) (n int) {
 	for len(src) > 0 {
 		v, l := utf8.DecodeRuneInString(src)
 		src = src[l:]
-		switch {
-		case 0 <= v && v < surr1, surr3 <= v && v < surrSelf:
-			n++
-		case surrSelf <= v && v <= maxRune:
-			n += 2
-		default:
-			n++
-		}
+		n += Utf16Len(v)
 	}
 	return
 }

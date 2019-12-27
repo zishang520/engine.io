@@ -219,7 +219,7 @@ func encodeOneBinaryPacket(packet *types.Packet) (*bytes.Buffer, error) {
 	}
 	switch packet.Data.(type) {
 	case *strings.Reader:
-		encodingLength := fmt.Sprintf(`%d`, Utf16Count(buf.Bytes()))
+		encodingLength := fmt.Sprintf(`%d`, Utf16Count(buf.Bytes())) // JS length
 		binarypacket.WriteByte(0)
 		for i := 0; i < len(encodingLength); i++ {
 			binarypacket.WriteByte(encodingLength[i] - '0')
@@ -359,7 +359,7 @@ func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 	}
 
 	for k, bl := 0, len(buffers); k < bl; k++ {
-		packet, err := DecodePacket(buffers[k], true)
+		packet, err := DecodePacket(buffers[k], false)
 		if err != nil {
 			// parser error in individual packet - ignoring payload
 			return callback(errPacket, 0, 1)

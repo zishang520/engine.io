@@ -5,6 +5,6 @@ import (
 )
 
 type Packet struct {
-	Type string
-	Data io.Reader
+	Type string    `json:"type"`
+	Data io.Reader `json:"data"`
 }

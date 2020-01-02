@@ -2,25 +2,26 @@ package engineio
 
 import (
 	"github.com/zishang520/engine.io/events"
+	"github.com/zishang520/engine.io/types"
 )
 
 type Server struct {
 	clients           map[string]string
-	clientsCount      int64
+	clientsCount      int
 	wsEngine          string
-	pingTimeout       int64
-	pingInterval      int64
-	upgradeTimeout    int64
-	maxHttpBufferSize int64
+	pingTimeout       int
+	pingInterval      int
+	upgradeTimeout    int
+	maxHttpBufferSize int
 	transports        []interface{}
 	allowUpgrades     bool
-	allowRequest      string
+	allowRequest      AllowRequest
 	cookie            string
 	cookiePath        string
 	cookieHttpOnly    string
 	perMessageDeflate string
 	httpCompression   string
-	initialPacket     string
+	initialPacket     *types.Packet
 
 	EventEmitter events.EventEmmiter
 }
@@ -32,7 +33,7 @@ type Server struct {
  * @api public
  */
 
-func NewServer(opts interface{}) *Server {
+func NewServer(opts Opts) *Server {
 	this := &Server{}
 
 	this.clients = map[string]string{}

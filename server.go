@@ -6,8 +6,9 @@ import (
 )
 
 type Server struct {
-	clients           map[string]string
-	clientsCount      int
+	clients      map[string]string
+	clientsCount int
+
 	wsEngine          string
 	pingTimeout       int
 	pingInterval      int
@@ -22,6 +23,7 @@ type Server struct {
 	perMessageDeflate string
 	httpCompression   string
 	initialPacket     *types.Packet
+	ws                nil
 
 	EventEmitter events.EventEmmiter
 }
@@ -39,58 +41,58 @@ func NewServer(opts Opts) *Server {
 	this.clients = map[string]string{}
 	this.clientsCount = 0
 
-	if opts.wsEngine != `` {
-		this.wsEngine = opts.wsEngine
+	if len(opts.WsEngine) > 0 {
+		this.wsEngine = opts.WsEngine
 	} else {
 		this.wsEngine = `ws`
 	}
 
-	if opts.pingTimeout > 0 {
-		this.pingTimeout = opts.pingTimeout
+	if opts.PingTimeout > 0 {
+		this.pingTimeout = opts.PingTimeout
 	} else {
 		this.pingTimeout = 5000
 	}
 
-	if opts.pingInterval > 0 {
-		this.pingInterval = opts.pingInterval
+	if opts.PingInterval > 0 {
+		this.pingInterval = opts.PingInterval
 	} else {
 		this.pingInterval = 25000
 	}
 
-	if opts.upgradeTimeout > 0 {
-		this.upgradeTimeout = opts.upgradeTimeout
+	if opts.UpgradeTimeout > 0 {
+		this.upgradeTimeout = opts.UpgradeTimeout
 	} else {
 		this.upgradeTimeout = 10000
 	}
 
-	if opts.maxHttpBufferSize > 0 {
-		this.maxHttpBufferSize = opts.maxHttpBufferSize
+	if opts.MaxHttpBufferSize > 0 {
+		this.maxHttpBufferSize = opts.MaxHttpBufferSize
 	} else {
 		this.maxHttpBufferSize = 10E7
 	}
 
-	if len(opts.transports) > 0 {
-		this.transports = opts.transports
+	if len(opts.Transports) > 0 {
+		this.transports = opts.Transports
 	} else {
-		this.transports = []interface{}{}
+		this.transports = map[string]struct{}{}
 	}
 
-	this.allowUpgrades = false != opts.allowUpgrades
-	this.allowRequest = opts.allowRequest
+	this.allowUpgrades = false != opts.AllowUpgrades
+	this.allowRequest = opts.AllowRequest
 
-	this.cookie = opts.cookie
-	this.cookiePath = opts.cookiePath
-	this.cookieHttpOnly = false != opts.cookieHttpOnly
-	this.perMessageDeflate = opts.cookiePath
-	this.httpCompression = opts.httpCompression
-	this.initialPacket = opts.initialPacket
+	this.cookie = opts.Cookie
+	this.cookiePath = opts.CookiePath
+	this.cookieHttpOnly = false != opts.CookieHttpOnly
+	this.perMessageDeflate = opts.PerMessageDeflate
+	this.httpCompression = opts.HttpCompression
+	this.initialPacket = opts.InitialPacket
 
-	// initialize compression options
-	for t := range []string{`perMessageDeflate`, `httpCompression`} {
-		if this[t].Status && this[t].Threshold == 0 {
-			this[t].Threshold = 1024
-		}
-	}
+	// // initialize compression options
+	// for t := range []string{`perMessageDeflate`, `httpCompression`} {
+	// 	if this[t].Status && this[t].Threshold == 0 {
+	// 		this[t].Threshold = 1024
+	// 	}
+	// }
 
 	this.EventEmitter = events.New()
 
@@ -107,15 +109,15 @@ const (
 	BAD_HANDSHAKE_METHOD int = 2
 	BAD_REQUEST          int = 3
 	FORBIDDEN            int = 4
-
-	errorMessages = map[int]string{
-		0: `Transport unknown`,
-		1: `Session ID unknown`,
-		2: `Bad handshake method`,
-		3: `Bad request`,
-		4: `Forbidden`,
-	}
 )
+
+var errorMessages map[int]string = map[int]string{
+	0: `Transport unknown`,
+	1: `Session ID unknown`,
+	2: `Bad handshake method`,
+	3: `Bad request`,
+	4: `Forbidden`,
+}
 
 /**
  * Initialize websocket server
@@ -124,7 +126,9 @@ const (
  */
 
 func (this *Server) init() {
-	// if (!~this.transports.Index(`websocket`)) return;
+	if _, ok := this.transports["websocket"]; !ok {
+		return
+	}
 
 	if this.ws {
 		this.ws.Close()
@@ -132,8 +136,8 @@ func (this *Server) init() {
 
 	var wsModule Ws
 	switch this.wsEngine {
-	case `uws`:
-		// wsModule = require(`uws`)
+	// case `uws`:
+	// wsModule = require(`uws`)
 	case `ws`:
 		// wsModule = require(`ws`)
 	default:

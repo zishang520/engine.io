@@ -1,9 +1,9 @@
 package parser
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
+	"github.com/zishang520/engine.io/bytes"
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/types"
 	"io"
@@ -337,18 +337,32 @@ func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
 		}
 		PACKETLEN := int(packetLen)
 		if isString {
-			buf := Utf8decodeBytesReturn(bufferTail.Bytes())
-
-			msgByte := bytes.NewBuffer(nil)
 			data := new(strings.Builder)
+			buf := []byte{}
 			for k := 0; k < PACKETLEN; {
+				for len(buf) < 4 {
+					r, _, err := bufferTail.ReadRune()
+					if err != nil {
+						if err == io.EOF {
+							break
+						}
+						return callback(errPacket, 0, 1)
+					}
+					if !utf8.ValidRune(r) {
+						r = 0xFFFD
+					}
+					buf = append(buf, byte(r))
+				}
 				r, l := utf8.DecodeRune(buf)
 				k += Utf16Len(r)
-				NewUtf8Encoder(msgByte).Write(buf[0:l])
 				data.Write(Utf8decodeBytesReturn(buf[0:l]))
 				buf = buf[l:]
 			}
-			if bufferTail.Next(msgByte.Len()); data.Len() > 0 {
+			if cursor := len(Utf8encodeBytesReturn(buf)); cursor > 0 {
+				// Rollback read pointer
+				bufferTail.Prev(cursor)
+			}
+			if data.Len() > 0 {
 				buffers = append(buffers, strings.NewReader(data.String()))
 			}
 		} else {

@@ -66,7 +66,11 @@ func main() {
 	})
 	fmt.Println(err)
 	fmt.Println(buf.String())
-	// fmt.Println(parser.DecodePayload(buf))
+	x := parser.DecodePayload(buf)
+	fmt.Println(x)
+	bufs, errs := parser.EncodePayload(x)
+	fmt.Println(errs)
+	fmt.Println(bufs.String())
 
 	// fmt.Println(parser.DecodePayload(strings.NewReader(`209:2😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁103:2[]by:te{0, 1你好呀, 2, 3, 4, 5, 6, 7, 8, 9}b2W11ieXRlezAsIDHkvaDlpb3lkYAsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDl91:6`), func(a *types.Packet, b int, c int) bool {
 	// 	fmt.Println(a)

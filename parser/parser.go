@@ -144,10 +144,14 @@ func EncodePayload(packets []*types.Packet) (*bytes.Buffer, error) {
 func DecodePayload(data *bytes.Buffer) []*types.Packet {
 	packets := []*types.Packet{}
 
-	for buf, err := data.ReadBytes(SEPARATOR); err != io.EOF; {
-		if packet, err := DecodePacket(bytes.NewBuffer(buf)); err == nil {
+	for {
+		buf, err := data.ReadBytes(SEPARATOR)
+		if packet, err := DecodePacket(bytes.NewStringBuffer(buf[:-1])); err == nil {
 			packets = append(packets, packet)
 		} else {
+			break
+		}
+		if err == io.EOF {
 			break
 		}
 	}

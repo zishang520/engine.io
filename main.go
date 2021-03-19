@@ -4,6 +4,7 @@ import (
 	// "bytes"
 	"fmt"
 	"github.com/zishang520/engine.io/bytes"
+	"github.com/zishang520/engine.io/paser"
 	// "strings"
 )
 

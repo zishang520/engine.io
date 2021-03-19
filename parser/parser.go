@@ -7,9 +7,6 @@ import (
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/types"
 	"io"
-	"strconv"
-	"strings"
-	"unicode/utf8"
 )
 
 /**
@@ -43,7 +40,7 @@ var (
 
 	ERROR_PACKET = &types.Packet{Type: `error`, Data: bytes.NewStringBuffer([]byte(`parser error`))}
 
-	SEPARATOR = 0x30
+	SEPARATOR = byte(0x30)
 )
 
 func EncodePacket(packet *types.Packet, supportsBinary bool) (*bytes.Buffer, error) {
@@ -57,14 +54,14 @@ func EncodePacket(packet *types.Packet, supportsBinary bool) (*bytes.Buffer, err
 		defer c.Close()
 	}
 
-	Type, _type_ok := PACKET_TYPES[packet.Type]
+	_type, _type_ok := PACKET_TYPES[packet.Type]
 	if !_type_ok {
 		return encode, errors.New(`Packet Type error`)
 	}
 
 	switch v := packet.Data.(type) {
 	case *bytes.StringBuffer:
-		encode.WriteByte(PACKET_TYPES[packet.Type])
+		encode.WriteByte(_type)
 		v.WriteTo(encode)
 	case *bytes.Buffer:
 		if !supportsBinary {
@@ -77,7 +74,7 @@ func EncodePacket(packet *types.Packet, supportsBinary bool) (*bytes.Buffer, err
 			v.WriteTo(encode)
 		}
 	default:
-		encode.WriteByte(PACKET_TYPES[packet.Type])
+		encode.WriteByte(_type)
 	}
 	return encode, nil
 }
@@ -127,7 +124,7 @@ func DecodePacket(data io.Reader) (*types.Packet, error) {
 	return ERROR_PACKET, errors.New(`parser error`)
 }
 
-func EncodePayload(packets []*types.Packet, supportsBinary bool) (*bytes.Buffer, error) {
+func EncodePayload(packets []*types.Packet) (*bytes.Buffer, error) {
 	enPayload := bytes.NewBuffer(nil)
 
 	for _, packet := range packets {

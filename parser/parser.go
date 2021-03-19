@@ -65,8 +65,17 @@ var (
 func EncodePacket(packet *types.Packet, supportsBinary bool) (*bytes.Buffer, error) {
 	encode := bytes.NewBuffer(nil)
 
+	if packet == nil {
+		return encode, errors.New(`Packet is nil`)
+	}
+
 	if c, ok := packet.Data.(io.Closer); ok {
 		defer c.Close()
+	}
+
+	Type, _type_ok := PACKET_TYPES[packet.Type]
+	if !_type_ok {
+		return encode, errors.New(`Packet Type error`)
 	}
 
 	switch v := packet.Data.(type) {
@@ -96,57 +105,44 @@ func EncodePacket(packet *types.Packet, supportsBinary bool) (*bytes.Buffer, err
  * @api public
  */
 
-func DecodePacket(data io.Reader, utf8decode bool) (*types.Packet, error) {
+func DecodePacket(data io.Reader) (*types.Packet, error) {
 	if data == nil {
 		return ERROR_PACKET, errors.New(`parser error`)
 	}
+
 	if c, ok := data.(io.Closer); ok {
 		defer c.Close()
 	}
 
-	msgType := []byte{0xFF}
-	if _, err := data.Read(msgType); err != nil {
-		return ERROR_PACKET, err
-	}
-
-	decode := bytes.NewBuffer(nil)
 	switch v := data.(type) {
-	case *strings.Reader:
-		if msgType[0] == 'b' {
-			if _, err := v.Read(msgType); err != nil {
-				return ERROR_PACKET, err
-			}
-			packetType, ok := PACKET_TYPES_REVERSE[msgType[0]]
-			if !ok {
-				return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
-			}
+	case *bytes.StringBuffer:
+		msgType, err := v.ReadByte()
+		if err != nil {
+			return ERROR_PACKET, err
+		}
+		if msgType == 'b' {
+			decode := bytes.NewBuffer(nil)
 			decode.ReadFrom(base64.NewDecoder(base64.StdEncoding, v))
 			return &types.Packet{
-				Type: packetType,
+				Type: "message",
 				Data: decode,
 			}, nil
 		}
-		packetType, ok := PACKET_TYPES_REVERSE[msgType[0]]
+		packetType, ok := PACKET_TYPES_REVERSE[msgType]
 		if !ok {
-			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
+			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType))
 		}
-		if utf8decode {
-			decode.ReadFrom(NewUtf8Decoder(v))
-		} else {
-			decode.ReadFrom(v)
-		}
+		stringBuffer := bytes.NewStringBuffer(nil)
+		stringBuffer.ReadFrom(v)
 		return &types.Packet{
 			Type: packetType,
-			Data: decode,
+			Data: stringBuffer,
 		}, nil
 	default:
-		packetType, ok := PACKET_TYPES_REVERSE[msgType[0]+'0']
-		if !ok {
-			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]+'0'))
-		}
+		decode := bytes.NewBuffer(nil)
 		decode.ReadFrom(v)
 		return &types.Packet{
-			Type: packetType,
+			Type: "message",
 			Data: decode,
 		}, nil
 	}

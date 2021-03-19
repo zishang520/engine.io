@@ -40,7 +40,7 @@ var (
 
 	ERROR_PACKET = &types.Packet{Type: `error`, Data: bytes.NewStringBuffer([]byte(`parser error`))}
 
-	SEPARATOR = byte(0x30)
+	SEPARATOR = byte(0x1E)
 )
 
 func EncodePacket(packet *types.Packet, supportsBinary bool) (*bytes.Buffer, error) {

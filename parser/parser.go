@@ -12,12 +12,10 @@ import (
 	"unicode/utf8"
 )
 
-type Callback func(*types.Packet, int, int) bool
-
 /**
  * Current protocol version.
  */
-const Protocol = 3
+const Protocol = 4
 
 /**
  * Packet types.
@@ -44,23 +42,9 @@ var (
 	}
 
 	ERROR_PACKET = &types.Packet{Type: `error`, Data: bytes.NewStringBuffer([]byte(`parser error`))}
-)
 
-/**
- * Encodes a packet.
- *
- *     <packet type id> [ <data> ]
- *
- * Example:
- *
- *     5hello world
- *     3
- *     4
- *
- * Binary is encoded in an identical principle
- *
- * @api public
- */
+	SEPARATOR = 0x30
+)
 
 func EncodePacket(packet *types.Packet, supportsBinary bool) (*bytes.Buffer, error) {
 	encode := bytes.NewBuffer(nil)
@@ -97,13 +81,6 @@ func EncodePacket(packet *types.Packet, supportsBinary bool) (*bytes.Buffer, err
 	}
 	return encode, nil
 }
-
-/**
- * Decodes a packet. Data also available as an ArrayBuffer if requested.
- *
- * @return {Object} with `type` and `data` (if any)
- * @api public
- */
 
 func DecodePacket(data io.Reader) (*types.Packet, error) {
 	if data == nil {
@@ -150,237 +127,33 @@ func DecodePacket(data io.Reader) (*types.Packet, error) {
 	return ERROR_PACKET, errors.New(`parser error`)
 }
 
-func hasBinary(packets []*types.Packet) bool {
-	if len(packets) == 0 {
-		return false
-	}
-	for _, packet := range packets {
-		switch packet.Data.(type) {
-		case *strings.Reader:
-		case io.WriterTo:
-			return true
-		case nil:
-		default:
-		}
-	}
-
-	return false
-}
-
-/**
- * Encodes multiple messages (payload).
- *
- *     <length>:data
- *
- * Example:
- *
- *     11:hello world2:hi
- *
- * If any contents are binary, they will be encoded as base64 strings. Base64
- * encoded strings are marked with a b before the length specifier
- *
- * @param {slice} packets
- * @api public
- */
-
 func EncodePayload(packets []*types.Packet, supportsBinary bool) (*bytes.Buffer, error) {
-	isBinary := hasBinary(packets)
-	if supportsBinary && isBinary {
-		return EncodePayloadAsBinary(packets)
-	}
-
 	enPayload := bytes.NewBuffer(nil)
 
-	if len(packets) == 0 {
-		enPayload.WriteString(`0:`)
-		return enPayload, nil
-	}
-
 	for _, packet := range packets {
-		if !isBinary {
-			supportsBinary = false
-		}
-		if buf, err := EncodePacket(packet, supportsBinary, false); err != nil {
+		if buf, err := EncodePacket(packet, false); err != nil {
 			return enPayload, err
 		} else {
-			enPayload.WriteString(fmt.Sprintf(`%d:%s`, Utf16Count(buf.Bytes()), buf.String()))
+			if enPayload.Len() > 0 {
+				enPayload.WriteByte(SEPARATOR)
+			}
+			buf.WriteTo(enPayload)
 		}
 	}
 
 	return enPayload, nil
 }
 
-func encodeOneBinaryPacket(packet *types.Packet) (*bytes.Buffer, error) {
-	binarypacket := bytes.NewBuffer(nil)
+func DecodePayload(data *bytes.Buffer) []*types.Packet {
+	packets := []*types.Packet{}
 
-	buf, err := EncodePacket(packet, true, true)
-	if err != nil {
-		return binarypacket, err
-	}
-	switch packet.Data.(type) {
-	case *strings.Reader:
-		encodingLength := fmt.Sprintf(`%d`, Utf16Count(buf.Bytes())) // JS length
-		binarypacket.WriteByte(0)
-		for i := 0; i < len(encodingLength); i++ {
-			binarypacket.WriteByte(encodingLength[i] - '0')
-		}
-		binarypacket.WriteByte(0xFF)
-		buf.WriteTo(NewUtf8Encoder(binarypacket))
-	default:
-		encodingLength := fmt.Sprintf(`%d`, buf.Len())
-		binarypacket.WriteByte(1) // is binary (true binary = 1)
-		for i := 0; i < len(encodingLength); i++ {
-			binarypacket.WriteByte(encodingLength[i] - '0')
-		}
-		binarypacket.WriteByte(0xFF)
-		binarypacket.ReadFrom(buf)
-	}
-
-	return binarypacket, nil
-}
-
-func EncodePayloadAsBinary(packets []*types.Packet) (*bytes.Buffer, error) {
-	enPayload := bytes.NewBuffer(nil)
-
-	if len(packets) == 0 {
-		return enPayload, nil
-	}
-
-	for _, packet := range packets {
-		if buf, err := encodeOneBinaryPacket(packet); err != nil {
-			return enPayload, err
+	for buf, err := data.ReadBytes(SEPARATOR); err != io.EOF; {
+		if packet, err := DecodePacket(bytes.NewBuffer(buf)); err == nil {
+			packets = append(packets, packet)
 		} else {
-			enPayload.ReadFrom(buf)
+			break
 		}
 	}
 
-	return enPayload, nil
-}
-
-func DecodePayload(data io.Reader, callback Callback) bool {
-	switch v := data.(type) {
-	case *strings.Reader:
-		str := bytes.NewBuffer(nil)
-		v.WriteTo(str)
-		for n, l := 0, Utf16Count(str.Bytes()); str.Len() > 0; {
-			length, err := str.ReadString(':')
-			if err != nil {
-				return callback(ERROR_PACKET, 0, 1)
-			}
-			_l := len(length)
-			if _l < 1 {
-				return callback(ERROR_PACKET, 0, 1)
-			}
-			packetLen, err := strconv.ParseInt(length[:_l-1], 10, 64)
-			if err != nil {
-				return callback(ERROR_PACKET, 0, 1)
-			}
-
-			PACKETLEN := int(packetLen)
-			msg := new(strings.Builder)
-			for i := 0; i < PACKETLEN; {
-				r, _, e := str.ReadRune()
-				if e != nil {
-					return callback(ERROR_PACKET, 0, 1)
-				}
-				i += Utf16Len(r)
-				msg.WriteRune(r)
-			}
-
-			if msg.Len() > 0 {
-				packet, err := DecodePacket(strings.NewReader(msg.String()), false)
-				if err != nil {
-					// parser error in individual packet - ignoring payload
-					return callback(ERROR_PACKET, 0, 1)
-				}
-				if more := callback(packet, n+PACKETLEN+_l-1, l); false == more {
-					return more
-				}
-			}
-
-			n += PACKETLEN + _l
-		}
-	default:
-		return DecodePayloadAsBinary(data, callback)
-	}
-
-	return true
-}
-
-func DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
-	bufferTail := bytes.NewBuffer(nil)
-	bufferTail.ReadFrom(data)
-
-	buffers := []io.Reader{}
-	for bufferTail.Len() > 0 {
-		startByte, err := bufferTail.ReadByte()
-		if err != nil {
-			// parser error in individual packet - ignoring payload
-			return callback(ERROR_PACKET, 0, 1)
-		}
-		isString := startByte == 0x00
-		length, err := bufferTail.ReadBytes(0xFF)
-		if err != nil {
-			return callback(ERROR_PACKET, 0, 1)
-		}
-		_l := len(length)
-		if _l < 1 {
-			return callback(ERROR_PACKET, 0, 1)
-		}
-		lenByte := length[:_l-1]
-		for k, l := 0, len(lenByte); k < l; k++ {
-			lenByte[k] = lenByte[k] + '0'
-		}
-		packetLen, err := strconv.ParseInt(string(lenByte), 10, 64)
-		if err != nil {
-			return callback(ERROR_PACKET, 0, 1)
-		}
-		PACKETLEN := int(packetLen)
-		if isString {
-			data := new(strings.Builder)
-			buf := []byte{}
-			for k := 0; k < PACKETLEN; {
-				for len(buf) < 4 {
-					r, _, err := bufferTail.ReadRune()
-					if err != nil {
-						if err == io.EOF {
-							break
-						}
-						return callback(ERROR_PACKET, 0, 1)
-					}
-					if !utf8.ValidRune(r) {
-						r = 0xFFFD
-					}
-					buf = append(buf, byte(r))
-				}
-				r, l := utf8.DecodeRune(buf)
-				k += Utf16Len(r)
-				data.Write(Utf8decodeBytesReturn(buf[0:l]))
-				buf = buf[l:]
-			}
-			if cursor := len(Utf8encodeBytesReturn(buf)); cursor > 0 {
-				// Rollback read pointer
-				bufferTail.Prev(cursor)
-			}
-			if data.Len() > 0 {
-				buffers = append(buffers, strings.NewReader(data.String()))
-			}
-		} else {
-			if data := bufferTail.Next(PACKETLEN); len(data) > 0 {
-				buffers = append(buffers, bytes.NewBuffer(data))
-			}
-		}
-	}
-
-	for k, bl := 0, len(buffers); k < bl; k++ {
-		packet, err := DecodePacket(buffers[k], false)
-		if err != nil {
-			// parser error in individual packet - ignoring payload
-			return callback(ERROR_PACKET, 0, 1)
-		}
-		if more := callback(packet, k, bl); false == more {
-			return more
-		}
-	}
-	return true
+	return packets
 }

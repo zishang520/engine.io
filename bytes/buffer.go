@@ -10,7 +10,7 @@ type StringBuffer struct {
 
 func NewStringBuffer(buf []byte) *StringBuffer {
 	return &StringBuffer{
-		Buffer: bytes.NewBuffer(s),
+		Buffer: bytes.NewBuffer(buf),
 	}
 }
 
@@ -20,6 +20,6 @@ type Buffer struct {
 
 func NewBuffer(buf []byte) *Buffer {
 	return &Buffer{
-		Buffer: bytes.NewBuffer(s),
+		Buffer: bytes.NewBuffer(buf),
 	}
 }

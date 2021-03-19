@@ -1,9 +1,9 @@
 package parser
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
-	"github.com/zishang520/engine.io/bytes"
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/types"
 	"io"
@@ -38,13 +38,13 @@ var (
 		'6': "noop",
 	}
 
-	ERROR_PACKET = &types.Packet{Type: `error`, Data: bytes.NewStringBuffer([]byte(`parser error`))}
+	ERROR_PACKET = &types.Packet{Type: `error`, Data: types.NewStringBuffer([]byte(`parser error`))}
 
 	SEPARATOR = byte(0x1E)
 )
 
-func EncodePacket(packet *types.Packet, supportsBinary bool) (*bytes.Buffer, error) {
-	encode := bytes.NewBuffer(nil)
+func EncodePacket(packet *types.Packet, supportsBinary bool) (*types.Buffer, error) {
+	encode := types.NewBuffer(nil)
 
 	if packet == nil {
 		return encode, errors.New(`Packet is nil`)
@@ -60,10 +60,10 @@ func EncodePacket(packet *types.Packet, supportsBinary bool) (*bytes.Buffer, err
 	}
 
 	switch v := packet.Data.(type) {
-	case *bytes.StringBuffer:
+	case *types.StringBuffer:
 		encode.WriteByte(_type)
 		v.WriteTo(encode)
-	case *bytes.Buffer:
+	case *types.Buffer:
 		if !supportsBinary {
 			encode.WriteByte('b')
 			b64 := base64.NewEncoder(base64.StdEncoding, encode)
@@ -89,13 +89,13 @@ func DecodePacket(data io.Reader) (*types.Packet, error) {
 	}
 
 	switch v := data.(type) {
-	case *bytes.StringBuffer:
+	case *types.StringBuffer:
 		msgType, err := v.ReadByte()
 		if err != nil {
 			return ERROR_PACKET, err
 		}
 		if msgType == 'b' {
-			decode := bytes.NewBuffer(nil)
+			decode := types.NewBuffer(nil)
 			decode.ReadFrom(base64.NewDecoder(base64.StdEncoding, v))
 			return &types.Packet{
 				Type: "message",
@@ -106,14 +106,14 @@ func DecodePacket(data io.Reader) (*types.Packet, error) {
 		if !ok {
 			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType))
 		}
-		stringBuffer := bytes.NewStringBuffer(nil)
+		stringBuffer := types.NewStringBuffer(nil)
 		stringBuffer.ReadFrom(v)
 		return &types.Packet{
 			Type: packetType,
 			Data: stringBuffer,
 		}, nil
 	default:
-		decode := bytes.NewBuffer(nil)
+		decode := types.NewBuffer(nil)
 		decode.ReadFrom(v)
 		return &types.Packet{
 			Type: "message",
@@ -124,8 +124,8 @@ func DecodePacket(data io.Reader) (*types.Packet, error) {
 	return ERROR_PACKET, errors.New(`parser error`)
 }
 
-func EncodePayload(packets []*types.Packet) (*bytes.Buffer, error) {
-	enPayload := bytes.NewBuffer(nil)
+func EncodePayload(packets []*types.Packet) (*types.Buffer, error) {
+	enPayload := types.NewBuffer(nil)
 
 	for _, packet := range packets {
 		if buf, err := EncodePacket(packet, false); err != nil {
@@ -141,12 +141,12 @@ func EncodePayload(packets []*types.Packet) (*bytes.Buffer, error) {
 	return enPayload, nil
 }
 
-func DecodePayload(data *bytes.Buffer) []*types.Packet {
+func DecodePayload(data *types.Buffer) []*types.Packet {
 	packets := []*types.Packet{}
 
 	for {
 		buf, err := data.ReadBytes(SEPARATOR)
-		if packet, err := DecodePacket(bytes.NewStringBuffer(buf[:-1])); err == nil {
+		if packet, err := DecodePacket(types.NewStringBuffer(bytes.TrimSuffix(buf, []byte{SEPARATOR}))); err == nil {
 			packets = append(packets, packet)
 		} else {
 			break

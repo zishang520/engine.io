@@ -4,6 +4,7 @@ import (
 	"bytes"
 )
 
+// 字符串buffer，继承至bytes.Buffer
 type StringBuffer struct {
 	*bytes.Buffer
 }
@@ -14,6 +15,7 @@ func NewStringBuffer(buf []byte) *StringBuffer {
 	}
 }
 
+// 就是一个bytes.Buffer,没啥特别的
 type Buffer struct {
 	*bytes.Buffer
 }

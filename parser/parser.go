@@ -38,13 +38,13 @@ var (
 		'6': "noop",
 	}
 
-	ERROR_PACKET = &types.Packet{Type: `error`, Data: types.NewStringBuffer([]byte(`parser error`))}
+	ERROR_PACKET = &types.Packet{Type: `error`, Data: types.NewStringBufferString(`parser error`)}
 
 	SEPARATOR = byte(0x1E)
 )
 
-func EncodePacket(packet *types.Packet, supportsBinary bool) (*types.Buffer, error) {
-	encode := types.NewBuffer(nil)
+func EncodePacket(packet *types.Packet, supportsBinary bool) (*types.BytesBuffer, error) {
+	encode := types.NewBytesBuffer(nil)
 
 	if packet == nil {
 		return encode, errors.New(`Packet is nil`)
@@ -63,7 +63,7 @@ func EncodePacket(packet *types.Packet, supportsBinary bool) (*types.Buffer, err
 	case *types.StringBuffer:
 		encode.WriteByte(_type)
 		v.WriteTo(encode)
-	case *types.Buffer:
+	case *types.BytesBuffer:
 		if !supportsBinary {
 			encode.WriteByte('b')
 			b64 := base64.NewEncoder(base64.StdEncoding, encode)
@@ -95,7 +95,7 @@ func DecodePacket(data io.Reader) (*types.Packet, error) {
 			return ERROR_PACKET, err
 		}
 		if msgType == 'b' {
-			decode := types.NewBuffer(nil)
+			decode := types.NewBytesBuffer(nil)
 			decode.ReadFrom(base64.NewDecoder(base64.StdEncoding, v))
 			return &types.Packet{
 				Type: "message",
@@ -113,8 +113,8 @@ func DecodePacket(data io.Reader) (*types.Packet, error) {
 			Data: stringBuffer,
 		}, nil
 	default:
-		decode := types.NewBuffer(nil)
-		decode.ReadFrom(v)
+		decode := types.NewBytesBuffer(nil)
+		io.Copy(decode, v)
 		return &types.Packet{
 			Type: "message",
 			Data: decode,
@@ -124,8 +124,8 @@ func DecodePacket(data io.Reader) (*types.Packet, error) {
 	return ERROR_PACKET, errors.New(`parser error`)
 }
 
-func EncodePayload(packets []*types.Packet) (*types.Buffer, error) {
-	enPayload := types.NewBuffer(nil)
+func EncodePayload(packets []*types.Packet) (*types.BytesBuffer, error) {
+	enPayload := types.NewBytesBuffer(nil)
 
 	for _, packet := range packets {
 		if buf, err := EncodePacket(packet, false); err != nil {
@@ -141,7 +141,7 @@ func EncodePayload(packets []*types.Packet) (*types.Buffer, error) {
 	return enPayload, nil
 }
 
-func DecodePayload(data *types.Buffer) []*types.Packet {
+func DecodePayload(data *types.BytesBuffer) []*types.Packet {
 	packets := []*types.Packet{}
 
 	for {

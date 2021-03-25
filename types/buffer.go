@@ -4,24 +4,26 @@ import (
 	"bytes"
 )
 
-// 字符串buffer，继承至bytes.Buffer
+type BytesBuffer struct {
+	*bytes.Buffer
+}
+
+func NewBytesBuffer(buf []byte) *BytesBuffer {
+	return &BytesBuffer{bytes.NewBuffer(buf)}
+}
+
+func NewBytesBufferString(s string) *BytesBuffer {
+	return &BytesBuffer{bytes.NewBufferString(s)}
+}
+
 type StringBuffer struct {
 	*bytes.Buffer
 }
 
 func NewStringBuffer(buf []byte) *StringBuffer {
-	return &StringBuffer{
-		Buffer: bytes.NewBuffer(buf),
-	}
+	return &StringBuffer{bytes.NewBuffer(buf)}
 }
 
-// 就是一个bytes.Buffer,没啥特别的
-type Buffer struct {
-	*bytes.Buffer
-}
-
-func NewBuffer(buf []byte) *Buffer {
-	return &Buffer{
-		Buffer: bytes.NewBuffer(buf),
-	}
+func NewStringBufferString(s string) *StringBuffer {
+	return &StringBuffer{bytes.NewBufferString(s)}
 }

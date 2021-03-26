@@ -63,15 +63,15 @@ func EncodePacket(packet *types.Packet, supportsBinary bool) (*types.BytesBuffer
 	case *types.StringBuffer:
 		encode.WriteByte(_type)
 		v.WriteTo(encode)
-	case *types.BytesBuffer:
+	case io.Reader, io.Writer:
 		if !supportsBinary {
 			encode.WriteByte('b')
 			b64 := base64.NewEncoder(base64.StdEncoding, encode)
 			defer b64.Close()
 
-			v.WriteTo(b64)
+			io.Copy(b64, v)
 		} else {
-			v.WriteTo(encode)
+			io.Copy(encode, v)
 		}
 	default:
 		encode.WriteByte(_type)

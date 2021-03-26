@@ -4,6 +4,7 @@ import (
 	"bytes"
 )
 
+// 字符buffer
 type BytesBuffer struct {
 	*bytes.Buffer
 }
@@ -16,6 +17,7 @@ func NewBytesBufferString(s string) *BytesBuffer {
 	return &BytesBuffer{bytes.NewBufferString(s)}
 }
 
+// 字符串buffer
 type StringBuffer struct {
 	*bytes.Buffer
 }

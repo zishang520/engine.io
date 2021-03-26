@@ -109,16 +109,6 @@ func New() EventEmitter {
 	}
 }
 
-var (
-	defaultEmitter = New()
-)
-
-// AddListener is an alias for .On(eventName, listener).
-// noinspection GoUnusedExportedFunction
-func AddListener(evt EventName, listener ...Listener) {
-	defaultEmitter.AddListener(evt, listener...)
-}
-
 func (e *emitter) AddListener(evt EventName, listener ...Listener) {
 	if len(listener) == 0 {
 		return
@@ -150,14 +140,6 @@ func (e *emitter) AddListener(evt EventName, listener ...Listener) {
 	e.evtListeners[evt] = append(listeners, listener...)
 }
 
-// Emit fires a particular event,
-// Synchronously calls each of the listeners registered for the event named
-// eventName, in the order they were registered,
-// passing the supplied arguments to each.
-func Emit(evt EventName, data ...interface{}) {
-	defaultEmitter.Emit(evt, data...)
-}
-
 func (e *emitter) Emit(evt EventName, data ...interface{}) {
 	if e.evtListeners == nil {
 		return // has no listeners to emit/speak yet
@@ -174,14 +156,6 @@ func (e *emitter) Emit(evt EventName, data ...interface{}) {
 	}
 }
 
-// EventNames returns an array listing the events for which the emitter
-// has registered listeners.
-// The values in the array will be strings.
-// noinspection GoUnusedExportedFunction
-func EventNames() []EventName {
-	return defaultEmitter.EventNames()
-}
-
 func (e *emitter) EventNames() []EventName {
 	if e.evtListeners == nil || e.Len() == 0 {
 		return nil
@@ -196,21 +170,8 @@ func (e *emitter) EventNames() []EventName {
 	return names
 }
 
-// GetMaxListeners returns the max listeners for this emitter
-// see SetMaxListeners
-// noinspection GoUnusedExportedFunction
-func GetMaxListeners() int {
-	return defaultEmitter.GetMaxListeners()
-}
-
 func (e *emitter) GetMaxListeners() int {
 	return e.maxListeners
-}
-
-// ListenerCount returns the length of all registered listeners to a particular
-// event
-func ListenerCount(evt EventName) int {
-	return defaultEmitter.ListenerCount(evt)
 }
 
 func (e *emitter) ListenerCount(evt EventName) int {
@@ -232,12 +193,6 @@ func (e *emitter) ListenerCount(evt EventName) int {
 	}
 
 	return length
-}
-
-// Listeners returns a copy of the array of listeners for the event named
-// eventName.
-func Listeners(evt EventName) []Listener {
-	return defaultEmitter.Listeners(evt)
 }
 
 func (e *emitter) Listeners(evt EventName) []Listener {
@@ -265,21 +220,8 @@ func (e *emitter) Listeners(evt EventName) []Listener {
 	return nil
 }
 
-// On registers a particular listener for an event, func receiver parameter(s)
-// is/are optional
-func On(evt EventName, listener ...Listener) {
-	defaultEmitter.On(evt, listener...)
-}
-
 func (e *emitter) On(evt EventName, listener ...Listener) {
 	e.AddListener(evt, listener...)
-}
-
-// Once adds a one time listener function for the event named eventName.
-// The next time eventName is triggered, this listener is removed and
-// then invoked.
-func Once(evt EventName, listener ...Listener) {
-	defaultEmitter.Once(evt, listener...)
 }
 
 func (e *emitter) Once(evt EventName, listener ...Listener) {
@@ -327,15 +269,6 @@ func (e *emitter) Once(evt EventName, listener ...Listener) {
 
 	}
 	e.AddListener(evt, modifiedListeners...)
-}
-
-// RemoveAllListeners removes all listeners, or those of the specified
-// eventName.
-// Note that it will remove the event itself.
-// Returns an indicator if event and listeners were found before the remove.
-// noinspection GoUnusedExportedFunction
-func RemoveAllListeners(evt EventName) bool {
-	return defaultEmitter.RemoveAllListeners(evt)
 }
 
 func (e *emitter) RemoveAllListeners(evt EventName) bool {
@@ -404,21 +337,8 @@ func (e *emitter) RemoveListener(evt EventName, listener Listener) bool {
 	return true
 }
 
-// Clear removes all events and all listeners, restores Events to an empty
-// value
-func Clear() {
-	defaultEmitter.Clear()
-}
-
 func (e *emitter) Clear() {
 	e.evtListeners = Events{}
-}
-
-// SetMaxListeners obviously this function allows the MaxListeners
-// to be decrease or increase. Set to zero for unlimited
-// noinspection GoUnusedExportedFunction
-func SetMaxListeners(n int) {
-	defaultEmitter.SetMaxListeners(n)
 }
 
 func (e *emitter) SetMaxListeners(n int) {
@@ -433,12 +353,6 @@ func (e *emitter) SetMaxListeners(n int) {
 	}
 
 	e.maxListeners = n
-}
-
-// Len returns the length of all registered events
-// noinspection GoUnusedExportedFunction
-func Len() int {
-	return defaultEmitter.Len()
 }
 
 func (e *emitter) Len() int {

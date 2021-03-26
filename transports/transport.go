@@ -17,10 +17,19 @@ type transport struct {
 	ReadyState string      //"open";
 	Discarded  bool        // false;
 	Protocol   int         // req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
-	parser     paser.Paser // this.protocol === 4 ? parser_v4 : parser_v3;
+	Parser     paser.Paser // this.protocol === 4 ? parser_v4 : parser_v3;
 
 	req     interface{} // this.protocol === 4 ? parser_v4 : parser_v3;
 	doClose func()
+}
+
+func NewTransport(req interface{}) Transport {
+	t := &transport{}
+	t.ReadyState = "open"
+	t.Discarded = false
+	t.Protocol = 4           // req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
+	t.Parser = paser.PaserV4 // this.protocol === 4 ? parser_v4 : parser_v3;
+	return t
 }
 
 func (t *transport) Discard() {

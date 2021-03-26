@@ -119,11 +119,16 @@ func (p parserv4) EncodePayload(packets []*packet.Packet) (*types.BytesBuffer, e
 	return enPayload, nil
 }
 
-func (p parserv4) DecodePayload(data *types.BytesBuffer) []*packet.Packet {
+func (p parserv4) DecodePayload(data io.Reader) []*packet.Packet {
 	packets := []*packet.Packet{}
 
+	if c, ok := data.(io.Closer); ok {
+		defer c.Close()
+	}
+
+	_data := bufio.NewReader(data)
 	for {
-		buf, err := data.ReadBytes(SEPARATOR)
+		buf, err := _data.ReadBytes(SEPARATOR)
 		if packet, err := p.DecodePacket(types.NewStringBuffer(bytes.TrimSuffix(buf, []byte{SEPARATOR}))); err == nil {
 			packets = append(packets, packet)
 		} else {

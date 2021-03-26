@@ -8,6 +8,11 @@ type polling struct {
 	*transport
 }
 
+func NewPolling() Polling {
+	p := &polling{}
+	return p
+}
+
 func (p *polling) Name() string {
 	return "polling"
 }

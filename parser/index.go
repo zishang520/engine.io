@@ -11,7 +11,7 @@ type Paser interface {
 	EncodePacket(*packet.Packet, bool) (*types.BytesBuffer, error)
 	DecodePacket(io.Reader) (*packet.Packet, error)
 	EncodePayload([]*packet.Packet) (*types.BytesBuffer, error)
-	DecodePayload(*types.BytesBuffer) []*packet.Packet
+	DecodePayload(io.Reader) []*packet.Packet
 }
 
 /**

@@ -14,7 +14,7 @@ import (
 /**
  * Current protocol version.
  */
-var ParserV4 parserv4
+var ParserV4 Paser = parserv4{}
 
 type parserv4 struct{}
 

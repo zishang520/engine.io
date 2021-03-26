@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/zishang520/engine.io/errors"
+	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/types"
 	"io"
 )
@@ -18,32 +19,32 @@ const Protocol = 4
  * Packet types.
  */
 var (
-	PACKET_TYPES map[string]byte = map[string]byte{
-		"open":    '0',
-		"close":   '1',
-		"ping":    '2',
-		"pong":    '3',
-		"message": '4',
-		"upgrade": '5',
-		"noop":    '6',
+	PACKET_TYPES map[packet.Type]byte = map[packet.Type]byte{
+		packet.OPEN:    '0',
+		packet.CLOSE:   '1',
+		packet.PING:    '2',
+		packet.PONG:    '3',
+		packet.MESSAGE: '4',
+		packet.UPGRADE: '5',
+		packet.NOOP:    '6',
 	}
 
-	PACKET_TYPES_REVERSE map[byte]string = map[byte]string{
-		'0': "open",
-		'1': "close",
-		'2': "ping",
-		'3': "pong",
-		'4': "message",
-		'5': "upgrade",
-		'6': "noop",
+	PACKET_TYPES_REVERSE map[byte]packet.Type = map[byte]packet.Type{
+		'0': packet.OPEN,
+		'1': packet.CLOSE,
+		'2': packet.PING,
+		'3': packet.PONG,
+		'4': packet.MESSAGE,
+		'5': packet.UPGRADE,
+		'6': packet.NOOP,
 	}
 
-	ERROR_PACKET = &types.Packet{Type: `error`, Data: types.NewStringBufferString(`parser error`)}
+	ERROR_PACKET = &packet.Packet{Type: packet.ERROR, Data: types.NewStringBufferString(`parser error`)}
 
 	SEPARATOR = byte(0x1E)
 )
 
-func EncodePacket(packet *types.Packet, supportsBinary bool) (*types.BytesBuffer, error) {
+func EncodePacket(packet *packet.Packet, supportsBinary bool) (*types.BytesBuffer, error) {
 	encode := types.NewBytesBuffer(nil)
 
 	if packet == nil {
@@ -79,7 +80,7 @@ func EncodePacket(packet *types.Packet, supportsBinary bool) (*types.BytesBuffer
 	return encode, nil
 }
 
-func DecodePacket(data io.Reader) (*types.Packet, error) {
+func DecodePacket(data io.Reader) (*packet.Packet, error) {
 	if data == nil {
 		return ERROR_PACKET, errors.New(`parser error`)
 	}
@@ -97,8 +98,8 @@ func DecodePacket(data io.Reader) (*types.Packet, error) {
 		if msgType == 'b' {
 			decode := types.NewBytesBuffer(nil)
 			decode.ReadFrom(base64.NewDecoder(base64.StdEncoding, v))
-			return &types.Packet{
-				Type: "message",
+			return &packet.Packet{
+				Type: packet.MESSAGE,
 				Data: decode,
 			}, nil
 		}
@@ -108,15 +109,15 @@ func DecodePacket(data io.Reader) (*types.Packet, error) {
 		}
 		stringBuffer := types.NewStringBuffer(nil)
 		stringBuffer.ReadFrom(v)
-		return &types.Packet{
+		return &packet.Packet{
 			Type: packetType,
 			Data: stringBuffer,
 		}, nil
 	default:
 		decode := types.NewBytesBuffer(nil)
 		io.Copy(decode, v)
-		return &types.Packet{
-			Type: "message",
+		return &packet.Packet{
+			Type: packet.MESSAGE,
 			Data: decode,
 		}, nil
 	}
@@ -124,7 +125,7 @@ func DecodePacket(data io.Reader) (*types.Packet, error) {
 	return ERROR_PACKET, errors.New(`parser error`)
 }
 
-func EncodePayload(packets []*types.Packet) (*types.BytesBuffer, error) {
+func EncodePayload(packets []*packet.Packet) (*types.BytesBuffer, error) {
 	enPayload := types.NewBytesBuffer(nil)
 
 	for _, packet := range packets {
@@ -141,8 +142,8 @@ func EncodePayload(packets []*types.Packet) (*types.BytesBuffer, error) {
 	return enPayload, nil
 }
 
-func DecodePayload(data *types.BytesBuffer) []*types.Packet {
-	packets := []*types.Packet{}
+func DecodePayload(data *types.BytesBuffer) []*packet.Packet {
+	packets := []*packet.Packet{}
 
 	for {
 		buf, err := data.ReadBytes(SEPARATOR)

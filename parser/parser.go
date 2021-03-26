@@ -13,38 +13,15 @@ import (
 /**
  * Current protocol version.
  */
-const Protocol = 4
+var ParserV4 parserv4
 
-/**
- * Packet types.
- */
-var (
-	PACKET_TYPES map[packet.Type]byte = map[packet.Type]byte{
-		packet.OPEN:    '0',
-		packet.CLOSE:   '1',
-		packet.PING:    '2',
-		packet.PONG:    '3',
-		packet.MESSAGE: '4',
-		packet.UPGRADE: '5',
-		packet.NOOP:    '6',
-	}
+type parserv4 struct{}
 
-	PACKET_TYPES_REVERSE map[byte]packet.Type = map[byte]packet.Type{
-		'0': packet.OPEN,
-		'1': packet.CLOSE,
-		'2': packet.PING,
-		'3': packet.PONG,
-		'4': packet.MESSAGE,
-		'5': packet.UPGRADE,
-		'6': packet.NOOP,
-	}
+func (parserv4) Protocol() int {
+	return 4
+}
 
-	ERROR_PACKET = &packet.Packet{Type: packet.ERROR, Data: types.NewStringBufferString(`parser error`)}
-
-	SEPARATOR = byte(0x1E)
-)
-
-func EncodePacket(packet *packet.Packet, supportsBinary bool) (*types.BytesBuffer, error) {
+func (p parserv4) EncodePacket(packet *packet.Packet, supportsBinary bool) (*types.BytesBuffer, error) {
 	encode := types.NewBytesBuffer(nil)
 
 	if packet == nil {
@@ -80,7 +57,7 @@ func EncodePacket(packet *packet.Packet, supportsBinary bool) (*types.BytesBuffe
 	return encode, nil
 }
 
-func DecodePacket(data io.Reader) (*packet.Packet, error) {
+func (p parserv4) DecodePacket(data io.Reader) (*packet.Packet, error) {
 	if data == nil {
 		return ERROR_PACKET, errors.New(`parser error`)
 	}
@@ -125,11 +102,11 @@ func DecodePacket(data io.Reader) (*packet.Packet, error) {
 	return ERROR_PACKET, errors.New(`parser error`)
 }
 
-func EncodePayload(packets []*packet.Packet) (*types.BytesBuffer, error) {
+func (p parserv4) EncodePayload(packets []*packet.Packet) (*types.BytesBuffer, error) {
 	enPayload := types.NewBytesBuffer(nil)
 
 	for _, packet := range packets {
-		if buf, err := EncodePacket(packet, false); err != nil {
+		if buf, err := p.EncodePacket(packet, false); err != nil {
 			return enPayload, err
 		} else {
 			if enPayload.Len() > 0 {
@@ -142,12 +119,12 @@ func EncodePayload(packets []*packet.Packet) (*types.BytesBuffer, error) {
 	return enPayload, nil
 }
 
-func DecodePayload(data *types.BytesBuffer) []*packet.Packet {
+func (p parserv4) DecodePayload(data *types.BytesBuffer) []*packet.Packet {
 	packets := []*packet.Packet{}
 
 	for {
 		buf, err := data.ReadBytes(SEPARATOR)
-		if packet, err := DecodePacket(types.NewStringBuffer(bytes.TrimSuffix(buf, []byte{SEPARATOR}))); err == nil {
+		if packet, err := p.DecodePacket(types.NewStringBuffer(bytes.TrimSuffix(buf, []byte{SEPARATOR}))); err == nil {
 			packets = append(packets, packet)
 		} else {
 			break

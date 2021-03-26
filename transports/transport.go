@@ -3,26 +3,61 @@ package engineio
 import (
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/events"
+	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/parser"
 	"github.com/zishang520/engine.io/types"
 )
 
-type Transport struct {
-	readyState string
-	discarded  bool
-
-	EventEmitter events.EventEmmiter
+type Transport interface {
+	events.EventEmitter
 }
 
-func NewTransport(req) *Transport {
-	this := &Transport{}
+type transport struct {
+	events.EventEmmiter
 
-	this.readyState = `open`
-	this.discarded = false
+	ReadyState string      //"open";
+	Discarded  bool        // false;
+	Protocol   int         // req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
+	Parser     paser.Paser // this.protocol === 4 ? parser_v4 : parser_v3;
 
-	this.EventEmitter = events.New()
+	req     interface{} // this.protocol === 4 ? parser_v4 : parser_v3;
+	doClose func()
+}
 
-	return this
+func (t *transport) Discard() {
+	t.Discarded = true
+}
+
+// func (t *transport) OnRequest(req) {
+// 	debug("setting request")
+// 	this.req = req
+// }
+
+func (t *transport) Close(fn) {
+	if "closed" == t.ReadyState || "closing" == t.ReadyState {
+		return
+	}
+	t.ReadyState = "closing"
+	t.doClose()
+}
+
+func (t *transport) OnError(msg, desc) {
+	if len(t.Listeners("error")) > 0 {
+		// const err = new Error(msg);
+		// err.type = "TransportError";
+		// err.description = desc;
+		t.Emit("error", "err")
+	} else {
+		// debug("ignored transport error %s (%s)", msg, desc)
+	}
+}
+
+func (t *transport) OnPacket(packet *packet.Packet) {
+	t.Emit("packet", packet)
+}
+
+func (t *transport) OnData(data) {
+	t.OnPacket(t.parser.DecodePacket(data))
 }
 
 /**

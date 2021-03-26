@@ -5,100 +5,83 @@ import (
 	"github.com/zishang520/engine.io/types"
 )
 
-type WebSocket struct {
-	*Transport
-	Name            string
-	HandlesUpgrades bool
-	SupportsFraming bool
+type WebSocket interface {
+	Transport
 }
 
-func NewWebSocket(req) {
-
-	this := &WebSocket{NewTransport(req)}
-
-	onHeaders := func(headers) {
-		this.EventEmitter.emit(`headers`, headers)
-	}
-	this.socket = req.websocket
-	this.socket.on(`message`, this.onData.bind(this))
-	this.socket.once(`close`, this.onClose.bind(this))
-	this.socket.on(`error`, this.onError.bind(this))
-	this.socket.on(`headers`, onHeaders)
-	this.writable = true
-	this.perMessageDeflate = null
-
-	/**
-	 * Transport name
-	 *
-	 * @api public
-	 */
-
-	this.Name = `websocket`
-
-	/**
-	 * Advertise upgrade support.
-	 *
-	 * @api public
-	 */
-
-	this.HandlesUpgrades = true
-
-	/**
-	 * Advertise framing support.
-	 *
-	 * @api public
-	 */
-
-	this.SupportsFraming = true
-
-	return this
+type websocket struct {
+	*transport
 }
 
-/**
- * Processes the incoming data.
- *
- * @param {String} encoded packet
- * @api public
- */
+func NewWebSocket(req interface{}) WebSocket {
 
-func (this *WebSocket) OnData(data) {
-	debug(`received "%s"`, data)
-	this.Transport.OnData(data)
+	s := &websocket{}
+	//  s.socket = req.websocket;
+	// s.socket.on("message", s.onData.bind(s));
+	// s.socket.once("close", s.onClose.bind(s));
+	// s.socket.on("error", s.onError.bind(s));
+	// s.socket.on("headers", headers => {
+	//   s.emit("headers", headers);
+	// });
+	// s.writable = true;
+	// s.perMessageDeflate = null;
+	return s
 }
 
-/**
- * Writes a packet payload.
- *
- * @param {Array} packets
- * @api public
- */
-
-func (this *WebSocket) Send(packets []*types.Packet) {
-
-	onEnd := func(err error) {
-		if err {
-			return this.OnError(`write error`)
-		}
-		this.writable = true
-		this.EventEmitter.Emit(`drain`)
-	}
-	for _, packet := range packets {
-		if packet, err := parser.EncodePacket(packet, this.supportsBinary, false); err != nil {
-			this.writable = false
-			this.socket.Send(data, opts, onEnd)
-		}
-	}
-
+func (w *websocket) Name() string {
+	return "websocket"
 }
 
-/**
- * Closes the transport.
- *
- * @api public
- */
+func (w *websocket) HandlesUpgrades() bool {
+	return true
+}
 
-func (this *WebSocket) DoClose(fn) {
-	// debug(`closing`)
-	this.socket.Close()
-	// fn && fn();
+func (w *websocket) SupportsFraming() bool {
+	return true
+}
+
+func (w *websocket) OnData(data io.Reader) {
+	// debug('received "%s"', data);
+	w.transport.OnData(data)
+}
+
+func (w *websocket) Send(packets []*packet.Packet) {
+	// for (var i = 0; i < packets.length; i++) {
+	//   var packet = packets[i];
+	//   w.parser.EncodePacket(packet, self.supportsBinary, send);
+	// }
+	// buf, err := parser.ParserV4.EncodePayload([]*packet.Packet{
+
+	// function send(data) {
+	//   debug('writing "%s"', data);
+
+	//   // always creates a new object since ws modifies it
+	//   var opts = {};
+	//   if (packet.options) {
+	//     opts.compress = packet.options.compress;
+	//   }
+
+	//   if (self.perMessageDeflate) {
+	//     var len =
+	//       "string" === typeof data ? Buffer.byteLength(data) : data.length;
+	//     if (len < self.perMessageDeflate.threshold) {
+	//       opts.compress = false;
+	//     }
+	//   }
+
+	//   self.writable = false;
+	//   self.socket.send(data, opts, onEnd);
+	// }
+
+	// function onEnd(err) {
+	//   if (err) return self.onError("write error", err.stack);
+	//   self.writable = true;
+	//   self.Emit("drain");
+	// }
+}
+
+func (w *websocket) DoClose(fn) {
+	// debug("closing")
+	// w.socket.Close()
+	// fn && fn()
 }

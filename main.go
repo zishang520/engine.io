@@ -6,6 +6,7 @@ import (
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/parser"
 	"github.com/zishang520/engine.io/types"
+	"github.com/zishang520/engine.io/utils"
 	// "strings"
 )
 
@@ -71,6 +72,10 @@ func main() {
 	bufs, errs := parser.EncodePayload(x)
 	fmt.Println(errs)
 	fmt.Println(bufs.String())
+	fmt.Println(utils.Base64Id.GenerateId())
+	fmt.Println(utils.Base64Id.GenerateId())
+	fmt.Println(utils.Base64Id.GenerateId())
+	fmt.Println(utils.Base64Id.GenerateId())
 
 	// fmt.Println(parser.DecodePayload(strings.NewReader(`209:2😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁103:2[]by:te{0, 1你好呀, 2, 3, 4, 5, 6, 7, 8, 9}b2W11ieXRlezAsIDHkvaDlpb3lkYAsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDl91:6`), func(a *packet.Packet, b int, c int) bool {
 	// 	fmt.Println(a)

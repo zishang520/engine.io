@@ -42,7 +42,7 @@ func (p parserv4) EncodePacket(packet *packet.Packet, supportsBinary bool) (*typ
 	case *types.StringBuffer:
 		encode.WriteByte(_type)
 		v.WriteTo(encode)
-	case io.Reader, io.Writer:
+	case io.Reader:
 		if !supportsBinary {
 			encode.WriteByte('b')
 			b64 := base64.NewEncoder(base64.StdEncoding, encode)

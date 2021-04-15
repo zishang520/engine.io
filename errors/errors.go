@@ -1,13 +1,19 @@
 package errors
 
 type Error struct {
-	message string
+	Message     string
+	Type        string
+	Description string
 }
 
-func New(message string) error {
-	return &Error{message: message}
+func New(message string) *Error {
+	return &Error{Message: message}
 }
 
-func (this *Error) Error() string {
-	return this.message
+func (e *Error) Err() error {
+	return e
+}
+
+func (e *Error) Error() string {
+	return e.Message
 }

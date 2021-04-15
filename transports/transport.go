@@ -1,9 +1,11 @@
 package engineio
 
 import (
+	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/parser"
+	"github.com/zishang520/engine.io/types"
 	"github.com/zishang520/engine.io/utils"
 	"io"
 	"net/http"
@@ -21,8 +23,8 @@ type transport struct {
 	Protocol   int         // req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
 	Parser     paser.Paser // this.protocol === 4 ? parser_v4 : parser_v3;
 
-	req     *http.Request // this.protocol === 4 ? parser_v4 : parser_v3;
-	doClose func()
+	req      *http.Request // this.protocol === 4 ? parser_v4 : parser_v3;
+	_doClose types.Fn
 }
 
 func NewTransport(req *http.Request) Transport {
@@ -31,6 +33,7 @@ func NewTransport(req *http.Request) Transport {
 	t.Discarded = false
 	t.Protocol = 4           // req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
 	t.Parser = paser.PaserV4 // this.protocol === 4 ? parser_v4 : parser_v3;
+	t._doClose = types.Noop
 	return t
 }
 
@@ -43,20 +46,26 @@ func (t *transport) OnRequest(req *http.Request) {
 	t.req = req
 }
 
-func (t *transport) Close(fn) {
+func (t *transport) DoClose(fn types.Fn) {
+	t._doClose = fn
+}
+
+func (t *transport) Close(fn ...types.Fn) {
+	fn = append(fn, types.Noop)
 	if "closed" == t.ReadyState || "closing" == t.ReadyState {
 		return
 	}
 	t.ReadyState = "closing"
-	t.doClose()
+	t._doClose(fn[0])
 }
 
-func (t *transport) OnError(msg, desc) {
+func (t *transport) OnError(msg string, desc ...string) {
+	desc = append(desc, "")
 	if len(t.Listeners("error")) > 0 {
-		// const err = new Error(msg);
-		// err.type = "TransportError";
-		// err.description = desc;
-		t.Emit("error", "err")
+		err := errors.New(msg)
+		err.Type = "TransportError"
+		err.Description = desc[0]
+		t.Emit("error", err)
 	} else {
 		utils.Log.Debug("ignored transport error %s (%s)", msg, desc)
 	}
@@ -67,7 +76,8 @@ func (t *transport) OnPacket(packet *packet.Packet) {
 }
 
 func (t *transport) OnData(data io.Reader) {
-	t.OnPacket(t.parser.DecodePacket(data))
+	p, _ := t.parser.DecodePacket(data)
+	t.OnPacket(p)
 }
 
 func (t *transport) OnClose() {

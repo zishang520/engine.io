@@ -4,7 +4,9 @@ import (
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/parser"
+	"github.com/zishang520/engine.io/utils"
 	"io"
+	"net/http"
 )
 
 type Transport interface {
@@ -19,11 +21,11 @@ type transport struct {
 	Protocol   int         // req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
 	Parser     paser.Paser // this.protocol === 4 ? parser_v4 : parser_v3;
 
-	req     interface{} // this.protocol === 4 ? parser_v4 : parser_v3;
+	req     *http.Request // this.protocol === 4 ? parser_v4 : parser_v3;
 	doClose func()
 }
 
-func NewTransport(req interface{}) Transport {
+func NewTransport(req *http.Request) Transport {
 	t := &transport{}
 	t.ReadyState = "open"
 	t.Discarded = false
@@ -36,8 +38,8 @@ func (t *transport) Discard() {
 	t.Discarded = true
 }
 
-func (t *transport) OnRequest(req interface{}) {
-	// debug("setting request")
+func (t *transport) OnRequest(req *http.Request) {
+	utils.Log.Debug("setting request")
 	t.req = req
 }
 
@@ -56,7 +58,7 @@ func (t *transport) OnError(msg, desc) {
 		// err.description = desc;
 		t.Emit("error", "err")
 	} else {
-		// debug("ignored transport error %s (%s)", msg, desc)
+		utils.Log.Debug("ignored transport error %s (%s)", msg, desc)
 	}
 }
 

@@ -6,11 +6,11 @@ import (
 	"encoding/binary"
 )
 
-var Base64Id = base64Id{0}
-
 type base64Id struct {
 	sequenceNumber uint64
 }
+
+var Base64Id = base64Id{0}
 
 func (b *base64Id) GenerateId() (string, error) {
 	r := make([]byte, 18)

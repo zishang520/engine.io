@@ -13,7 +13,7 @@ type websocket struct {
 	*transport
 }
 
-func NewWebSocket(req interface{}) WebSocket {
+func NewWebSocket(req *http.Request) WebSocket {
 
 	s := &websocket{}
 	//  s.socket = req.websocket;

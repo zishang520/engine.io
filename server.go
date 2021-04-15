@@ -418,6 +418,7 @@ func (this *server) onWebSocket(req, socket) {
  * @api public
  */
 
+// func (this *Kernel) ServeHTTP(response http.ResponseWriter, request *http.Request) {
 func (this *server) attach(server, options) {
 	//   const self = this;
 	//   options = options || {};

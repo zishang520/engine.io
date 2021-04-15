@@ -13,6 +13,15 @@ import (
 
 type Transport interface {
 	events.EventEmitter
+
+	Discard()
+	OnRequest(*http.Request)
+	DoClose(types.Fn)
+	Close(...types.Fn)
+	OnError(string, ...string)
+	OnPacket(*packet.Packet)
+	OnData(io.Reader)
+	OnClose()
 }
 
 type transport struct {

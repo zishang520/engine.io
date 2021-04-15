@@ -1,15 +1,41 @@
 package transports
 
+import (
+	"github.com/zishang520/engine.io/errors"
+	"github.com/zishang520/engine.io/events"
+	"github.com/zishang520/engine.io/packet"
+	"github.com/zishang520/engine.io/parser"
+	"github.com/zishang520/engine.io/types"
+	"github.com/zishang520/engine.io/utils"
+	"io"
+	"strings"
+)
+
 type Polling interface {
 	Transport
 }
 
 type polling struct {
 	*transport
+
+	closeTimeout      int
+	maxHttpBufferSize int
+	httpCompression   int
+	pollCtx           *types.HttpContext
+	dataCtx           *types.HttpContext
+
+	writable    bool
+	shouldClose types.Fn
 }
 
-func NewPolling() Polling {
-	p := &polling{}
+func NewPolling(ctx *types.HttpContext) Polling {
+	p := &polling{
+		transport:    NewTransport(ctx),
+		closeTimeout: 30 * 1000,
+		// maxHttpBufferSize = null;
+		// httpCompression = null;
+		writable: false,
+	}
 	return p
 }
 
@@ -25,38 +51,34 @@ func (p *polling) SupportsFraming() bool {
 	return false
 }
 
-func (p *polling) OnRequest(req interface{}) {
-	// const res = req.res;
-
-	// if ("GET" === req.method) {
-	//   this.onPollRequest(req, res);
-	// } else if ("POST" === req.method) {
-	//   this.onDataRequest(req, res);
-	// } else {
-	//   res.writeHead(500);
-	//   res.end();
-	// }
+func (p *polling) OnRequest(ctx *types.HttpContext) {
+	method := strings.ToUpper(ctx.Request.Method)
+	if "GET" == method {
+		p.OnPollRequest(ctx)
+	} else if "POST" == method {
+		p.OnDataRequest(ctx)
+	} else {
+		ctx.Response.WriteHeader(500)
+		ctx.response.Write(nil)
+	}
 }
 
-func (p *polling) OnPollRequest(req interface{}, res interface{}) {
-	// if (this.req) {
-	//   debug("request overlap");
-	//   // assert: this.res, '.req and .res should be (un)set together'
-	//   this.onError("overlap from client");
-	//   res.writeHead(500);
-	//   res.end();
-	//   return;
-	// }
+func (p *polling) OnPollRequest(ctx *types.HttpContext) {
+	if p.pollCtx != nil {
+		utils.Log.Debug("request overlap")
+		// assert: p.res, '.req and .res should be (un)set together'
+		p.OnError("overlap from client")
+		ctx.Response.WriteHeader(500)
+		ctx.response.Write(nil)
+		return
+	}
 
-	// debug("setting request");
+	utils.Log.Debug("setting request")
 
-	// this.req = req;
-	// this.res = res;
-
-	// const self = this;
+	p.pollCtx = ctx
 
 	// function onClose() {
-	//   self.onError("poll connection closed prematurely");
+	//   p.OnError("poll connection closed prematurely");
 	// }
 
 	// function cleanup() {
@@ -67,33 +89,37 @@ func (p *polling) OnPollRequest(req interface{}, res interface{}) {
 	// req.cleanup = cleanup;
 	// req.on("close", onClose);
 
-	// this.writable = true;
-	// this.emit("drain");
+	p.writable = true
+	p.Emit("drain")
 
-	// // if we're still writable but had a pending close, trigger an empty send
-	// if (this.writable && this.shouldClose) {
-	//   debug("triggering empty send to append close packet");
-	//   this.send([{ type: "noop" }]);
-	// }
+	// if we're still writable but had a pending close, trigger an empty send
+	if this.writable && this.shouldClose != nil {
+		utils.Log.Debug("triggering empty send to append close packet")
+		p.Send([]*packet.Packet{
+			&packet.Packet{
+				Type: packet.NOOP,
+			},
+		})
+	}
 }
 
-func (p *polling) OnDataRequest(req interface{}, res interface{}) {
-	// if (this.dataReq) {
-	//   // assert: this.dataRes, '.dataReq and .dataRes should be (un)set together'
-	//   this.onError("data request overlap from client");
-	//   res.writeHead(500);
-	//   res.end();
-	//   return;
-	// }
+func (p *polling) OnDataRequest(ctx *types.HttpContext) {
+	if p.dataCtx {
+		// assert: p.dataRes, '.dataReq and .dataRes should be (un)set together'
+		p.OnError("data request overlap from client")
+		ctx.Response.WriteHeader(500)
+		ctx.response.Write(nil)
+		return
+	}
 
-	// const isBinary = "application/octet-stream" === req.headers["content-type"];
+	isBinary := "application/octet-stream" == ctx.Request.Header.Get("Content-Type")
 
-	// if (isBinary && this.protocol === 4) {
-	//   return this.onError("invalid content");
-	// }
+	if isBinary && this.Protocol == 4 {
+		p.OnError("invalid content")
+		return
+	}
 
-	// this.dataReq = req;
-	// this.dataRes = res;
+	this.dataCtx = ctx
 
 	// let chunks = isBinary ? Buffer.concat([]) : "";
 	// const self = this;
@@ -148,8 +174,8 @@ func (p *polling) OnDataRequest(req interface{}, res interface{}) {
 }
 
 func (p *polling) OnData(data io.Reader) {
-	// debug('received "%s"', data);
-	// const self = this;
+	utils.Log.Debug(`received "%s"`, data)
+
 	// const callback = function(packet) {
 	//   if ("close" === packet.type) {
 	//     debug("got xhr close packet");
@@ -160,11 +186,15 @@ func (p *polling) OnData(data io.Reader) {
 	//   self.onPacket(packet);
 	// };
 
-	// if (this.protocol === 3) {
-	//   this.parser.decodePayload(data, callback);
-	// } else {
-	//   this.parser.decodePayload(data).forEach(callback);
-	// }
+	for packet := range p.Parser.DecodePayload(data) {
+		if "close" == packet.Type {
+			utils.Log.Debug("got xhr close packet")
+			p.OnClose()
+			return
+		}
+
+		p.OnPacket(packet)
+	}
 }
 
 func (p *polling) OnClose() {
@@ -192,7 +222,7 @@ func (p *polling) Send(packets []*packet.Packet) {
 	//   this.write(data, { compress });
 	// };
 
-	// if (this.protocol === 3) {
+	// if (this.Protocol === 3) {
 	//   this.parser.encodePayload(packets, this.supportsBinary, doWrite);
 	// } else {
 	//   this.parser.encodePayload(packets, doWrite);

@@ -29,7 +29,3 @@ func NewStringBuffer(buf []byte) *StringBuffer {
 func NewStringBufferString(s string) *StringBuffer {
 	return &StringBuffer{bytes.NewBufferString(s)}
 }
-
-type Fn func()
-
-var Noop Fn = Fn{}

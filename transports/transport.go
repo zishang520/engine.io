@@ -8,14 +8,13 @@ import (
 	"github.com/zishang520/engine.io/types"
 	"github.com/zishang520/engine.io/utils"
 	"io"
-	"net/http"
 )
 
 type Transport interface {
 	events.EventEmitter
 
 	Discard()
-	OnRequest(*http.Request)
+	OnRequest(*types.HttpContext)
 	DoClose(types.Fn)
 	Close(...types.Fn)
 	OnError(string, ...string)
@@ -32,17 +31,19 @@ type transport struct {
 	Protocol   int         // req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
 	Parser     paser.Paser // this.protocol === 4 ? parser_v4 : parser_v3;
 
-	req      *http.Request // this.protocol === 4 ? parser_v4 : parser_v3;
+	ctx      *types.HttpContext // this.protocol === 4 ? parser_v4 : parser_v3;
 	_doClose types.Fn
 }
 
-func NewTransport(req *http.Request) Transport {
-	t := &transport{}
-	t.ReadyState = "open"
-	t.Discarded = false
-	t.Protocol = 4           // req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
-	t.Parser = paser.PaserV4 // this.protocol === 4 ? parser_v4 : parser_v3;
-	t._doClose = types.Noop
+func NewTransport(ctx *types.HttpContext) *transport {
+	t := &transport{
+		ReadyState: "open",
+		Discarded:  false,
+		Protocol:   4,             // req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
+		Parser:     paser.PaserV4, // this.protocol === 4 ? parser_v4 : parser_v3;
+		ctx:        ctx,
+		_doClose:   types.Noop,
+	}
 	return t
 }
 
@@ -50,9 +51,9 @@ func (t *transport) Discard() {
 	t.Discarded = true
 }
 
-func (t *transport) OnRequest(req *http.Request) {
+func (t *transport) OnRequest(ctx *types.HttpContext) {
 	utils.Log.Debug("setting request")
-	t.req = req
+	t.ctx = ctx
 }
 
 func (t *transport) DoClose(fn types.Fn) {

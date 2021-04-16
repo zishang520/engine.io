@@ -1,6 +1,7 @@
 package transports
 
 import (
+	"compress/gzip"
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/packet"
@@ -55,9 +56,9 @@ func (p *polling) SupportsFraming() bool {
 func (p *polling) OnRequest(ctx *types.HttpContext) {
 	method := strings.ToUpper(ctx.Request.Method)
 
-	if strings.Contains(method, "GET") {
+	if "GET" == method {
 		p.OnPollRequest(ctx)
-	} else if strings.Contains(method, "POST") {
+	} else if "POST" == method {
 		p.OnDataRequest(ctx)
 	} else {
 		ctx.Response.WriteHeader(500)
@@ -114,7 +115,7 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 		return
 	}
 
-	isBinary := strings.Contains(ctx.Request.Header.Get("Content-Type"), "application/octet-stream")
+	isBinary := "application/octet-stream" == ctx.Request.Header.Get("Content-Type")
 
 	if isBinary && this.Protocol == 4 {
 		p.OnError("invalid content")
@@ -179,7 +180,7 @@ func (p *polling) OnData(data io.Reader) {
 	utils.Log.Debug(`received "%s"`, data)
 
 	for packet := range p.Parser.DecodePayload(data) {
-		if strings.Contains(packet.Type, "close") {
+		if "close" == packet.Type {
 			utils.Log.Debug("got xhr close packet")
 			p.OnClose()
 			return
@@ -280,7 +281,7 @@ func (p *polling) DoWrite(data io.Reader, options interface{}, callback types.Fn
 	//   return;
 	// }
 
-	// this.compress(data, encoding, func(err, data) {
+	// p.Compress(data, encoding, func(err, data) {
 	//   if (err) {
 	//     self.res.writeHead(500);
 	//     self.res.end();

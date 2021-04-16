@@ -54,9 +54,10 @@ func (p *polling) SupportsFraming() bool {
 
 func (p *polling) OnRequest(ctx *types.HttpContext) {
 	method := strings.ToUpper(ctx.Request.Method)
-	if "GET" == method {
+
+	if strings.Contains(method, "GET") {
 		p.OnPollRequest(ctx)
-	} else if "POST" == method {
+	} else if strings.Contains(method, "POST") {
 		p.OnDataRequest(ctx)
 	} else {
 		ctx.Response.WriteHeader(500)
@@ -113,7 +114,7 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 		return
 	}
 
-	isBinary := "application/octet-stream" == ctx.Request.Header.Get("Content-Type")
+	isBinary := strings.Contains(ctx.Request.Header.Get("Content-Type"), "application/octet-stream")
 
 	if isBinary && this.Protocol == 4 {
 		p.OnError("invalid content")
@@ -178,7 +179,7 @@ func (p *polling) OnData(data io.Reader) {
 	utils.Log.Debug(`received "%s"`, data)
 
 	for packet := range p.Parser.DecodePayload(data) {
-		if "close" == packet.Type {
+		if strings.Contains(packet.Type, "close") {
 			utils.Log.Debug("got xhr close packet")
 			p.OnClose()
 			return

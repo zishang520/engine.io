@@ -230,7 +230,7 @@ func (p *polling) Send(packets []*packet.Packet) {
 
 func (p *polling) Write(data io.Reader, options interface{}) {
 	utils.Log.Debug(`writing "%s"`, data)
-	p.DoWrite(data, options, types.Fn{
+	p.DoWrite(data, options, func() {
 		//   self.req.cleanup();
 	})
 }
@@ -254,7 +254,7 @@ func (p *polling) DoWrite(data io.Reader, options interface{}, callback types.Fn
 	respond := func(data io.Reader) {
 		ctx.Response.WriteHeader(200)
 		_data := bufio.NewReader(data)
-		headers["Content-Length"] = _data.Size()
+		headers["Content-Length"] = strconv.Itoa(_data.Size())
 		for key, value := range p.Headers(p.ctx, headers) {
 			ctx.Response.Header().Add(key, value)
 		}
@@ -310,34 +310,44 @@ func (p *polling) Compress(data, encoding, callback) {
 	//   .end(data);
 }
 
-func (p *polling) DoClose(fn) {
+func (p *polling) DoClose(fn types.Fn) {
 	utils.Log.Debug("closing")
 
-	// let closeTimeoutTimer;
+	closeTimeoutTimer := make(chan struct{})
 
 	if p.dataCtx {
 		utils.Log.Debug("aborting ongoing data request")
 		p.dataCtx.destroy()
 	}
 
-	// if (this.writable) {
-	//   debug("transport writable - closing right away");
-	//   this.send([{ type: "close" }]);
-	//   onClose();
-	// } else if (this.discarded) {
-	//   debug("transport discarded - closing right away");
-	//   onClose();
-	// } else {
-	//   debug("transport not writable - buffering orderly close");
-	//   this.shouldClose = onClose;
-	//   closeTimeoutTimer = setTimeout(onClose, this.closeTimeout);
-	// }
+	onClose := func() {
+		closeTimeoutTimer <- struct{}{}
+		fn()
+		p.OnClose()
+	}
 
-	// function onClose() {
-	//   clearTimeout(closeTimeoutTimer);
-	//   fn();
-	//   self.onClose();
-	// }
+	if p.writable {
+		utils.Log.Debug("transport writable - closing right away")
+		p.Send([]*packet.Packet{
+			&packet.Packet{
+				Type: packet.CLOSE,
+			},
+		})
+		onClose()
+	} else if p.discarded {
+		utils.Log.Debug("transport discarded - closing right away")
+		onClose()
+	} else {
+		utils.Log.Debug("transport not writable - buffering orderly close")
+		p.shouldClose = onClose
+		go func() {
+			select {
+			case <-time.After(p.closeTimeout * time.Millisecond):
+				onClose()
+			case <-closeTimeoutTimer:
+			}
+		}()
+	}
 }
 
 func (p *polling) Headers(ctx *types.HttpContext, headers ...map[string]string) map[string]string {

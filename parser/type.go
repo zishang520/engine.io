@@ -10,7 +10,7 @@ type Paser interface {
 	Protocol() int
 	EncodePacket(*packet.Packet, bool) (*types.BytesBuffer, error)
 	DecodePacket(io.Reader) (*packet.Packet, error)
-	EncodePayload([]*packet.Packet) (*types.BytesBuffer, error)
+	EncodePayload([]*packet.Packet, ...bool) (*types.BytesBuffer, error)
 	DecodePayload(io.Reader) []*packet.Packet
 }
 

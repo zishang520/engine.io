@@ -20,12 +20,13 @@ type polling struct {
 
 	closeTimeout      int
 	maxHttpBufferSize int
-	httpCompression   int
+	httpCompression   interface{}
 	pollCtx           *types.HttpContext
 	dataCtx           *types.HttpContext
 
-	writable    bool
-	shouldClose types.Fn
+	writable       bool
+	shouldClose    types.Fn
+	supportsBinary bool
 }
 
 func NewPolling(ctx *types.HttpContext) Polling {
@@ -176,16 +177,6 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 func (p *polling) OnData(data io.Reader) {
 	utils.Log.Debug(`received "%s"`, data)
 
-	// const callback = function(packet) {
-	//   if ("close" === packet.type) {
-	//     debug("got xhr close packet");
-	//     self.onClose();
-	//     return false;
-	//   }
-
-	//   self.onPacket(packet);
-	// };
-
 	for packet := range p.Parser.DecodePayload(data) {
 		if "close" == packet.Type {
 			utils.Log.Debug("got xhr close packet")
@@ -198,22 +189,28 @@ func (p *polling) OnData(data io.Reader) {
 }
 
 func (p *polling) OnClose() {
-	// if (this.writable) {
-	//   // close pending poll request
-	//   this.send([{ type: "noop" }]);
-	// }
-	// super.onClose();
+	if this.writable {
+		// close pending poll request
+		p.Send([]*packet.Packet{
+			&packet.Packet{
+				Type: packet.NOOP,
+			},
+		})
+	}
+	p.transport.OnClose()
 }
 
 func (p *polling) Send(packets []*packet.Packet) {
-	// this.writable = false;
+	p.writable = false
 
-	// if (this.shouldClose) {
-	//   debug("appending close packet to payload");
-	//   packets.push({ type: "close" });
-	//   this.shouldClose();
-	//   this.shouldClose = null;
-	// }
+	if p.shouldClose != nil {
+		utils.Log.Debug("appending close packet to payload")
+		packets = append(packets, &packet.Packet{
+			Type: packet.CLOSE,
+		})
+		p.shouldClose()
+		p.shouldClose = nil
+	}
 
 	// const doWrite = data => {
 	//   const compress = packets.some(packet => {
@@ -222,43 +219,58 @@ func (p *polling) Send(packets []*packet.Packet) {
 	//   this.write(data, { compress });
 	// };
 
-	// if (this.Protocol === 3) {
-	//   this.parser.encodePayload(packets, this.supportsBinary, doWrite);
-	// } else {
-	//   this.parser.encodePayload(packets, doWrite);
-	// }
+	if p.Protocol == 3 {
+		data, _ := this.parser.EncodePayload(packets, p.supportsBinary)
+		p.Write(data, nil)
+	} else {
+		data, _ := this.parser.EncodePayload(packets)
+		p.Write(data, nil)
+	}
 }
 
-func (p *polling) Write(data, options) {
-	// debug('writing "%s"', data);
-	// const self = this;
-	// this.doWrite(data, options, function() {
-	//   self.req.cleanup();
-	// });
+func (p *polling) Write(data io.Reader, options interface{}) {
+	utils.Log.Debug(`writing "%s"`, data)
+	p.DoWrite(data, options, types.Fn{
+		//   self.req.cleanup();
+	})
 }
 
-func (p *polling) DoWrite(data, options, callback) {
-	// const self = this;
+func (p *polling) DoWrite(data io.Reader, options interface{}, callback types.Fn) {
+	if c, ok := data.(io.Closer); ok {
+		defer c.Close()
+	}
 
-	// // explicit UTF-8 is required for pages not served under utf
-	// const isString = typeof data === "string";
-	// const contentType = isString
-	//   ? "text/plain; charset=UTF-8"
-	//   : "application/octet-stream";
+	// explicit UTF-8 is required for pages not served under utf
+	_, isString := packet.Data.(*types.StringBuffer)
+	contentType := "application/octet-stream"
+	if isString {
+		contentType = "text/plain; charset=UTF-8"
+	}
 
-	// const headers = {
-	//   "Content-Type": contentType
-	// };
+	headers := map[string]string{
+		"Content-Type": contentType,
+	}
 
-	// if (!this.httpCompression || !options.compress) {
-	//   respond(data);
-	//   return;
+	respond := func(data io.Reader) {
+		ctx.Response.WriteHeader(200)
+		_data := bufio.NewReader(data)
+		headers["Content-Length"] = _data.Size()
+		for key, value := range p.Headers(p.ctx, headers) {
+			ctx.Response.Header().Add(key, value)
+		}
+		io.Copy(ctx.Response, _data)
+		callback()
+	}
+
+	// if p.httpCompression == nil || !options.compress {
+	// 	respond(data)
+	// 	return
 	// }
 
-	// const len = isString ? Buffer.byteLength(data) : data.length;
-	// if (len < this.httpCompression.threshold) {
-	//   respond(data);
-	//   return;
+	// _data := bufio.NewReader(data)
+	// if _data.Size() < p.httpCompression.threshold {
+	// 	respond(data)
+	// 	return
 	// }
 
 	// const encoding = accepts(this.req).encodings(["gzip", "deflate"]);
@@ -267,7 +279,7 @@ func (p *polling) DoWrite(data, options, callback) {
 	//   return;
 	// }
 
-	// this.compress(data, encoding, function(err, data) {
+	// this.compress(data, encoding, func(err, data) {
 	//   if (err) {
 	//     self.res.writeHead(500);
 	//     self.res.end();
@@ -278,18 +290,10 @@ func (p *polling) DoWrite(data, options, callback) {
 	//   headers["Content-Encoding"] = encoding;
 	//   respond(data);
 	// });
-
-	// function respond(data) {
-	//   headers["Content-Length"] =
-	//     "string" === typeof data ? Buffer.byteLength(data) : data.length;
-	//   self.res.writeHead(200, self.headers(self.req, headers));
-	//   self.res.end(data);
-	//   callback();
-	// }
 }
 
 func (p *polling) Compress(data, encoding, callback) {
-	// debug("compressing");
+	utils.Log.Debug("compressing")
 
 	// const buffers = [];
 	// let nread = 0;
@@ -307,15 +311,14 @@ func (p *polling) Compress(data, encoding, callback) {
 }
 
 func (p *polling) DoClose(fn) {
-	// debug("closing");
+	utils.Log.Debug("closing")
 
-	// const self = this;
 	// let closeTimeoutTimer;
 
-	// if (this.dataReq) {
-	//   debug("aborting ongoing data request");
-	//   this.dataReq.destroy();
-	// }
+	if p.dataCtx {
+		utils.Log.Debug("aborting ongoing data request")
+		p.dataCtx.destroy()
+	}
 
 	// if (this.writable) {
 	//   debug("transport writable - closing right away");
@@ -337,16 +340,15 @@ func (p *polling) DoClose(fn) {
 	// }
 }
 
-func (p *polling) Headers(req, headers) {
-	// headers = headers || {};
+func (p *polling) Headers(ctx *types.HttpContext, headers ...map[string]string) map[string]string {
+	headers = append(headers, map[string]string{})
 
-	// // prevent XSS warnings on IE
-	// // https://github.com/LearnBoost/socket.io/pull/1333
-	// const ua = req.headers["user-agent"];
-	// if (ua && (~ua.indexOf(";MSIE") || ~ua.indexOf("Trident/"))) {
-	//   headers["X-XSS-Protection"] = "0";
-	// }
-
-	// this.emit("headers", headers);
-	// return headers;
+	// prevent XSS warnings on IE
+	// https://github.com/socketio/socket.io/pull/1333
+	ua := ctx.Request.UserAgent()
+	if len(ua) > 0 && ((strings.Index(ua, ";MSIE") > -1) || (strings.Index(ua, "Trident/") > -1)) {
+		headers[0]["X-XSS-Protection"] = "0"
+	}
+	x.Emit("headers", headers[0])
+	return headers[0]
 }

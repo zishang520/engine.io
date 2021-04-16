@@ -103,7 +103,7 @@ func (p parserv4) DecodePacket(data io.Reader) (*packet.Packet, error) {
 	return ERROR_PACKET, errors.New(`parser error`)
 }
 
-func (p parserv4) EncodePayload(packets []*packet.Packet) (*types.BytesBuffer, error) {
+func (p parserv4) EncodePayload(packets []*packet.Packet, _ ...bool) (*types.BytesBuffer, error) {
 	enPayload := types.NewBytesBuffer(nil)
 
 	for _, packet := range packets {

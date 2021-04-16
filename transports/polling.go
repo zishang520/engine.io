@@ -1,6 +1,7 @@
 package transports
 
 import (
+	"compress/flate"
 	"compress/gzip"
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/events"
@@ -275,11 +276,11 @@ func (p *polling) DoWrite(data io.Reader, options interface{}, callback types.Fn
 	// 	return
 	// }
 
-	// const encoding = accepts(this.req).encodings(["gzip", "deflate"]);
-	// if (!encoding) {
-	//   respond(data);
-	//   return;
-	// }
+	encoding := utils.Contains(ctx.Request.Header.Get("Accept-Encoding"), []string{"gzip", "deflate"})
+	if !encoding {
+		respond(data)
+		return
+	}
 
 	// p.Compress(data, encoding, func(err, data) {
 	//   if (err) {
@@ -294,7 +295,7 @@ func (p *polling) DoWrite(data io.Reader, options interface{}, callback types.Fn
 	// });
 }
 
-func (p *polling) Compress(data, encoding, callback) {
+func (p *polling) Compress(data io.Reader, encoding bool, callback types.Fn) {
 	utils.Log.Debug("compressing")
 
 	// const buffers = [];

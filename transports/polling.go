@@ -22,7 +22,7 @@ type polling struct {
 
 	closeTimeout      int
 	maxHttpBufferSize int
-	httpCompression   interface{}
+	httpCompression   *types.HttpCompression
 	pollCtx           *types.HttpContext
 	dataCtx           *types.HttpContext
 
@@ -36,8 +36,8 @@ func NewPolling(ctx *types.HttpContext) Polling {
 		transport:    NewTransport(ctx),
 		closeTimeout: 30 * 1000,
 		// maxHttpBufferSize = null;
-		// httpCompression = null;
-		writable: false,
+		httpCompression: &types.HttpCompression{Threshold: 1024},
+		writable:        false,
 	}
 	return p
 }
@@ -215,30 +215,34 @@ func (p *polling) Send(packets []*packet.Packet) {
 		p.shouldClose = nil
 	}
 
-	// const doWrite = data => {
-	//   const compress = packets.some(packet => {
-	//     return packet.options && packet.options.compress;
-	//   });
-	//   this.write(data, { compress });
-	// };
+	doWrite := func(data io.Reader) {
+		option := &packet.Option{false}
+		for _, packet := range packets {
+			if packet.Options != nil && packet.Options.Compress {
+				option.Compress = true
+				break
+			}
+		}
+		p.Write(data, option)
+	}
 
 	if p.Protocol == 3 {
 		data, _ := this.parser.EncodePayload(packets, p.supportsBinary)
-		p.Write(data, nil)
+		doWrite(data)
 	} else {
 		data, _ := this.parser.EncodePayload(packets)
-		p.Write(data, nil)
+		doWrite(data)
 	}
 }
 
-func (p *polling) Write(data io.Reader, options interface{}) {
+func (p *polling) Write(data io.Reader, options *packet.Option) {
 	utils.Log.Debug(`writing "%s"`, data)
 	p.DoWrite(data, options, func() {
 		//   self.req.cleanup();
 	})
 }
 
-func (p *polling) DoWrite(data io.Reader, options interface{}, callback types.Fn) {
+func (p *polling) DoWrite(data io.Reader, options *packet.Option, callback types.Fn) {
 	if c, ok := data.(io.Closer); ok {
 		defer c.Close()
 	}
@@ -254,48 +258,65 @@ func (p *polling) DoWrite(data io.Reader, options interface{}, callback types.Fn
 		"Content-Type": contentType,
 	}
 
-	respond := func(data io.Reader) {
+	_data := bufio.NewReader(data)
+
+	respond := func(data io.Reader, length string) {
+		if c, ok := data.(io.Closer); ok {
+			defer c.Close()
+		}
 		ctx.Response.WriteHeader(200)
-		_data := bufio.NewReader(data)
-		headers["Content-Length"] = strconv.Itoa(_data.Size())
+		headers["Content-Length"] = length
 		for key, value := range p.Headers(p.ctx, headers) {
 			ctx.Response.Header().Add(key, value)
 		}
-		io.Copy(ctx.Response, _data)
+		io.Copy(ctx.Response, data)
 		callback()
 	}
 
-	// if p.httpCompression == nil || !options.compress {
-	// 	respond(data)
-	// 	return
-	// }
-
-	// _data := bufio.NewReader(data)
-	// if _data.Size() < p.httpCompression.threshold {
-	// 	respond(data)
-	// 	return
-	// }
-
-	encoding := utils.Contains(ctx.Request.Header.Get("Accept-Encoding"), []string{"gzip", "deflate"})
-	if encoding != "" {
-		respond(data)
+	if p.httpCompression == nil || options == nil || !options.Compress {
+		respond(_data, strconv.Itoa(_data.Size()))
 		return
 	}
 
+	if _data.Size() < p.httpCompression.Threshold {
+		respond(_data, strconv.Itoa(_data.Size()))
+		return
+	}
+
+	encoding := utils.Contains(ctx.Request.Header.Get("Accept-Encoding"), []string{"gzip", "deflate"})
+	if encoding != "" {
+		respond(_data, strconv.Itoa(_data.Size()))
+		return
+	}
+
+	if buf, err := p.Compress(data, encoding); err == nil {
+		headers["Content-Encoding"] = encoding
+		respond(buf, strconv.Itoa(buf.Size()))
+	}
+}
+
+func (p *polling) Compress(data io.Reder, encoding string) *bufio.Reader {
 	utils.Log.Debug("compressing")
-	headers["Content-Encoding"] = encoding
+	buf := bufio.NewReader(data)
 	switch encoding {
 	case "gzip":
-		gz, err := gzip.NewWriterLevel(w, 1)
+		gz, err := gzip.NewWriterLevel(buf, 1)
+		if err != nil {
+			return buf, err
+		}
 		defer gz.Close()
-		respond(gz)
+		io.Copy(gz, data)
 		break
 	case "deflate":
-		flate, err := flate.NewWriter(w, 1)
+		flate, err := flate.NewWriter(buf, 1)
+		if err != nil {
+			return buf, err
+		}
 		defer flate.Close()
-		respond(flate)
+		io.Copy(flate, data)
 		break
 	}
+	return buf, nil
 }
 
 func (p *polling) DoClose(fn types.Fn) {

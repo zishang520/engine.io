@@ -17,7 +17,12 @@ const (
 	ERROR   Type = "error"
 )
 
+type Option struct {
+	Compress bool
+}
+
 type Packet struct {
-	Type Type      `json:"type"`
-	Data io.Reader `json:"data"`
+	Type    Type      `json:"type"`
+	Data    io.Reader `json:"data,omitempty"`
+	Options *Option   `json:"options,omitempty"`
 }

@@ -11,3 +11,7 @@ type HttpContext struct {
 
 	ctx context.Context
 }
+
+type HttpCompression struct {
+	Threshold int
+}

@@ -7,10 +7,10 @@ import (
 func Contains(haystack string, needles []string) bool {
 
 	for _, needle := range needles {
-		if needle != "" && strings.Index(haystack, needle) > 0 {
-			return true
+		if needle != "" && strings.Index(haystack, needle) > -1 {
+			return needle
 		}
 	}
 
-	return false
+	return ""
 }

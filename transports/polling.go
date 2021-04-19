@@ -277,40 +277,25 @@ func (p *polling) DoWrite(data io.Reader, options interface{}, callback types.Fn
 	// }
 
 	encoding := utils.Contains(ctx.Request.Header.Get("Accept-Encoding"), []string{"gzip", "deflate"})
-	if !encoding {
+	if encoding != "" {
 		respond(data)
 		return
 	}
 
-	// p.Compress(data, encoding, func(err, data) {
-	//   if (err) {
-	//     self.res.writeHead(500);
-	//     self.res.end();
-	//     callback(err);
-	//     return;
-	//   }
-
-	//   headers["Content-Encoding"] = encoding;
-	//   respond(data);
-	// });
-}
-
-func (p *polling) Compress(data io.Reader, encoding bool, callback types.Fn) {
 	utils.Log.Debug("compressing")
-
-	// const buffers = [];
-	// let nread = 0;
-
-	// compressionMethods[encoding](this.httpCompression)
-	//   .on("error", callback)
-	//   .on("data", function(chunk) {
-	//     buffers.push(chunk);
-	//     nread += chunk.length;
-	//   })
-	//   .on("end", function() {
-	//     callback(null, Buffer.concat(buffers, nread));
-	//   })
-	//   .end(data);
+	headers["Content-Encoding"] = encoding
+	switch encoding {
+	case "gzip":
+		gz, err := gzip.NewWriterLevel(w, 1)
+		defer gz.Close()
+		respond(gz)
+		break
+	case "deflate":
+		flate, err := flate.NewWriter(w, 1)
+		defer flate.Close()
+		respond(flate)
+		break
+	}
 }
 
 func (p *polling) DoClose(fn types.Fn) {

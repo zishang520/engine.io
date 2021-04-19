@@ -33,11 +33,11 @@ type polling struct {
 
 func NewPolling(ctx *types.HttpContext) Polling {
 	p := &polling{
-		transport:    NewTransport(ctx),
-		closeTimeout: 30 * 1000,
-		// maxHttpBufferSize = null;
-		httpCompression: &types.HttpCompression{Threshold: 1024},
-		writable:        false,
+		transport:         NewTransport(ctx),
+		closeTimeout:      30 * 1000,
+		maxHttpBufferSize: 0,
+		httpCompression:   &types.HttpCompression{Threshold: 1024},
+		writable:          false,
 	}
 	return p
 }
@@ -81,17 +81,18 @@ func (p *polling) OnPollRequest(ctx *types.HttpContext) {
 
 	p.pollCtx = ctx
 
-	// function onClose() {
-	//   p.OnError("poll connection closed prematurely");
-	// }
-
-	// function cleanup() {
-	//   req.removeListener("close", onClose);
-	//   self.req = self.res = null;
-	// }
-
-	// req.cleanup = cleanup;
-	// req.on("close", onClose);
+	_RemoveListener := make(chan struct{})
+	p.ctx.Cleanup = func() {
+		_RemoveListener <- struct{}{}
+		p.ctx = nil
+	}
+	go func() {
+		select {
+		case <-p.Response.(http.CloseNotifier).CloseNotify():
+			p.OnError("poll connection closed prematurely")
+		case <-_RemoveListener:
+		}
+	}()
 
 	p.writable = true
 	p.Emit("drain")
@@ -108,7 +109,7 @@ func (p *polling) OnPollRequest(ctx *types.HttpContext) {
 }
 
 func (p *polling) OnDataRequest(ctx *types.HttpContext) {
-	if p.dataCtx {
+	if p.dataCtx != nil {
 		// assert: p.dataRes, '.dataReq and .dataRes should be (un)set together'
 		p.OnError("data request overlap from client")
 		ctx.Response.WriteHeader(500)
@@ -238,7 +239,7 @@ func (p *polling) Send(packets []*packet.Packet) {
 func (p *polling) Write(data io.Reader, options *packet.Option) {
 	utils.Log.Debug(`writing "%s"`, data)
 	p.DoWrite(data, options, func() {
-		//   self.req.cleanup();
+		p.ctx.Cleanup()
 	})
 }
 

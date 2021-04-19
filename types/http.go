@@ -9,7 +9,9 @@ type HttpContext struct {
 	Request  *http.Request
 	Response http.ResponseWriter
 
-	ctx context.Context
+	Ctx context.Context
+
+	Cleanup types.Fn
 }
 
 type HttpCompression struct {

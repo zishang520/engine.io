@@ -294,6 +294,7 @@ func (p *polling) DoClose(fn types.Fn) {
 
 	if p.dataCtx {
 		utils.Log.Debug("aborting ongoing data request")
+		p.xtx.Request.Close = true
 		// p.dataCtx.destroy()
 	}
 

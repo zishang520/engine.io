@@ -297,7 +297,7 @@ func (p *polling) DoWrite(data io.Reader, options *packet.Option, callback types
 
 func (p *polling) Compress(data io.Reder, encoding string) *bufio.Reader {
 	utils.Log.Debug("compressing")
-	buf := bufio.NewReader(data)
+	buf := bufio.NewReader(nil)
 	switch encoding {
 	case "gzip":
 		gz, err := gzip.NewWriterLevel(buf, 1)

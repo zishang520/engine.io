@@ -88,7 +88,7 @@ func (p *polling) OnPollRequest(ctx *types.HttpContext) {
 	}
 	go func() {
 		select {
-		case <-p.ctx.Response.(http.CloseNotifier).CloseNotify():
+		case <-p.ctx.Request.(http.CloseNotifier).CloseNotify():
 			p.OnError("poll connection closed prematurely")
 		case <-_RemoveListener:
 		}
@@ -128,7 +128,7 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 
 	go func() {
 		select {
-		case <-p.ctctx.x.Response.(http.CloseNotifier).CloseNotify():
+		case <-p.ctx.Request.(http.CloseNotifier).CloseNotify():
 			p.OnError("data request connection closed prematurely")
 		}
 	}()
@@ -294,7 +294,7 @@ func (p *polling) DoClose(fn types.Fn) {
 
 	if p.dataCtx {
 		utils.Log.Debug("aborting ongoing data request")
-		p.dataCtx.destroy()
+		// p.dataCtx.destroy()
 	}
 
 	onClose := func() {

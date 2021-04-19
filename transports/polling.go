@@ -23,7 +23,7 @@ type polling struct {
 	closeTimeout      int
 	maxHttpBufferSize int
 	httpCompression   *types.HttpCompression
-	pollCtx           *types.HttpContext
+	pollCtx           bool
 	dataCtx           *types.HttpContext
 
 	writable       bool
@@ -68,7 +68,7 @@ func (p *polling) OnRequest(ctx *types.HttpContext) {
 }
 
 func (p *polling) OnPollRequest(ctx *types.HttpContext) {
-	if p.pollCtx != nil {
+	if p.pollCtx {
 		utils.Log.Debug("request overlap")
 		// assert: p.res, '.req and .res should be (un)set together'
 		p.OnError("overlap from client")
@@ -79,7 +79,7 @@ func (p *polling) OnPollRequest(ctx *types.HttpContext) {
 
 	utils.Log.Debug("setting request")
 
-	p.pollCtx = ctx
+	p.pollCtx = true
 
 	_RemoveListener := make(chan struct{})
 	p.ctx.Cleanup = func() {
@@ -88,7 +88,7 @@ func (p *polling) OnPollRequest(ctx *types.HttpContext) {
 	}
 	go func() {
 		select {
-		case <-p.Response.(http.CloseNotifier).CloseNotify():
+		case <-p.ctx.Response.(http.CloseNotifier).CloseNotify():
 			p.OnError("poll connection closed prematurely")
 		case <-_RemoveListener:
 		}
@@ -126,56 +126,23 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 
 	this.dataCtx = ctx
 
-	// let chunks = isBinary ? Buffer.concat([]) : "";
-	// const self = this;
+	go func() {
+		select {
+		case <-p.ctctx.x.Response.(http.CloseNotifier).CloseNotify():
+			p.OnError("data request connection closed prematurely")
+		}
+	}()
 
-	// function cleanup() {
-	//   req.removeListener("data", onData);
-	//   req.removeListener("end", onEnd);
-	//   req.removeListener("close", onClose);
-	//   self.dataReq = self.dataRes = chunks = null;
-	// }
-
-	// function onClose() {
-	//   cleanup();
-	//   self.onError("data request connection closed prematurely");
-	// }
-
-	// function onData(data) {
-	//   let contentLength;
-	//   if (isBinary) {
-	//     chunks = Buffer.concat([chunks, data]);
-	//     contentLength = chunks.length;
-	//   } else {
-	//     chunks += data;
-	//     contentLength = Buffer.byteLength(chunks);
-	//   }
-
-	//   if (contentLength > self.maxHttpBufferSize) {
-	//     chunks = isBinary ? Buffer.concat([]) : "";
-	//     req.connection.destroy();
-	//   }
-	// }
-
-	// function onEnd() {
-	//   self.onData(chunks);
-
-	//   const headers = {
-	//     // text/html is required instead of text/plain to avoid an
-	//     // unwanted download dialog on certain user-agents (GH-43)
-	//     "Content-Type": "text/html",
-	//     "Content-Length": 2
-	//   };
-
-	//   res.writeHead(200, self.headers(req, headers));
-	//   res.end("ok");
-	//   cleanup();
-	// }
-
-	// req.on("close", onClose);
-	// if (!isBinary) req.setEncoding("utf8");
-	// req.on("data", onData);
-	// req.on("end", onEnd);
+	headers := map[string]string{
+		"Content-Type":   "text/html",
+		"Content-Length": "2",
+	}
+	ctx.Response.WriteHeader(200)
+	for key, value := range p.Headers(p.ctx, headers) {
+		ctx.Response.Header().Add(key, value)
+	}
+	ctx.Response.WriteString("OK")
+	p.dataCtx = nil
 }
 
 func (p *polling) OnData(data io.Reader) {

@@ -132,7 +132,8 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 			p.OnError("data request connection closed prematurely")
 		}
 	}()
-
+	// text/html is required instead of text/plain to avoid an
+	// unwanted download dialog on certain user-agents (GH-43)
 	headers := map[string]string{
 		"Content-Type":   "text/html",
 		"Content-Length": "2",
@@ -263,7 +264,10 @@ func (p *polling) DoWrite(data io.Reader, options *packet.Option, callback types
 	}
 }
 
-func (p *polling) Compress(data io.Reder, encoding string) *bufio.Reader {
+func (p *polling) Compress(data io.Reader, encoding string) *bufio.Reader {
+	if c, ok := data.(io.Closer); ok {
+		defer c.Close()
+	}
 	utils.Log.Debug("compressing")
 	buf := bufio.NewReader(nil)
 	switch encoding {
@@ -334,7 +338,7 @@ func (p *polling) Headers(ctx *types.HttpContext, headers ...map[string]string) 
 	// prevent XSS warnings on IE
 	// https://github.com/socketio/socket.io/pull/1333
 	ua := ctx.Request.UserAgent()
-	if len(ua) > 0 && ((strings.Index(ua, ";MSIE") > -1) || (strings.Index(ua, "Trident/") > -1)) {
+	if (len(ua) > 0) && ((strings.Index(ua, ";MSIE") > -1) || (strings.Index(ua, "Trident/") > -1)) {
 		headers[0]["X-XSS-Protection"] = "0"
 	}
 	x.Emit("headers", headers[0])

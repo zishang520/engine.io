@@ -1,18 +1,33 @@
 package transports
 
+import (
+	"encoding/json"
+	"github.com/zishang520/engine.io/types"
+)
+
+const (
+	rDoubleSlashes string = `\\\\n`
+	rSlashes       string = `(\\)?\\n`
+)
+
 type JSONP interface {
 	Polling
 }
 
 type jsonp struct {
 	*polling
+
+	head string
+	foot string
 }
 
-func NewJSONP(res interface{}) JSONP {
-	j := &JSONP{}
-	// this.head = "___eio[" + (req._query.j || "").replace(/[^0-9]/g, "") + "](";
-	// this.foot = ");";
+func NewJSONP(ctx *types.HttpContext) *jsonp {
+	j := &jsonp{
+		polling: NewPolling(ctx),
 
+		head: "___eio[" + regexp.MustCompile(`[^0-9]`).ReplaceAllString(ctx.Request.URL.Query().Get("j"), "") + "](",
+		foot: ");",
+	}
 	return j
 }
 
@@ -22,29 +37,37 @@ func NewJSONP(res interface{}) JSONP {
  *
  * @api public
  */
-func (j *JSONP) OnData(data io.Reader) {
+func (j *jsonp) OnData(data io.Reader) {
 	// we leverage the qs module so that we get built-in DoS protection
 	// and the fast alternative to decodeURIComponent
-	// data = qs.parse(data).d;
-	// if ("string" === typeof data) {
-	//   // client will send already escaped newlines as \\\\n and newlines as \\n
-	//   // \\n must be replaced with \n and \\\\n with \\n
-	//   data = data.replace(rSlashes, function(match, slashes) {
-	//     return slashes ? match : "\n";
-	//   });
-	//   super.onData(data.replace(rDoubleSlashes, "\\n"));
-	// }
+	u, err := url.ParseQuery(data)
+	if err != nil {
+		return
+	}
+	_data := u.Get("d")
+	r := regexp.MustCompile(rSlashes)
+	_data = r.ReplaceAllStringFunc(_data, func(m string) string {
+		if parts := r.FindStringSubmatch(m); parts[1] != "" {
+			return parts[0]
+		}
+		return "\n"
+	})
+	// client will send already escaped newlines as \\\\n and newlines as \\n
+	// \\n must be replaced with \n and \\\\n with \\n
+	j.polling.OnData(regexp.MustCompile(rDoubleSlashes).ReplaceAllString(_data, "\\n"))
 }
 
-func (j *JSONP) DoWrite(data, options, callback) {
+func (j *jsonp) DoWrite(data interface{}, options *packet.Option, callback types.Fn) {
 	// we must output valid javascript, not valid json
-	// // see: http://timelessrepo.com/json-isnt-a-javascript-subset
+	// see: http://timelessrepo.com/json-isnt-a-javascript-subset
 	// const js = JSON.stringify(data)
 	//   .replace(/\u2028/g, "\\u2028")
 	//   .replace(/\u2029/g, "\\u2029");
 
-	// // prepare response
-	// data = this.head + js + this.foot;
+	// prepare response
+	_data := types.NewStringBufferString(j.head)
+	json.NewEncoder(_data).Encode(data) // 有问题
+	_data.WriteString(j.foot)
 
-	// super.doWrite(data, options, callback);
+	j.polling.DoWrite(_data, options, callback)
 }

@@ -7,8 +7,8 @@ import (
 	"github.com/zishang520/engine.io/parser"
 	"github.com/zishang520/engine.io/types"
 	"github.com/zishang520/engine.io/utils"
+	"regexp"
 	"time"
-	// "strings"
 )
 
 func main() {
@@ -79,7 +79,8 @@ func main() {
 	fmt.Println(utils.Base64Id.GenerateId())
 	utils.Log.DEBUG = true
 	utils.Log.Debug("121212")
-
+	r := regexp.MustCompile(`\\\\n`)
+	utils.Log.Debug(r.ReplaceAllString("\n\\n\\\\n", `\n`))
 	closeTimeoutTimer := make(chan struct{})
 	go func() {
 		select {

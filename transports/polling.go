@@ -20,24 +20,24 @@ type Polling interface {
 type polling struct {
 	*transport
 
-	closeTimeout      int
-	maxHttpBufferSize int
-	httpCompression   *types.HttpCompression
-	pollCtx           bool
-	dataCtx           *types.HttpContext
+	closeTimeout int
+	// maxHttpBufferSize int
+	httpCompression *types.HttpCompression
+	pollCtx         bool
+	dataCtx         *types.HttpContext
 
 	writable       bool
 	shouldClose    types.Fn
 	supportsBinary bool
 }
 
-func NewPolling(ctx *types.HttpContext) Polling {
+func NewPolling(ctx *types.HttpContext) *polling {
 	p := &polling{
-		transport:         NewTransport(ctx),
-		closeTimeout:      30 * 1000,
-		maxHttpBufferSize: 0,
-		httpCompression:   &types.HttpCompression{Threshold: 1024},
-		writable:          false,
+		transport:    NewTransport(ctx),
+		closeTimeout: 30 * 1000,
+		// maxHttpBufferSize: 0,
+		httpCompression: &types.HttpCompression{Threshold: 1024},
+		writable:        false,
 	}
 	return p
 }

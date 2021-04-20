@@ -11,7 +11,7 @@ type HttpContext struct {
 
 	Ctx context.Context
 
-	Cleanup types.Fn
+	Cleanup Fn
 }
 
 type HttpCompression struct {

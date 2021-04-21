@@ -257,14 +257,16 @@ func (p parserv3) DecodePayload(data io.Reader) []*packet.Packet {
 			}
 		}
 	default:
-		return DecodePayloadAsBinary(data, callback)
+		return p.DecodePayloadAsBinary(data, callback)
 	}
 
 	return packets
 }
 
-func (p parserv3) DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
-	bufferTail := types.NewBytesBuffer(nil)
+func (p parserv3) DecodePayloadAsBinary(data io.Reader) []*packet.Packet {
+	packets := []*packet.Packet{}
+
+	bufferTail := types.NewBuffer(nil)
 	bufferTail.ReadFrom(data)
 
 	buffers := []io.Reader{}
@@ -272,16 +274,16 @@ func (p parserv3) DecodePayloadAsBinary(data io.Reader, callback Callback) bool 
 		startByte, err := bufferTail.ReadByte()
 		if err != nil {
 			// parser error in individual packet - ignoring payload
-			return callback(ERROR_PACKET, 0, 1)
+			return packets
 		}
 		isString := startByte == 0x00
 		length, err := bufferTail.ReadBytes(0xFF)
 		if err != nil {
-			return callback(ERROR_PACKET, 0, 1)
+			return packets
 		}
 		_l := len(length)
 		if _l < 1 {
-			return callback(ERROR_PACKET, 0, 1)
+			return packets
 		}
 		lenByte := length[:_l-1]
 		for k, l := 0, len(lenByte); k < l; k++ {
@@ -289,11 +291,11 @@ func (p parserv3) DecodePayloadAsBinary(data io.Reader, callback Callback) bool 
 		}
 		packetLen, err := strconv.ParseInt(string(lenByte), 10, 64)
 		if err != nil {
-			return callback(ERROR_PACKET, 0, 1)
+			return packets
 		}
 		PACKETLEN := int(packetLen)
 		if isString {
-			data := new(strings.Builder)
+			data := types.NewStringBuffer(nil)
 			buf := []byte{}
 			for k := 0; k < PACKETLEN; {
 				for len(buf) < 4 {
@@ -302,7 +304,7 @@ func (p parserv3) DecodePayloadAsBinary(data io.Reader, callback Callback) bool 
 						if err == io.EOF {
 							break
 						}
-						return callback(ERROR_PACKET, 0, 1)
+						return packets
 					}
 					if !utf8.ValidRune(r) {
 						r = 0xFFFD
@@ -310,33 +312,33 @@ func (p parserv3) DecodePayloadAsBinary(data io.Reader, callback Callback) bool 
 					buf = append(buf, byte(r))
 				}
 				r, l := utf8.DecodeRune(buf)
-				k += Utf16Len(r)
-				data.Write(Utf8decodeBytesReturn(buf[0:l]))
+				k += utils.Utf16Len(r)
+				data.Write(utils.Utf8decodeBytesReturn(buf[0:l]))
 				buf = buf[l:]
 			}
-			if cursor := len(Utf8encodeBytesReturn(buf)); cursor > 0 {
+			if cursor := len(utils.Utf8encodeBytesReturn(buf)); cursor > 0 {
 				// Rollback read pointer
 				bufferTail.Prev(cursor)
 			}
 			if data.Len() > 0 {
-				buffers = append(buffers, strings.NewReader(data.String()))
+				packet, err := p.DecodePacket(data, false)
+				if err != nil {
+					// parser error in individual packet - ignoring payload
+					return packets
+				}
+				packets = append(packets, packet)
 			}
 		} else {
 			if data := bufferTail.Next(PACKETLEN); len(data) > 0 {
-				buffers = append(buffers, bytes.NewBuffer(data))
+				packet, err := p.DecodePacket(types.NewBytesBuffer(data), false)
+				if err != nil {
+					// parser error in individual packet - ignoring payload
+					return packets
+				}
+				packets = append(packets, packet)
 			}
 		}
 	}
 
-	for k, bl := 0, len(buffers); k < bl; k++ {
-		packet, err := DecodePacket(buffers[k], false)
-		if err != nil {
-			// parser error in individual packet - ignoring payload
-			return callback(ERROR_PACKET, 0, 1)
-		}
-		if more := callback(packet, k, bl); false == more {
-			return more
-		}
-	}
-	return true
+	return packets
 }

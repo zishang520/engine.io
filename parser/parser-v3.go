@@ -130,55 +130,43 @@ func (p parserv3) hasBinary(packets []*packet.Packet) bool {
 	}
 	for _, packet := range packets {
 		switch packet.Data.(type) {
-		case *strings.Reader:
-		case io.WriterTo:
+		case *types.StringBuffer:
+			break
+		case io.Reader:
 			return true
+			break
 		case nil:
+			break
 		default:
+			break
 		}
 	}
 
 	return false
 }
 
-/**
- * Encodes multiple messages (payload).
- *
- *     <length>:data
- *
- * Example:
- *
- *     11:hello world2:hi
- *
- * If any contents are binary, they will be encoded as base64 strings. Base64
- * encoded strings are marked with a b before the length specifier
- *
- * @param {slice} packets
- * @api public
- */
-
-func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary bool) (*bytes.Buffer, error) {
-	isBinary := hasBinary(packets)
+func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary bool) (*types.BytesBuffer, error) {
+	isBinary := p.hasBinary(packets)
 	if supportsBinary && isBinary {
-		return EncodePayloadAsBinary(packets)
+		return p.EncodePayloadAsBinary(packets)
 	}
 
-	enPayload := bytes.NewBuffer(nil)
+	enPayload := types.NewBytesBuffer(nil)
 
 	if len(packets) == 0 {
 		enPayload.WriteString(`0:`)
 		return enPayload, nil
 	}
 
+	if !isBinary {
+		supportsBinary = false
+	}
 	for _, packet := range packets {
-		if !isBinary {
-			supportsBinary = false
-		}
-		if buf, err := EncodePacket(packet, supportsBinary, false); err != nil {
+		buf, err := p.EncodePacket(packet, supportsBinary, false)
+		if err != nil {
 			return enPayload, err
-		} else {
-			enPayload.WriteString(fmt.Sprintf(`%d:%s`, Utf16Count(buf.Bytes()), buf.String()))
 		}
+		enPayload.WriteString(fmt.Sprintf(`%d:%s`, utils.Utf16Count(buf.Bytes()), buf.String()))
 	}
 
 	return enPayload, nil

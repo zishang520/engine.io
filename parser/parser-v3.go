@@ -25,7 +25,7 @@ func (parserv3) Protocol() int {
 	return 3
 }
 
-func (p parserv3) EncodePacket(packet *packet.Packet, supportsBinary bool, utf8encode bool) (*bytes.Buffer, error) {
+func (p parserv3) EncodePacket(packet *packet.Packet, supportsBinary bool, utf8encode bool) (*types.BytesBuffer, error) {
 	encode := types.NewBytesBuffer(nil)
 
 	if c, ok := packet.Data.(io.Closer); ok {
@@ -66,7 +66,7 @@ func (p parserv3) EncodePacket(packet *packet.Packet, supportsBinary bool, utf8e
 
 func (p parserv3) DecodePacket(data io.Reader, utf8decode bool) (*packet.Packet, error) {
 	if data == nil {
-		return errPacket, errors.New(`parser error`)
+		return ERROR_PACKET, errors.New(`parser error`)
 	}
 	if c, ok := data.(io.Closer); ok {
 		defer c.Close()
@@ -74,52 +74,54 @@ func (p parserv3) DecodePacket(data io.Reader, utf8decode bool) (*packet.Packet,
 
 	msgType := []byte{0xFF}
 	if _, err := data.Read(msgType); err != nil {
-		return errPacket, err
+		return ERROR_PACKET, err
 	}
 
-	decode := bytes.NewBuffer(nil)
 	switch v := data.(type) {
-	case *strings.Reader:
+	case *types.StringBuffer:
 		if msgType[0] == 'b' {
 			if _, err := v.Read(msgType); err != nil {
-				return errPacket, err
+				return ERROR_PACKET, err
 			}
-			packetType, ok := packetslist[msgType[0]]
+			packetType, ok := PACKET_TYPES[msgType[0]]
 			if !ok {
-				return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
+				return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
 			}
+			decode := types.NewBytesBuffer(nil)
 			decode.ReadFrom(base64.NewDecoder(base64.StdEncoding, v))
 			return &types.Packet{
 				Type: packetType,
 				Data: decode,
 			}, nil
 		}
-		packetType, ok := packetslist[msgType[0]]
+		packetType, ok := PACKET_TYPES[msgType[0]]
 		if !ok {
-			return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
+			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
 		}
+		stringBuffer := types.NewStringBuffer(nil)
 		if utf8decode {
-			decode.ReadFrom(NewUtf8Decoder(v))
+			stringBuffer.ReadFrom(utils.NewUtf8Decoder(v))
 		} else {
-			decode.ReadFrom(v)
+			stringBuffer.ReadFrom(v)
 		}
 		return &types.Packet{
 			Type: packetType,
-			Data: decode,
+			Data: stringBuffer,
 		}, nil
 	default:
-		packetType, ok := packetslist[msgType[0]+'0']
+		packetType, ok := PACKET_TYPES[msgType[0]+'0']
 		if !ok {
-			return errPacket, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]+'0'))
+			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]+'0'))
 		}
-		decode.ReadFrom(v)
+		decode := types.NewBytesBuffer(nil)
+		io.Copy(decode, v)
 		return &types.Packet{
 			Type: packetType,
 			Data: decode,
 		}, nil
 	}
 
-	return errPacket, errors.New(`parser error`)
+	return ERROR_PACKET, errors.New(`parser error`)
 }
 
 func (p parserv3) hasBinary(packets []*packet.Packet) bool {
@@ -237,15 +239,15 @@ func (p parserv3) DecodePayload(data io.Reader, callback Callback) bool {
 		for n, l := 0, Utf16Count(str.Bytes()); str.Len() > 0; {
 			length, err := str.ReadString(':')
 			if err != nil {
-				return callback(errPacket, 0, 1)
+				return callback(ERROR_PACKET, 0, 1)
 			}
 			_l := len(length)
 			if _l < 1 {
-				return callback(errPacket, 0, 1)
+				return callback(ERROR_PACKET, 0, 1)
 			}
 			packetLen, err := strconv.ParseInt(length[:_l-1], 10, 64)
 			if err != nil {
-				return callback(errPacket, 0, 1)
+				return callback(ERROR_PACKET, 0, 1)
 			}
 
 			PACKETLEN := int(packetLen)
@@ -253,7 +255,7 @@ func (p parserv3) DecodePayload(data io.Reader, callback Callback) bool {
 			for i := 0; i < PACKETLEN; {
 				r, _, e := str.ReadRune()
 				if e != nil {
-					return callback(errPacket, 0, 1)
+					return callback(ERROR_PACKET, 0, 1)
 				}
 				i += Utf16Len(r)
 				msg.WriteRune(r)
@@ -263,7 +265,7 @@ func (p parserv3) DecodePayload(data io.Reader, callback Callback) bool {
 				packet, err := DecodePacket(strings.NewReader(msg.String()), false)
 				if err != nil {
 					// parser error in individual packet - ignoring payload
-					return callback(errPacket, 0, 1)
+					return callback(ERROR_PACKET, 0, 1)
 				}
 				if more := callback(packet, n+PACKETLEN+_l-1, l); false == more {
 					return more
@@ -288,16 +290,16 @@ func (p parserv3) DecodePayloadAsBinary(data io.Reader, callback Callback) bool 
 		startByte, err := bufferTail.ReadByte()
 		if err != nil {
 			// parser error in individual packet - ignoring payload
-			return callback(errPacket, 0, 1)
+			return callback(ERROR_PACKET, 0, 1)
 		}
 		isString := startByte == 0x00
 		length, err := bufferTail.ReadBytes(0xFF)
 		if err != nil {
-			return callback(errPacket, 0, 1)
+			return callback(ERROR_PACKET, 0, 1)
 		}
 		_l := len(length)
 		if _l < 1 {
-			return callback(errPacket, 0, 1)
+			return callback(ERROR_PACKET, 0, 1)
 		}
 		lenByte := length[:_l-1]
 		for k, l := 0, len(lenByte); k < l; k++ {
@@ -305,7 +307,7 @@ func (p parserv3) DecodePayloadAsBinary(data io.Reader, callback Callback) bool 
 		}
 		packetLen, err := strconv.ParseInt(string(lenByte), 10, 64)
 		if err != nil {
-			return callback(errPacket, 0, 1)
+			return callback(ERROR_PACKET, 0, 1)
 		}
 		PACKETLEN := int(packetLen)
 		if isString {
@@ -318,7 +320,7 @@ func (p parserv3) DecodePayloadAsBinary(data io.Reader, callback Callback) bool 
 						if err == io.EOF {
 							break
 						}
-						return callback(errPacket, 0, 1)
+						return callback(ERROR_PACKET, 0, 1)
 					}
 					if !utf8.ValidRune(r) {
 						r = 0xFFFD
@@ -348,7 +350,7 @@ func (p parserv3) DecodePayloadAsBinary(data io.Reader, callback Callback) bool 
 		packet, err := DecodePacket(buffers[k], false)
 		if err != nil {
 			// parser error in individual packet - ignoring payload
-			return callback(errPacket, 0, 1)
+			return callback(ERROR_PACKET, 0, 1)
 		}
 		if more := callback(packet, k, bl); false == more {
 			return more

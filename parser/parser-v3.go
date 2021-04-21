@@ -146,8 +146,7 @@ func (p parserv3) hasBinary(packets []*packet.Packet) bool {
 }
 
 func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary bool) (*types.BytesBuffer, error) {
-	isBinary := p.hasBinary(packets)
-	if supportsBinary && isBinary {
+	if supportsBinary && p.hasBinary(packets) {
 		return p.EncodePayloadAsBinary(packets)
 	}
 
@@ -158,9 +157,6 @@ func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary bool) (
 		return enPayload, nil
 	}
 
-	if !isBinary {
-		supportsBinary = false
-	}
 	for _, packet := range packets {
 		buf, err := p.EncodePacket(packet, supportsBinary, false)
 		if err != nil {
@@ -172,16 +168,16 @@ func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary bool) (
 	return enPayload, nil
 }
 
-func (p parserv3) encodeOneBinaryPacket(packet *packet.Packet) (*bytes.Buffer, error) {
-	binarypacket := bytes.NewBuffer(nil)
+func (p parserv3) encodeOneBinaryPacket(packet *packet.Packet) (*types.BytesBuffer, error) {
+	binarypacket := types.NewBytesBuffer(nil)
 
-	buf, err := EncodePacket(packet, true, true)
+	buf, err := p.EncodePacket(packet, true, true)
 	if err != nil {
 		return binarypacket, err
 	}
 	switch packet.Data.(type) {
-	case *strings.Reader:
-		encodingLength := fmt.Sprintf(`%d`, Utf16Count(buf.Bytes())) // JS length
+	case *types.StringBuffer:
+		encodingLength := fmt.Sprintf(`%d`, utils.Utf16Count(buf.Bytes())) // JS length
 		binarypacket.WriteByte(0)
 		for i := 0; i < len(encodingLength); i++ {
 			binarypacket.WriteByte(encodingLength[i] - '0')
@@ -201,19 +197,19 @@ func (p parserv3) encodeOneBinaryPacket(packet *packet.Packet) (*bytes.Buffer, e
 	return binarypacket, nil
 }
 
-func (p parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (*bytes.Buffer, error) {
-	enPayload := bytes.NewBuffer(nil)
+func (p parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (*types.BytesBuffer, error) {
+	enPayload := types.NewBytesBuffer(nil)
 
 	if len(packets) == 0 {
 		return enPayload, nil
 	}
 
 	for _, packet := range packets {
-		if buf, err := encodeOneBinaryPacket(packet); err != nil {
+		buf, err := p.encodeOneBinaryPacket(packet)
+		if err != nil {
 			return enPayload, err
-		} else {
-			enPayload.ReadFrom(buf)
 		}
+		enPayload.ReadFrom(buf)
 	}
 
 	return enPayload, nil
@@ -222,7 +218,7 @@ func (p parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (*bytes.Buffer
 func (p parserv3) DecodePayload(data io.Reader, callback Callback) bool {
 	switch v := data.(type) {
 	case *strings.Reader:
-		str := bytes.NewBuffer(nil)
+		str := types.NewBytesBuffer(nil)
 		v.WriteTo(str)
 		for n, l := 0, Utf16Count(str.Bytes()); str.Len() > 0; {
 			length, err := str.ReadString(':')
@@ -270,7 +266,7 @@ func (p parserv3) DecodePayload(data io.Reader, callback Callback) bool {
 }
 
 func (p parserv3) DecodePayloadAsBinary(data io.Reader, callback Callback) bool {
-	bufferTail := bytes.NewBuffer(nil)
+	bufferTail := types.NewBytesBuffer(nil)
 	bufferTail.ReadFrom(data)
 
 	buffers := []io.Reader{}

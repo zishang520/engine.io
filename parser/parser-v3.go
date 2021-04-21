@@ -215,54 +215,52 @@ func (p parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (*types.BytesB
 	return enPayload, nil
 }
 
-func (p parserv3) DecodePayload(data io.Reader, callback Callback) bool {
+func (p parserv3) DecodePayload(data io.Reader) []*packet.Packet {
+	packets := []*packet.Packet{}
+	if c, ok := data.(io.Closer); ok {
+		defer c.Close()
+	}
 	switch v := data.(type) {
-	case *strings.Reader:
-		str := types.NewBytesBuffer(nil)
-		v.WriteTo(str)
-		for n, l := 0, Utf16Count(str.Bytes()); str.Len() > 0; {
-			length, err := str.ReadString(':')
+	case *types.StringBuffer:
+		for v.Len() > 0 {
+			length, err := v.ReadString(':')
 			if err != nil {
-				return callback(ERROR_PACKET, 0, 1)
+				return packets
 			}
 			_l := len(length)
 			if _l < 1 {
-				return callback(ERROR_PACKET, 0, 1)
+				return packets
 			}
 			packetLen, err := strconv.ParseInt(length[:_l-1], 10, 64)
 			if err != nil {
-				return callback(ERROR_PACKET, 0, 1)
+				return packets
 			}
 
-			PACKETLEN := int(packetLen)
-			msg := new(strings.Builder)
-			for i := 0; i < PACKETLEN; {
-				r, _, e := str.ReadRune()
+			_PACKETLEN := int(packetLen)
+			msg := types.NewStringBuffer(nil)
+			for i := 0; i < _PACKETLEN; {
+				r, _, e := v.ReadRune()
 				if e != nil {
-					return callback(ERROR_PACKET, 0, 1)
+					return packets
 				}
-				i += Utf16Len(r)
+				i += utils.Utf16Len(r)
 				msg.WriteRune(r)
 			}
 
 			if msg.Len() > 0 {
-				packet, err := DecodePacket(strings.NewReader(msg.String()), false)
+				packet, err := p.DecodePacket(msg, false)
 				if err != nil {
 					// parser error in individual packet - ignoring payload
-					return callback(ERROR_PACKET, 0, 1)
+					return packets
 				}
-				if more := callback(packet, n+PACKETLEN+_l-1, l); false == more {
-					return more
-				}
+				packets = append(packets, packet)
 			}
-
-			n += PACKETLEN + _l
 		}
 	default:
 		return DecodePayloadAsBinary(data, callback)
 	}
 
-	return true
+	return packets
 }
 
 func (p parserv3) DecodePayloadAsBinary(data io.Reader, callback Callback) bool {

@@ -26,7 +26,7 @@ func (p parserv4) EncodePacket(packet *packet.Packet, supportsBinary bool, _ ...
 	encode := types.NewStringBuffer(nil)
 
 	if packet == nil {
-		return encode, errors.New(`Packet is nil`).Err()
+		return encode, errors.New(`Packet is nil`)
 	}
 
 	if c, ok := packet.Data.(io.Closer); ok {
@@ -35,7 +35,7 @@ func (p parserv4) EncodePacket(packet *packet.Packet, supportsBinary bool, _ ...
 
 	_type, _type_ok := PACKET_TYPES[packet.Type]
 	if !_type_ok {
-		return encode, errors.New(`Packet Type error`).Err()
+		return encode, errors.New(`Packet Type error`)
 	}
 
 	switch v := packet.Data.(type) {
@@ -60,7 +60,7 @@ func (p parserv4) EncodePacket(packet *packet.Packet, supportsBinary bool, _ ...
 
 func (p parserv4) DecodePacket(data io.Reader, _ ...bool) (*packet.Packet, error) {
 	if data == nil {
-		return ERROR_PACKET, errors.New(`parser error`).Err()
+		return ERROR_PACKET, errors.New(`parser error`)
 	}
 
 	if c, ok := data.(io.Closer); ok {
@@ -83,7 +83,7 @@ func (p parserv4) DecodePacket(data io.Reader, _ ...bool) (*packet.Packet, error
 		}
 		packetType, ok := PACKET_TYPES_REVERSE[msgType]
 		if !ok {
-			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType)).Err()
+			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType))
 		}
 		stringBuffer := types.NewStringBuffer(nil)
 		stringBuffer.ReadFrom(v)
@@ -100,7 +100,7 @@ func (p parserv4) DecodePacket(data io.Reader, _ ...bool) (*packet.Packet, error
 		}, nil
 	}
 
-	return ERROR_PACKET, errors.New(`parser error`).Err()
+	return ERROR_PACKET, errors.New(`parser error`)
 }
 
 func (p parserv4) EncodePayload(packets []*packet.Packet, _ ...bool) (*types.StringBuffer, error) {

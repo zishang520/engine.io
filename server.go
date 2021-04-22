@@ -2,6 +2,7 @@ package engineio
 
 import (
 	"github.com/zishang520/engine.io/events"
+	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/types"
 	"github.com/zishang520/engine.io/utils"
 )
@@ -29,7 +30,7 @@ type server struct {
 	cookieHttpOnly    string
 	perMessageDeflate string
 	httpCompression   string
-	initialPacket     *types.Packet
+	initialPacket     *packet.Packet
 	ws                nil
 }
 

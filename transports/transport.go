@@ -28,10 +28,10 @@ type transport struct {
 
 	ReadyState string      //"open";
 	Discarded  bool        // false;
-	Protocol   int         // req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
-	Parser     paser.Paser // this.protocol === 4 ? parser_v4 : parser_v3;
+	Protocol   int         // 3
+	Parser     paser.Paser // paser.PaserV3;
 
-	ctx      *types.HttpContext // this.protocol === 4 ? parser_v4 : parser_v3;
+	ctx      *types.HttpContext
 	_doClose types.Fn
 }
 
@@ -39,11 +39,18 @@ func NewTransport(ctx *types.HttpContext) *transport {
 	t := &transport{
 		ReadyState: "open",
 		Discarded:  false,
-		Protocol:   4,             // req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
-		Parser:     paser.PaserV4, // this.protocol === 4 ? parser_v4 : parser_v3;
 		ctx:        ctx,
 		_doClose:   types.Noop,
 	}
+
+	if ctx.Request.URL.Query().Get("EIO") == "4" {
+		t.Protocol = 4
+		t.Parser = paser.PaserV4
+	} else {
+		t.Protocol = 3
+		t.Parser = paser.PaserV3
+	}
+
 	return t
 }
 

@@ -196,10 +196,10 @@ func (p *polling) Send(packets []*packet.Packet) {
 	}
 
 	if p.Protocol == 3 {
-		data, _ := this.parser.EncodePayload(packets, p.supportsBinary)
+		data, _ := this.Parser.EncodePayload(packets, p.supportsBinary)
 		doWrite(data)
 	} else {
-		data, _ := this.parser.EncodePayload(packets)
+		data, _ := this.Parser.EncodePayload(packets)
 		doWrite(data)
 	}
 }

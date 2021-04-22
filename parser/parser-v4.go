@@ -22,7 +22,7 @@ func (parserv4) Protocol() int {
 	return 4
 }
 
-func (p parserv4) EncodePacket(packet *packet.Packet, supportsBinary bool) (*types.BytesBuffer, error) {
+func (p parserv4) EncodePacket(packet *packet.Packet, supportsBinary bool, _ ...bool) (*types.BytesBuffer, error) {
 	encode := types.NewBytesBuffer(nil)
 
 	if packet == nil {
@@ -58,7 +58,7 @@ func (p parserv4) EncodePacket(packet *packet.Packet, supportsBinary bool) (*typ
 	return encode, nil
 }
 
-func (p parserv4) DecodePacket(data io.Reader) (*packet.Packet, error) {
+func (p parserv4) DecodePacket(data io.Reader, _ ...bool) (*packet.Packet, error) {
 	if data == nil {
 		return ERROR_PACKET, errors.New(`parser error`).Err()
 	}

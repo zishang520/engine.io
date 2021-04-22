@@ -3,14 +3,12 @@ package parser
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/zishang520/engine.io/bytes"
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/types"
 	"github.com/zishang520/engine.io/utils"
 	"io"
 	"strconv"
-	"strings"
 	"unicode/utf8"
 )
 
@@ -25,9 +23,9 @@ func (parserv3) Protocol() int {
 	return 3
 }
 
-func (p parserv3) EncodePacket(packet *packet.Packet, supportsBinary bool, utf8encode ...bool) (*types.BytesBuffer, error) {
+func (p parserv3) EncodePacket(packet *packet.Packet, supportsBinary bool, utf8encode ...bool) (*types.StringBuffer, error) {
 	utf8encode = append(utf8encode, false)
-	encode := types.NewBytesBuffer(nil)
+	encode := types.NewStringBuffer(nil)
 
 	if c, ok := packet.Data.(io.Closer); ok {
 		defer c.Close()
@@ -66,7 +64,7 @@ func (p parserv3) EncodePacket(packet *packet.Packet, supportsBinary bool, utf8e
  */
 
 func (p parserv3) DecodePacket(data io.Reader, utf8decode ...bool) (*packet.Packet, error) {
-	utf8encode = append(utf8encode, false)
+	utf8decode = append(utf8decode, false)
 	if data == nil {
 		return ERROR_PACKET, errors.New(`parser error`)
 	}
@@ -85,18 +83,18 @@ func (p parserv3) DecodePacket(data io.Reader, utf8decode ...bool) (*packet.Pack
 			if _, err := v.Read(msgType); err != nil {
 				return ERROR_PACKET, err
 			}
-			packetType, ok := PACKET_TYPES[msgType[0]]
+			packetType, ok := PACKET_TYPES_REVERSE[msgType[0]]
 			if !ok {
 				return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
 			}
 			decode := types.NewBytesBuffer(nil)
 			decode.ReadFrom(base64.NewDecoder(base64.StdEncoding, v))
-			return &types.Packet{
+			return &packet.Packet{
 				Type: packetType,
 				Data: decode,
 			}, nil
 		}
-		packetType, ok := PACKET_TYPES[msgType[0]]
+		packetType, ok := PACKET_TYPES_REVERSE[msgType[0]]
 		if !ok {
 			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
 		}
@@ -106,18 +104,18 @@ func (p parserv3) DecodePacket(data io.Reader, utf8decode ...bool) (*packet.Pack
 		} else {
 			stringBuffer.ReadFrom(v)
 		}
-		return &types.Packet{
+		return &packet.Packet{
 			Type: packetType,
 			Data: stringBuffer,
 		}, nil
 	default:
-		packetType, ok := PACKET_TYPES[msgType[0]+'0']
+		packetType, ok := PACKET_TYPES_REVERSE[msgType[0]+'0']
 		if !ok {
 			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]+'0'))
 		}
 		decode := types.NewBytesBuffer(nil)
 		io.Copy(decode, v)
-		return &types.Packet{
+		return &packet.Packet{
 			Type: packetType,
 			Data: decode,
 		}, nil
@@ -147,13 +145,13 @@ func (p parserv3) hasBinary(packets []*packet.Packet) bool {
 	return false
 }
 
-func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary ...bool) (*types.BytesBuffer, error) {
+func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary ...bool) (*types.StringBuffer, error) {
 	supportsBinary = append(supportsBinary, false)
 	if supportsBinary[0] && p.hasBinary(packets) {
 		return p.EncodePayloadAsBinary(packets)
 	}
 
-	enPayload := types.NewBytesBuffer(nil)
+	enPayload := types.NewStringBuffer(nil)
 
 	if len(packets) == 0 {
 		enPayload.WriteString(`0:`)
@@ -171,8 +169,8 @@ func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary ...bool
 	return enPayload, nil
 }
 
-func (p parserv3) encodeOneBinaryPacket(packet *packet.Packet) (*types.BytesBuffer, error) {
-	binarypacket := types.NewBytesBuffer(nil)
+func (p parserv3) encodeOneBinaryPacket(packet *packet.Packet) (*types.StringBuffer, error) {
+	binarypacket := types.NewStringBuffer(nil)
 
 	buf, err := p.EncodePacket(packet, true, true)
 	if err != nil {
@@ -200,8 +198,8 @@ func (p parserv3) encodeOneBinaryPacket(packet *packet.Packet) (*types.BytesBuff
 	return binarypacket, nil
 }
 
-func (p parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (*types.BytesBuffer, error) {
-	enPayload := types.NewBytesBuffer(nil)
+func (p parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (*types.StringBuffer, error) {
+	enPayload := types.NewStringBuffer(nil)
 
 	if len(packets) == 0 {
 		return enPayload, nil
@@ -260,7 +258,7 @@ func (p parserv3) DecodePayload(data io.Reader) []*packet.Packet {
 			}
 		}
 	default:
-		return p.DecodePayloadAsBinary(data, callback)
+		return p.DecodePayloadAsBinary(data)
 	}
 
 	return packets
@@ -272,7 +270,6 @@ func (p parserv3) DecodePayloadAsBinary(data io.Reader) []*packet.Packet {
 	bufferTail := types.NewBuffer(nil)
 	bufferTail.ReadFrom(data)
 
-	buffers := []io.Reader{}
 	for bufferTail.Len() > 0 {
 		startByte, err := bufferTail.ReadByte()
 		if err != nil {

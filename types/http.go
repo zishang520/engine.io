@@ -17,3 +17,7 @@ type HttpContext struct {
 type HttpCompression struct {
 	Threshold int
 }
+
+type PerMessageDeflate struct {
+	Threshold int
+}

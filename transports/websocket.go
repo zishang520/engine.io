@@ -11,9 +11,13 @@ type WebSocket interface {
 
 type websocket struct {
 	*transport
+
+	supportsBinary    bool
+	writable          bool
+	perMessageDeflate *types.PerMessageDeflate
 }
 
-func NewWebSocket(req *http.Request) WebSocket {
+func NewWebSocket(ctx *types.HttpContext) *websocket {
 
 	s := &websocket{}
 	//  s.socket = req.websocket;
@@ -23,8 +27,8 @@ func NewWebSocket(req *http.Request) WebSocket {
 	// s.socket.on("headers", headers => {
 	//   s.emit("headers", headers);
 	// });
-	// s.writable = true;
-	// s.perMessageDeflate = null;
+	s.writable = true
+	s.perMessageDeflate = nil
 	return s
 }
 
@@ -40,48 +44,56 @@ func (w *websocket) SupportsFraming() bool {
 	return true
 }
 
+func (p *polling) UpgradesTo() types.Set {
+	return types.Set{}
+}
+
 func (w *websocket) OnData(data io.Reader) {
-	// debug('received "%s"', data);
+	utils.Log.Debug(`received "%s"`, data)
 	w.transport.OnData(data)
 }
 
 func (w *websocket) Send(packets []*packet.Packet) {
-	// for (var i = 0; i < packets.length; i++) {
-	//   var packet = packets[i];
-	//   w.parser.EncodePacket(packet, self.supportsBinary, send);
-	// }
-	// buf, err := parser.ParserV4.EncodePayload([]*packet.Packet{
+	for _, packet := range packets {
+		if buf, err := w.Parser.EncodePacket(packet, w.supportsBinary); err != nil {
+			utils.Log.Debug(`Send Error "%s"`, err)
+			continue
+		}
+		send(buf, packet)
+	}
 
-	// function send(data) {
-	//   debug('writing "%s"', data);
+	onEnd := func(err ...interface{}) {
+		if len(err) > 0 {
+			return w.OnError("write error", err[0].Error())
+		}
+		w.writable = true
+		w.Emit("drain")
+	}
 
-	//   // always creates a new object since ws modifies it
-	//   var opts = {};
-	//   if (packet.options) {
-	//     opts.compress = packet.options.compress;
-	//   }
+	send := func(data *types.StringBuffer, packet *packet.Packet) {
+		utils.Log.Debug(`writing "%s"`, data)
 
-	//   if (self.perMessageDeflate) {
-	//     var len =
-	//       "string" === typeof data ? Buffer.byteLength(data) : data.length;
-	//     if (len < self.perMessageDeflate.threshold) {
-	//       opts.compress = false;
-	//     }
-	//   }
+		// always creates a new object since ws modifies it
+		opts := &packet.Option{false}
+		if packet.Options != nil {
+			opts.Compress = packet.Options.Compress
+		}
+		if w.perMessageDeflate != nil {
+			if data.Size() < p.perMessageDeflate.Threshold {
+				opts.compress = false
+			}
+		}
 
-	//   self.writable = false;
-	//   self.socket.send(data, opts, onEnd);
-	// }
+		w.writable = false
+		w.socket.Send(data, opts, onEnd)
+	}
 
-	// function onEnd(err) {
-	//   if (err) return self.onError("write error", err.stack);
-	//   self.writable = true;
-	//   self.Emit("drain");
-	// }
 }
 
-func (w *websocket) DoClose(fn) {
-	// debug("closing")
+func (w *websocket) DoClose(fn ...types.Fn) {
+	utils.Log.Debug(`closing`)
 	// w.socket.Close()
-	// fn && fn()
+	if len(fn) > 0 {
+		fn[0]()
+	}
 }

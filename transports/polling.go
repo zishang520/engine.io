@@ -54,6 +54,10 @@ func (p *polling) SupportsFraming() bool {
 	return false
 }
 
+func (p *polling) UpgradesTo() types.Set {
+	return types.Set{"websocket": types.NULL}
+}
+
 func (p *polling) OnRequest(ctx *types.HttpContext) {
 	method := strings.ToUpper(ctx.Request.Method)
 

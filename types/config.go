@@ -22,9 +22,10 @@ type Cors struct {
 	AllowedHeaders       interface{} `json:"allowedHeaders,omitempty"`
 	Headers              interface{} `json:"headers,omitempty"`
 	ExposedHeaders       interface{} `json:"exposedHeaders,omitempty"`
-	Credentials          bool        `json:"credentials"`
-	PreflightContinue    bool        `json:"preflightContinue"`
-	OptionsSuccessStatus int         `json:"optionsSuccessStatus"`
+	MaxAge               string      `json:"maxAge,omitempty"`
+	Credentials          bool        `json:"credentials,omitempty"`
+	PreflightContinue    bool        `json:"preflightContinue,omitempty"`
+	OptionsSuccessStatus int         `json:"optionsSuccessStatus,omitempty"`
 }
 
 type Config struct {
@@ -41,6 +42,17 @@ type Config struct {
 	HttpCompression   *HttpCompression   `json:"httpCompression,omitempty"`
 	Cors              *Cors              `json:"cors,omitempty"`
 	AllowEIO3         *bool              `json:"allowEIO3,omitempty"`
+}
+
+func (c *Cors) Assign(data *Cors) error {
+	if data == nil {
+		return nil
+	}
+	if buf, err := json.Marshal(data); err != nil {
+		return err
+	} else {
+		return json.Unmarshal(buf, o)
+	}
 }
 
 func _config() *Config {
@@ -78,6 +90,9 @@ func _config() *Config {
 }
 
 func (o *Config) Assign(data *Config) error {
+	if data == nil {
+		return nil
+	}
 	if buf, err := json.Marshal(data); err != nil {
 		return err
 	} else {

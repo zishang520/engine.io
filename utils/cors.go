@@ -2,15 +2,16 @@ package utils
 
 import (
 	"github.com/zishang520/engine.io/types"
+	"strings"
 )
 
 type headers []*types.Kv
 
-var defaults = map[string]string{
-	"Origin":               `*`,
-	"Methods":              `GET,HEAD,PUT,PATCH,POST,DELETE`,
-	"PreflightContinue":    false,
-	"OptionsSuccessStatus": 204,
+var initCors = &Cors{
+	Origin:               `*`,
+	Methods:              `GET,HEAD,PUT,PATCH,POST,DELETE`,
+	PreflightContinue:    false,
+	OptionsSuccessStatus: 204,
 }
 
 func isOriginAllowed(origin string, allowedOrigin interface{}) bool {
@@ -43,16 +44,10 @@ func configureOrigin(options *types.Cors, ctx *types.HttpContext) (headers []*ty
 			})
 		} else {
 			// fixed origin
-			headers = append(headers, []*types.Kv{
-				&types.Kv{
-					Key:   "Access-Control-Allow-Origin",
-					Value: o,
-				},
-				&types.Kv{
-					Key:   "Vary",
-					Value: "Origin",
-				},
-			}...)
+			headers = append(headers, &types.Kv{
+				Key:   "Access-Control-Allow-Origin",
+				Value: o,
+			})
 		}
 	} else {
 		// reflect origin
@@ -67,10 +62,6 @@ func configureOrigin(options *types.Cors, ctx *types.HttpContext) (headers []*ty
 				Value: "false",
 			})
 		}
-		headers = append(headers, &types.Kv{
-			Key:   "Vary",
-			Value: "Origin",
-		})
 	}
 	return headers
 }
@@ -83,12 +74,10 @@ func configureMethods(options *types.Cors) (headers []*types.Kv) {
 			Value: methods,
 		})
 	case []string:
-		if len(methods) > 0 {
-			headers = append(headers, &types.Kv{
-				Key:   "Access-Control-Allow-Methods",
-				Value: strings.Join(methods, ","),
-			})
-		}
+		headers = append(headers, &types.Kv{
+			Key:   "Access-Control-Allow-Methods",
+			Value: strings.Join(methods, ","),
+		})
 	}
 	return headers
 }
@@ -99,7 +88,6 @@ func configureCredentials(options *types.Cors) (headers []*types.Kv) {
 			Key:   "Access-Control-Allow-Credentials",
 			Value: "true",
 		})
-
 	}
 	return headers
 }
@@ -112,21 +100,20 @@ func configureAllowedHeaders(options *types.Cors, ctx *types.HttpContext) (heade
 
 	switch h := allowedHeaders.(type) {
 	case nil:
-		headers = append(headers, []*types.Kv{
-			&types.Kv{
+		head := ctx.Request.Header.Get("Access-Control-Request-Headers") // .headers wasn't specified, so reflect the request headers
+		if head != "" {
+			headers = append(headers, &types.Kv{
 				Key:   "Access-Control-Request-Headers",
-				Value: ctx.Request.Header.Get("Access-Control-Request-Headers"), // .headers wasn't specified, so reflect the request headers
-			},
-			&types.Kv{
-				Key:   "Vary",
-				Value: "Access-Control-Request-Headers",
-			},
-		}...)
+				Value: head,
+			})
+		}
 	case string:
-		headers = append(headers, &types.Kv{
-			Key:   "Access-Control-Allow-Headers",
-			Value: h,
-		})
+		if headers != "" {
+			headers = append(headers, &types.Kv{
+				Key:   "Access-Control-Allow-Headers",
+				Value: h,
+			})
+		}
 	case []string:
 		if len(headers) > 0 {
 			headers = append(headers, &types.Kv{
@@ -141,10 +128,12 @@ func configureAllowedHeaders(options *types.Cors, ctx *types.HttpContext) (heade
 func configureExposedHeaders(options *types.Cors) (headers []*types.Kv) {
 	switch headers := options.ExposedHeaders.(type) {
 	case string:
-		headers = append(headers, &types.Kv{
-			Key:   "Access-Control-Expose-Headers",
-			Value: methods,
-		})
+		if headers != "" {
+			headers = append(headers, &types.Kv{
+				Key:   "Access-Control-Expose-Headers",
+				Value: methods,
+			})
+		}
 	case []string:
 		if len(headers) > 0 {
 			headers = append(headers, &types.Kv{
@@ -153,8 +142,65 @@ func configureExposedHeaders(options *types.Cors) (headers []*types.Kv) {
 			})
 		}
 	}
+	return headers
 }
 
-func Cors() {
+func configureMaxAge(options *types.Cors) (headers []*types.Kv) {
+	if options.MaxAge != "" {
+		headers = append(headers, &types.Kv{
+			Key:   "Access-Control-Expose-Headers",
+			Value: options.MaxAge,
+		})
+	}
+	return headers
+}
 
+func applyHeaders(headers []*types.Kv, ctx *types.HttpContext) {
+	for _, header := range headers {
+		ctx.Response.Header().Set(header.Key, headers.Value)
+	}
+}
+
+func cors(options *types.Cors, ctx *types.HttpContext, next types.Fn) {
+	headers := []*types.Kv{}
+	method = strings.ToUpper(ctx.Request.Method)
+
+	if method == "OPTIONS" {
+		// preflight
+		headers = append(headers, configureOrigin(options, ctx)...)
+		headers = append(headers, configureCredentials(options)...)
+		headers = append(headers, configureMethods(options)...)
+		headers = append(headers, configureAllowedHeaders(options, ctx)...)
+		headers = append(headers, configureMaxAge(options)...)
+		headers = append(headers, configureExposedHeaders(options)...)
+		applyHeaders(headers, ctx)
+
+		if options.PreflightContinue {
+			next()
+		} else {
+			// Safari (and potentially other browsers) need content-length 0,
+			//   for 204 or they just hang waiting for a body
+			ctx.Response.WriteHeader(options.OptionsSuccessStatus)
+			ctx.Response.Header().Set("Content-Length", "0")
+			ctx.Response.Write(nil)
+		}
+	} else {
+		// actual response
+		headers = append(headers, configureOrigin(options, ctx)...)
+		headers = append(headers, configureCredentials(options)...)
+		headers = append(headers, configureExposedHeaders(options)...)
+		applyHeaders(headers, ctx)
+		next()
+	}
+}
+
+func MiddlewareWrapper(options *types.Cors) {
+	return func(ctx *types.HttpContext, next types.Fn) {
+		corsOptions = initCors.Assign(options)
+		if corsOptions.Origin == nil {
+			next()
+		} else {
+			cors(corsOptions, ctx, next)
+		}
+	}
 }

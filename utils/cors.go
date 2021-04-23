@@ -34,7 +34,7 @@ func isOriginAllowed(origin string, allowedOrigin interface{}) bool {
 func configureOrigin(options *types.Cors, ctx *types.HttpContext) (headers []*types.Kv) {
 	requestOrigin := ctx.Request.Header.Get("Origin")
 	// ctx.Response.Header().Add(key, value)
-	if o, ok := options.Origin.(type); ok {
+	if o, ok := options.Origin.(string); ok {
 		if o == "*" {
 			// allow any origin
 			headers = append(headers, &types.Kv{
@@ -83,10 +83,12 @@ func configureMethods(options *types.Cors) (headers []*types.Kv) {
 			Value: methods,
 		})
 	case []string:
-		headers = append(headers, &types.Kv{
-			Key:   "Access-Control-Allow-Methods",
-			Value: strings.Join(methods, ","),
-		})
+		if len(methods) > 0 {
+			headers = append(headers, &types.Kv{
+				Key:   "Access-Control-Allow-Methods",
+				Value: strings.Join(methods, ","),
+			})
+		}
 	}
 	return headers
 }
@@ -126,12 +128,31 @@ func configureAllowedHeaders(options *types.Cors, ctx *types.HttpContext) (heade
 			Value: h,
 		})
 	case []string:
-		headers = append(headers, &types.Kv{
-			Key:   "Access-Control-Allow-Headers",
-			Value: strings.Join(methods, ","),
-		})
+		if len(headers) > 0 {
+			headers = append(headers, &types.Kv{
+				Key:   "Access-Control-Allow-Headers",
+				Value: strings.Join(methods, ","),
+			})
+		}
 	}
 	return headers
+}
+
+func configureExposedHeaders(options *types.Cors) (headers []*types.Kv) {
+	switch headers := options.ExposedHeaders.(type) {
+	case string:
+		headers = append(headers, &types.Kv{
+			Key:   "Access-Control-Expose-Headers",
+			Value: methods,
+		})
+	case []string:
+		if len(headers) > 0 {
+			headers = append(headers, &types.Kv{
+				Key:   "Access-Control-Expose-Headers",
+				Value: strings.Join(methods, ","),
+			})
+		}
+	}
 }
 
 func Cors() {

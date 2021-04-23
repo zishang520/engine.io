@@ -21,6 +21,7 @@ type Cors struct {
 	Methods              interface{} `json:"methods,omitempty"`
 	AllowedHeaders       interface{} `json:"allowedHeaders,omitempty"`
 	Headers              interface{} `json:"headers,omitempty"`
+	ExposedHeaders       interface{} `json:"exposedHeaders,omitempty"`
 	Credentials          bool        `json:"credentials"`
 	PreflightContinue    bool        `json:"preflightContinue"`
 	OptionsSuccessStatus int         `json:"optionsSuccessStatus"`

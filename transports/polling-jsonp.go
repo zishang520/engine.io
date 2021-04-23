@@ -44,9 +44,11 @@ func (j *jsonp) OnData(data io.Reader) {
 	if err != nil {
 		return
 	}
-	_data := u.Get("d")
+	if _, ok := u["d"]; !ok {
+		return
+	}
 	r := regexp.MustCompile(rSlashes)
-	_data = r.ReplaceAllStringFunc(_data, func(m string) string {
+	_data := r.ReplaceAllStringFunc(u.Get("d"), func(m string) string {
 		if parts := r.FindStringSubmatch(m); parts[1] != "" {
 			return parts[0]
 		}

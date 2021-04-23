@@ -3,101 +3,17 @@ package engineio
 import (
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/packet"
+	"github.com/zishang520/engine.io/transports"
 	"github.com/zishang520/engine.io/types"
 	"github.com/zishang520/engine.io/utils"
+	"net/http"
 )
-
-type Server interface {
-	events.EventEmmiter
-}
-
-type server struct {
-	events.EventEmmiter
-
-	clients      map[string]string
-	clientsCount int
-
-	wsEngine          string
-	pingTimeout       int
-	pingInterval      int
-	upgradeTimeout    int
-	maxHttpBufferSize int
-	transports        []interface{}
-	allowUpgrades     bool
-	allowRequest      AllowRequest
-	cookie            string
-	cookiePath        string
-	cookieHttpOnly    string
-	perMessageDeflate string
-	httpCompression   string
-	initialPacket     *packet.Packet
-	ws                nil
-}
-
-/**
- * Server constructor.
- *
- * @param {Object} options
- * @api public
- */
-
-func NewServer(opts Opts) *server {
-	this := &Server{}
-
-	this.clients = map[string]string{}
-	this.clientsCount = 0
-
-	// this.opts = Object.assign(
-	//   {
-	//     wsEngine: DEFAULT_WS_ENGINE,
-	//     pingTimeout: 20000,
-	//     pingInterval: 25000,
-	//     upgradeTimeout: 10000,
-	//     maxHttpBufferSize: 1e6,
-	//     transports: Object.keys(transports),
-	//     allowUpgrades: true,
-	//     httpCompression: {
-	//       threshold: 1024
-	//     },
-	//     cors: false,
-	//     allowEIO3: false
-	//   },
-	//   opts
-	// );
-
-	// if (opts.cookie) {
-	//   this.opts.cookie = Object.assign(
-	//     {
-	//       name: "io",
-	//       path: "/",
-	//       httpOnly: opts.cookie.path !== false,
-	//       sameSite: "lax"
-	//     },
-	//     opts.cookie
-	//   );
-	// }
-
-	// if (this.opts.cors) {
-	//   this.corsMiddleware = require("cors")(this.opts.cors);
-	// }
-
-	// if (opts.perMessageDeflate) {
-	//   this.opts.perMessageDeflate = Object.assign(
-	//     {
-	//       threshold: 1024
-	//     },
-	//     opts.perMessageDeflate
-	//   );
-	// }
-
-	this.init()
-}
 
 /**
  * Protocol errors mappings.
  */
-
 const (
+	OK                           int = -1
 	UNKNOWN_TRANSPORT            int = 0
 	UNKNOWN_SID                  int = 1
 	BAD_HANDSHAKE_METHOD         int = 2
@@ -107,6 +23,7 @@ const (
 )
 
 var errorMessages map[int]string = map[int]string{
+	OK:                           `Ok`,
 	UNKNOWN_TRANSPORT:            `Transport unknown`,
 	UNKNOWN_SID:                  `Session ID unknown`,
 	BAD_HANDSHAKE_METHOD:         `Bad handshake method`,
@@ -115,16 +32,52 @@ var errorMessages map[int]string = map[int]string{
 	UNSUPPORTED_PROTOCOL_VERSION: "Unsupported protocol version",
 }
 
+type Server interface {
+	events.EventEmmiter
+}
+
+type server struct {
+	events.EventEmmiter
+
+	clients      map[string]Socket
+	clientsCount int
+	Opts         *types.Config
+
+	ws interface{}
+}
+
+func NewServer(opts *types.Config) *server {
+	s := &Server{}
+
+	s.clients = map[string]Socket{}
+	s.clientsCount = 0
+
+	s.Opts = types.InitConfig
+	s.Opts.Assign(opts)
+
+	if s.Opts.Cors {
+		s.corsMiddleware = require("cors")(this.Opts.Cors)
+	}
+
+	s.init()
+
+	return s
+}
+
 /**
  * Initialize websocket server
  *
  * @api private
  */
 
-func (this *server) init() {
-	// if (!~this.opts.transports.indexOf("websocket")) return;
+func (s *server) init() {
+	if _, ok := s.Opts.Transports["websocket"]; !ok {
+		return
+	}
 
-	// if (this.ws) this.ws.close();
+	if s.ws != nil {
+		s.ws.close()
+	}
 
 	// this.ws = new this.opts.wsEngine({
 	//   noServer: true,
@@ -141,9 +94,11 @@ func (this *server) init() {
  * @api public
  */
 
-func (this *server) upgrades(transport interface{}) {
-	// if (!this.opts.allowUpgrades) return [];
-	// return transports[transport].upgradesTo || [];
+func (s *server) upgrades(transport string) *types.Set {
+	if !s.Opts.AllowUpgrades {
+		return &types.Set{}
+	}
+	return transports.Transports[transport].UpgradesTo()
 }
 
 /**
@@ -154,42 +109,44 @@ func (this *server) upgrades(transport interface{}) {
  * @api private
  */
 
-func (this *server) verify(req interface{}, upgrade bool, fn interface{}) {
-	// // transport check
-	// const transport = req._query.transport;
-	// if (!~this.opts.transports.indexOf(transport)) {
-	//   debug('unknown transport "%s"', transport);
-	//   return fn(Server.errors.UNKNOWN_TRANSPORT, false);
-	// }
+func (s *server) verify(ctx *types.HttpContext, upgrade bool, fn ...interface{}) (int, bool) {
+	// transport check
+	transport := ctx.Request.URL.Query().Get("transport")
+	if _, ok := s.Opts.Transports[transport]; !ok {
+		utils.Log.Debug(`unknown transport "%s"`, transport)
+		return UNKNOWN_TRANSPORT, false
+	}
 
-	// // 'Origin' header check
-	// const isOriginInvalid = checkInvalidHeaderChar(req.headers.origin);
-	// if (isOriginInvalid) {
-	//   req.headers.origin = null;
-	//   debug("origin header invalid");
-	//   return fn(Server.errors.BAD_REQUEST, false);
-	// }
+	// 'Origin' header check
+	if utils.CheckInvalidHeaderChar(ctx.Request.Header.Get("Origin")) {
+		ctx.Request.Header.Del("Origin")
+		utils.Log.Debug("origin header invalid")
+		return BAD_REQUEST, false
+	}
 
-	// // sid check
-	// const sid = req._query.sid;
-	// if (sid) {
-	//   if (!this.clients.hasOwnProperty(sid)) {
-	//     debug('unknown sid "%s"', sid);
-	//     return fn(Server.errors.UNKNOWN_SID, false);
-	//   }
-	//   if (!upgrade && this.clients[sid].transport.name !== transport) {
-	//     debug("bad request: unexpected transport without upgrade");
-	//     return fn(Server.errors.BAD_REQUEST, false);
-	//   }
-	// } else {
-	//   // handshake is GET only
-	//   if ("GET" !== req.method)
-	//     return fn(Server.errors.BAD_HANDSHAKE_METHOD, false);
-	//   if (!this.opts.allowRequest) return fn(null, true);
-	//   return this.opts.allowRequest(req, fn);
-	// }
+	// sid check
+	sid := ctx.Request.URL.Query().Get("sid")
+	if sid != "" {
+		if _, ok := s.clients[sid]; !ok {
+			utils.Log.Debug(`unknown sid "%s"`, sid)
+			return UNKNOWN_SID, false
+		}
+		if !upgrade && s.clients[sid].Transport().Name() != transport {
+			utils.Log.Debug("bad request: unexpected transport without upgrade")
+			return BAD_REQUEST, false
+		}
+	} else {
+		// handshake is GET only
+		if "GET" != strings.ToUpper(ctx.Request.Method) {
+			return BAD_HANDSHAKE_METHOD, false
+		}
+		if s.Opts.AllowRequest == nil {
+			return OK, true
+		}
+		return s.Opts.AllowRequest(ctx)
+	}
 
-	// fn(null, true);
+	return OK, true
 }
 
 /**
@@ -198,7 +155,7 @@ func (this *server) verify(req interface{}, upgrade bool, fn interface{}) {
  * @api private
  */
 
-func (this *server) prepare(req interface{}) {
+func (s *server) prepare(ctx *types.HttpContext) {
 	// try to leverage pre-existing `req._query` (e.g: from connect)
 	// if (!req._query) {
 	//   req._query = ~req.url.indexOf("?") ? qs.parse(parse(req.url).query) : {};
@@ -211,19 +168,17 @@ func (this *server) prepare(req interface{}) {
  * @api public
  */
 
-func (this *server) close() {
-	debug("closing all open clients")
-	// for (let i in this.clients) {
-	//   if (this.clients.hasOwnProperty(i)) {
-	//     this.clients[i].close(true);
-	//   }
-	// }
-	if this.ws {
-		debug("closing webSocketServer")
-		this.ws.close()
-		// don't delete this.ws because it can be used again if the http server starts listening again
+func (s *server) close() {
+	utils.Log.Debug("closing all open clients")
+	for _, client := range s.clients {
+		client.Close()
 	}
-	return this
+	if s.ws != nil {
+		utils.Log.Debug("closing webSocketServer")
+		s.ws.Close()
+		// don't delete s.ws because it can be used again if the http server starts listening again
+	}
+	return s
 }
 
 /**
@@ -234,39 +189,43 @@ func (this *server) close() {
  * @api public
  */
 
-func (this *server) handleRequest(req, res) {
-	// debug('handling "%s" http request "%s"', req.method, req.url);
+func (s *server) handleRequest(req *http.Request, res http.ResponseWriter) {
+	utils.Log.Debug(`handling "%s" http request "%s"`, req.Method, req.RequestURI)
 	this.prepare(req)
-	req.res = res
 
-	// const callback = (err, success) => {
-	//   if (!success) {
-	//     sendErrorMessage(req, res, err);
-	//     return;
-	//   }
+	ctx := &types.HttpContext{
+		Request:  req,
+		Response: res,
+	}
 
-	//   if (req._query.sid) {
-	//     debug("setting new request for existing client");
-	//     this.clients[req._query.sid].transport.onRequest(req);
-	//   } else {
-	//     this.handshake(req._query.transport, req);
-	//   }
-	// };
+	callback := func(err int, success bool) {
+		if !success {
+			s.sendErrorMessage(ctx, err)
+			return
+		}
 
-	if this.corsMiddleware {
-		// this.corsMiddleware.call(null, req, res, () => {
-		//   this.verify(req, false, callback);
+		if sid := ctx.Request.URL.Query().Get("sid"); sid != "" {
+			utils.Log.Debug("setting new request for existing client")
+			s.clients[sid].Transport.OnRequest(ctx)
+		} else {
+			s.handshake(ctx.Request.URL.Query().Get("transport"), ctx)
+		}
+	}
+
+	if s.corsMiddleware != nil {
+		// s.corsMiddleware.call(null, req, res, () => {
+		//   s.verify(req, false, callback);
 		// });
 	} else {
-		this.verify(req, false, callback)
+		s.verify(req, false, callback)
 	}
 }
 
-func (this *server) generateId(req interface{}) {
+func (s *server) generateId(_ *types.HttpContext) {
 	return utils.Base64Id.GenerateId()
 }
 
-func (this *server) handshake(transportName string, req interface{}) {
+func (s *server) handshake(transportName string, ctx *types.HttpContext) {
 	// const protocol = req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
 	// if (protocol === 3 && !this.opts.allowEIO3) {
 	//   debug("unsupported protocol version");
@@ -334,7 +293,7 @@ func (this *server) handshake(transportName string, req interface{}) {
 	this.emit("connection", socket)
 }
 
-func (this *server) handleUpgrade(req, socket, upgradeHead) {
+func (s *server) handleUpgrade(req, socket, upgradeHead) {
 	// this.prepare(req);
 
 	// const self = this;
@@ -354,7 +313,7 @@ func (this *server) handleUpgrade(req, socket, upgradeHead) {
 	// });
 }
 
-func (this *server) onWebSocket(req, socket) {
+func (s *server) onWebSocket(req, socket) {
 	// socket.on("error", onUpgradeError);
 
 	// if (
@@ -419,8 +378,8 @@ func (this *server) onWebSocket(req, socket) {
  * @api public
  */
 
-// func (this *Kernel) ServeHTTP(response http.ResponseWriter, request *http.Request) {
-func (this *server) attach(server, options) {
+// func (s *Kernel) ServeHTTP(response http.ResponseWriter, request *http.Request) {
+func (s *server) attach(server, options) {
 	//   const self = this;
 	//   options = options || {};
 	//   let path = (options.path || "/engine.io").replace(/\/$/, "");
@@ -482,7 +441,7 @@ func (this *server) attach(server, options) {
  * @api private
  */
 
-func (this server) sendErrorMessage(req, res, code) {
+func (this server) sendErrorMessage(ctx, code) {
 	// const headers = { "Content-Type": "application/json" };
 
 	// const isForbidden = !Server.errorMessages.hasOwnProperty(code);
@@ -528,76 +487,4 @@ func (this server) abortConnection(socket, code) {
 	//   );
 	// }
 	socket.destroy()
-}
-
-/* eslint-disable */
-
-/**
- * From https://github.com/nodejs/node/blob/v8.4.0/lib/_http_common.js#L303-L354
- *
- * True if val contains an invalid field-vchar
- *  field-value    = *( field-content / obs-fold )
- *  field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
- *  field-vchar    = VCHAR / obs-text
- *
- * checkInvalidHeaderChar() is currently designed to be inlinable by v8,
- * so take care when making changes to the implementation so that the source
- * code size does not exceed v8's default max_inlined_source_size setting.
- **/
-var validHdrChars = [...]bool{
-	false, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, // 0 - 15
-	false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, // 16 - 31
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, // 32 - 47
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, // 48 - 63
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, // 64 - 79
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, // 80 - 95
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, // 96 - 111
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, // 112 - 127
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, // 128 ...
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true,
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true,
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true,
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true,
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true,
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true,
-	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, // ... 255
-}
-
-func checkInvalidHeaderChar(val string) bool {
-	length := len(val)
-	if length < 1 {
-		return false
-	}
-	if !validHdrChars[val[0]] {
-		// debug(`invalid header, index 0, char "%s"`, val.charCodeAt(0))
-		return true
-	}
-	if length < 2 {
-		return false
-	}
-	if !validHdrChars[val[1]] {
-		// debug(`invalid header, index true, char "%s"`, val.charCodeAt(1))
-		return true
-	}
-	if length < 3 {
-		return false
-	}
-	if !validHdrChars[val[2]] {
-		// debug(`invalid header, index 2, char "%s"`, val.charCodeAt(2))
-		return true
-	}
-	if length < 4 {
-		return false
-	}
-	if !validHdrChars[val[3]] {
-		// debug(`invalid header, index 3, char "%s"`, val.charCodeAt(3))
-		return true
-	}
-	for i := 4; i < length; i += 1 {
-		if !validHdrChars[val[i]] {
-			// debug(`invalid header, index "%i", char "%s"`, i, val.charCodeAt(i))
-			return true
-		}
-	}
-	return false
 }

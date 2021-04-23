@@ -13,6 +13,7 @@ import (
 type Transport interface {
 	events.EventEmitter
 
+	UpgradesTo() *types.Set
 	Discard()
 	OnRequest(*types.HttpContext)
 	DoClose(types.Fn)

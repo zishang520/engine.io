@@ -1,43 +1,53 @@
 package types
 
 import (
+	"encoding/json"
 	"time"
 )
 
-type AllowRequest func()
+var InitConfig = _config()
+
+type AllowRequest func(*HttpContext) (int, bool)
 
 type Cookie struct {
-	Name     string `json:"name"`     // "io",
-	Path     string `json:"path"`     // "/",
-	HttpOnly string `json:"httpOnly"` // opts.cookie.path !== false,
-	SameSite string `json:"sameSite"` // "lax"
+	Name     string `json:"name,omitempty"`
+	Path     string `json:"path,omitempty"`
+	HttpOnly bool   `json:"httpOnly,omitempty"`
+	SameSite string `json:"sameSite,omitempty"`
 }
 
-type Opts struct {
-	WsEngine          string             `json:"wsEngine"`
-	PingTimeout       time.Duration      `json:"pingTimeout"`
-	PingInterval      time.Duration      `json:"pingInterval"`
-	UpgradeTimeout    time.Duration      `json:"upgradeTimeout"`
-	MaxHttpBufferSize time.Duration      `json:"maxHttpBufferSize"`
-	Transports        Set                `json:"transports"`
-	AllowUpgrades     bool               `json:"allowUpgrades"`
-	AllowRequest      AllowRequest       `json:"allowRequest"`
-	Cookie            *Cookie            `json:"cookie"`
-	PerMessageDeflate *PerMessageDeflate `json:"perMessageDeflate"`
-	HttpCompression   *HttpCompression   `json:"httpCompression"`
-	Cors              bool               `json:"cors"`
-	AllowEIO3         bool               `json:"allowEIO3"`
+type Config struct {
+	WsEngine          *string            `json:"wsEngine,omitempty"`
+	PingTimeout       *time.Duration     `json:"pingTimeout,omitempty"`
+	PingInterval      *time.Duration     `json:"pingInterval,omitempty"`
+	UpgradeTimeout    *time.Duration     `json:"upgradeTimeout,omitempty"`
+	MaxHttpBufferSize *int               `json:"maxHttpBufferSize,omitempty"`
+	Transports        *Set               `json:"transports,omitempty"`
+	AllowUpgrades     *bool              `json:"allowUpgrades,omitempty"`
+	AllowRequest      *AllowRequest      `json:"allowRequest,omitempty"`
+	Cookie            *Cookie            `json:"cookie,omitempty"`
+	PerMessageDeflate *PerMessageDeflate `json:"perMessageDeflate,omitempty"`
+	HttpCompression   *HttpCompression   `json:"httpCompression,omitempty"`
+	Cors              *bool              `json:"cors,omitempty"`
+	AllowEIO3         *bool              `json:"allowEIO3,omitempty"`
 }
 
-func OptsInit() *Opts {
-	return &Opts{
+func _config() *Config {
+	PingTimeout := time.Duration(20000 * time.Millisecond)
+	PingInterval := time.Duration(25000 * time.Millisecond)
+	UpgradeTimeout := time.Duration(10000 * time.Millisecond)
+	MaxHttpBufferSize := int(1e6)
+	AllowUpgrades := true
+	Cors := false
+	AllowEIO3 := false
+	return &Config{
 		// WsEngine: DEFAULT_WS_ENGINE,
-		PingTimeout:       20000,
-		PingInterval:      25000,
-		UpgradeTimeout:    10000,
-		MaxHttpBufferSize: 1e6,
-		Transports:        Set{"polling": NULL, "websocket": NULL},
-		AllowUpgrades:     true,
+		PingTimeout:       &PingTimeout,
+		PingInterval:      &PingInterval,
+		UpgradeTimeout:    &UpgradeTimeout,
+		MaxHttpBufferSize: &MaxHttpBufferSize,
+		Transports:        &Set{"polling": NULL, "websocket": NULL},
+		AllowUpgrades:     &AllowUpgrades,
 		Cookie: &Cookie{
 			Name:     "io",
 			Path:     "/",
@@ -50,11 +60,15 @@ func OptsInit() *Opts {
 		HttpCompression: &HttpCompression{
 			Threshold: 1024,
 		},
-		Cors:      false,
-		AllowEIO3: false,
+		Cors:      &Cors,
+		AllowEIO3: &AllowEIO3,
 	}
 }
 
-func (o *Opts) Assign() {
-
+func (o *Config) Assign(data *Config) error {
+	if buf, err := json.Marshal(data); err != nil {
+		return err
+	} else {
+		return json.Unmarshal(buf, o)
+	}
 }

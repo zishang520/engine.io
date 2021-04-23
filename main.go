@@ -90,7 +90,16 @@ func main() {
 			utils.Log.Debug("计时器关闭啦")
 		}
 	}()
-
+	t := time.Duration(0)
+	a := false
+	ops := types.NewOpts()
+	const axxxx int = nil
+	utils.Log.Debug(axxxx)
+	utils.Log.Debug(ops.Cookie)
+	utils.Log.Debug(ops.PerMessageDeflate)
+	utils.Log.Debug(ops.UpgradeTimeout)
+	ops.Assign(&types.Opts{PingTimeout: &t, Cors: &a})
+	utils.Log.Debug(ops)
 	time.Sleep(2 * time.Second)
 	closeTimeoutTimer <- struct{}{}
 	time.Sleep(10 * time.Second)

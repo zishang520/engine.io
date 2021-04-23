@@ -44,8 +44,8 @@ func (w *websocket) SupportsFraming() bool {
 	return true
 }
 
-func (p *polling) UpgradesTo() types.Set {
-	return types.Set{}
+func (p *polling) UpgradesTo() *types.Set {
+	return &types.Set{}
 }
 
 func (w *websocket) OnData(data io.Reader) {

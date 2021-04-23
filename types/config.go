@@ -16,6 +16,13 @@ type Cookie struct {
 	SameSite string `json:"sameSite,omitempty"`
 }
 
+type Cors struct {
+	Origin               interface{} `json:"origin,omitempty"`
+	Methods              interface{} `json:"methods,omitempty"`
+	PreflightContinue    bool        `json:"preflightContinue,omitempty"`
+	OptionsSuccessStatus int         `json:"optionsSuccessStatus,omitempty"`
+}
+
 type Config struct {
 	WsEngine          *string            `json:"wsEngine,omitempty"`
 	PingTimeout       *time.Duration     `json:"pingTimeout,omitempty"`
@@ -28,7 +35,7 @@ type Config struct {
 	Cookie            *Cookie            `json:"cookie,omitempty"`
 	PerMessageDeflate *PerMessageDeflate `json:"perMessageDeflate,omitempty"`
 	HttpCompression   *HttpCompression   `json:"httpCompression,omitempty"`
-	Cors              *bool              `json:"cors,omitempty"`
+	Cors              *Cors              `json:"cors,omitempty"`
 	AllowEIO3         *bool              `json:"allowEIO3,omitempty"`
 }
 
@@ -38,7 +45,6 @@ func _config() *Config {
 	UpgradeTimeout := time.Duration(10000 * time.Millisecond)
 	MaxHttpBufferSize := int(1e6)
 	AllowUpgrades := true
-	Cors := false
 	AllowEIO3 := false
 	return &Config{
 		// WsEngine: DEFAULT_WS_ENGINE,
@@ -60,7 +66,9 @@ func _config() *Config {
 		HttpCompression: &HttpCompression{
 			Threshold: 1024,
 		},
-		Cors:      &Cors,
+		Cors: &Cors{
+			Origin: "*",
+		},
 		AllowEIO3: &AllowEIO3,
 	}
 }

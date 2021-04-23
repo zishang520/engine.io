@@ -5,8 +5,6 @@ import (
 	"strings"
 )
 
-type headers []*types.Kv
-
 var initCors = &Cors{
 	Origin:               `*`,
 	Methods:              `GET,HEAD,PUT,PATCH,POST,DELETE`,
@@ -194,7 +192,7 @@ func cors(options *types.Cors, ctx *types.HttpContext, next types.Fn) {
 	}
 }
 
-func MiddlewareWrapper(options *types.Cors) {
+func MiddlewareWrapper(options *types.Cors) func(*types.HttpContext, types.Fn) {
 	return func(ctx *types.HttpContext, next types.Fn) {
 		corsOptions = initCors.Assign(options)
 		if corsOptions.Origin == nil {

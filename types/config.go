@@ -82,9 +82,7 @@ func _config() *Config {
 		HttpCompression: &HttpCompression{
 			Threshold: 1024,
 		},
-		Cors: &Cors{
-			Origin: "*",
-		},
+		Cors:      nil,
 		AllowEIO3: &AllowEIO3,
 	}
 }

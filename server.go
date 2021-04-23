@@ -55,8 +55,8 @@ func NewServer(opts *types.Config) *server {
 	s.Opts = types.InitConfig
 	s.Opts.Assign(opts)
 
-	if s.Opts.Cors {
-		s.corsMiddleware = require("cors")(this.Opts.Cors)
+	if s.Opts.Cors != nil {
+		s.corsMiddleware = utils.MiddlewareWrapper(s.Opts.Cors)
 	}
 
 	s.init()
@@ -109,7 +109,7 @@ func (s *server) upgrades(transport string) *types.Set {
  * @api private
  */
 
-func (s *server) verify(ctx *types.HttpContext, upgrade bool, fn ...interface{}) (int, bool) {
+func (s *server) verify(ctx *types.HttpContext, upgrade bool) (int, bool) {
 	// transport check
 	transport := ctx.Request.URL.Query().Get("transport")
 	if _, ok := s.Opts.Transports[transport]; !ok {
@@ -213,11 +213,13 @@ func (s *server) handleRequest(req *http.Request, res http.ResponseWriter) {
 	}
 
 	if s.corsMiddleware != nil {
-		// s.corsMiddleware.call(null, req, res, () => {
-		//   s.verify(req, false, callback);
-		// });
+		s.corsMiddleware(ctx, func() {
+			err, scuuess := s.verify(ctx, false)
+			callback(err, success)
+		})
 	} else {
-		s.verify(req, false, callback)
+		err, scuuess := s.verify(ctx, false)
+		callback(err, success)
 	}
 }
 

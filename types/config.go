@@ -19,8 +19,11 @@ type Cookie struct {
 type Cors struct {
 	Origin               interface{} `json:"origin,omitempty"`
 	Methods              interface{} `json:"methods,omitempty"`
-	PreflightContinue    bool        `json:"preflightContinue,omitempty"`
-	OptionsSuccessStatus int         `json:"optionsSuccessStatus,omitempty"`
+	AllowedHeaders       interface{} `json:"allowedHeaders,omitempty"`
+	Headers              interface{} `json:"headers,omitempty"`
+	Credentials          bool        `json:"credentials"`
+	PreflightContinue    bool        `json:"preflightContinue"`
+	OptionsSuccessStatus int         `json:"optionsSuccessStatus"`
 }
 
 type Config struct {

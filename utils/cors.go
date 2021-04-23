@@ -75,7 +75,7 @@ func configureOrigin(options *types.Cors, ctx *types.HttpContext) (headers []*ty
 	return headers
 }
 
-func configureMethods(*types.Cors) (headers []*types.Kv) {
+func configureMethods(options *types.Cors) (headers []*types.Kv) {
 	switch methods := options.Methods.(type) {
 	case string:
 		headers = append(headers, &types.Kv{
@@ -85,6 +85,49 @@ func configureMethods(*types.Cors) (headers []*types.Kv) {
 	case []string:
 		headers = append(headers, &types.Kv{
 			Key:   "Access-Control-Allow-Methods",
+			Value: strings.Join(methods, ","),
+		})
+	}
+	return headers
+}
+
+func configureCredentials(options *types.Cors) (headers []*types.Kv) {
+	if options.Credentials {
+		headers = append(headers, &types.Kv{
+			Key:   "Access-Control-Allow-Credentials",
+			Value: "true",
+		})
+
+	}
+	return headers
+}
+
+func configureAllowedHeaders(options *types.Cors, ctx *types.HttpContext) (headers []*types.Kv) {
+	allowedHeaders := options.AllowedHeaders
+	if allowedHeaders == nil {
+		allowedHeaders = options.Headers
+	}
+
+	switch h := allowedHeaders.(type) {
+	case nil:
+		headers = append(headers, []*types.Kv{
+			&types.Kv{
+				Key:   "Access-Control-Request-Headers",
+				Value: ctx.Request.Header.Get("Access-Control-Request-Headers"), // .headers wasn't specified, so reflect the request headers
+			},
+			&types.Kv{
+				Key:   "Vary",
+				Value: "Access-Control-Request-Headers",
+			},
+		}...)
+	case string:
+		headers = append(headers, &types.Kv{
+			Key:   "Access-Control-Allow-Headers",
+			Value: h,
+		})
+	case []string:
+		headers = append(headers, &types.Kv{
+			Key:   "Access-Control-Allow-Headers",
 			Value: strings.Join(methods, ","),
 		})
 	}

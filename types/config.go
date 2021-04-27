@@ -45,7 +45,7 @@ func (c *Cors) Assign(data *Cors) error {
 	if buf, err := json.Marshal(data); err != nil {
 		return err
 	} else {
-		return json.Unmarshal(buf, o)
+		return json.Unmarshal(buf, c)
 	}
 }
 
@@ -64,11 +64,11 @@ func _config() *Config {
 		MaxHttpBufferSize: &MaxHttpBufferSize,
 		Transports:        &Set{"polling": NULL, "websocket": NULL},
 		AllowUpgrades:     &AllowUpgrades,
-		Cookie: &Cookie{
+		Cookie: &http.Cookie{
 			Name:     "io",
 			Path:     "/",
 			HttpOnly: true,
-			SameSite: "lax",
+			SameSite: http.SameSiteLaxMode,
 		},
 		PerMessageDeflate: &PerMessageDeflate{
 			Threshold: 1024,

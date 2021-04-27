@@ -5,10 +5,6 @@ import (
 	"github.com/zishang520/engine.io/types"
 )
 
-type WebSocket interface {
-	Transport
-}
-
 type websocket struct {
 	*transport
 

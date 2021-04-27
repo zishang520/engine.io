@@ -10,10 +10,6 @@ const (
 	rSlashes       string = `(\\)?\\n`
 )
 
-type JSONP interface {
-	Polling
-}
-
 type jsonp struct {
 	*polling
 

@@ -10,20 +10,6 @@ import (
 	"io"
 )
 
-type Transport interface {
-	events.EventEmitter
-
-	UpgradesTo() *types.Set
-	Discard()
-	OnRequest(*types.HttpContext)
-	DoClose(types.Fn)
-	Close(...types.Fn)
-	OnError(string, ...string)
-	OnPacket(*packet.Packet)
-	OnData(io.Reader)
-	OnClose()
-}
-
 type transport struct {
 	events.EventEmmiter
 

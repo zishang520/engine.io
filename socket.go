@@ -2,13 +2,8 @@ package engineio
 
 import (
 	"encoding/json"
-	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/types"
 )
-
-type Socket interface {
-	events.EventEmmiter
-}
 
 type socket struct {
 	events.EventEmmiter
@@ -35,7 +30,7 @@ type socket struct {
  *
  * @api private
  */
-func newSocket(id string, server interface{}, transport interface{}, req interface{}, protocol int) Socket {
+func newSocket(id string, server interface{}, transport interface{}, req interface{}, protocol int) types.Socket {
 	this := &socket{}
 	this.id = id
 	this.server = server

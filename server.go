@@ -6,6 +6,7 @@ import (
 	"github.com/zishang520/engine.io/transports"
 	"github.com/zishang520/engine.io/types"
 	"github.com/zishang520/engine.io/utils"
+	"math"
 	"net/http"
 )
 
@@ -13,7 +14,7 @@ import (
  * Protocol errors mappings.
  */
 const (
-	OK                           int = -1
+	OK_REQUEST                   int = -1
 	UNKNOWN_TRANSPORT            int = 0
 	UNKNOWN_SID                  int = 1
 	BAD_HANDSHAKE_METHOD         int = 2
@@ -23,17 +24,13 @@ const (
 )
 
 var errorMessages map[int]string = map[int]string{
-	OK:                           `Ok`,
+	OK_REQUEST:                   `Ok`,
 	UNKNOWN_TRANSPORT:            `Transport unknown`,
 	UNKNOWN_SID:                  `Session ID unknown`,
 	BAD_HANDSHAKE_METHOD:         `Bad handshake method`,
 	BAD_REQUEST:                  `Bad request`,
 	FORBIDDEN:                    `Forbidden`,
 	UNSUPPORTED_PROTOCOL_VERSION: "Unsupported protocol version",
-}
-
-type Server interface {
-	events.EventEmmiter
 }
 
 type server struct {
@@ -79,11 +76,11 @@ func (s *server) init() {
 		s.ws.close()
 	}
 
-	// this.ws = new this.opts.wsEngine({
+	// s.ws = new s.opts.wsEngine({
 	//   noServer: true,
 	//   clientTracking: false,
-	//   perMessageDeflate: this.opts.perMessageDeflate,
-	//   maxPayload: this.opts.maxHttpBufferSize
+	//   perMessageDeflate: s.opts.perMessageDeflate,
+	//   maxPayload: s.opts.maxHttpBufferSize
 	// });
 }
 
@@ -141,12 +138,12 @@ func (s *server) verify(ctx *types.HttpContext, upgrade bool) (int, bool) {
 			return BAD_HANDSHAKE_METHOD, false
 		}
 		if s.Opts.AllowRequest == nil {
-			return OK, true
+			return OK_REQUEST, true
 		}
 		return s.Opts.AllowRequest(ctx)
 	}
 
-	return OK, true
+	return OK_REQUEST, true
 }
 
 /**
@@ -191,7 +188,7 @@ func (s *server) close() {
 
 func (s *server) handleRequest(req *http.Request, res http.ResponseWriter) {
 	utils.Log.Debug(`handling "%s" http request "%s"`, req.Method, req.RequestURI)
-	this.prepare(req)
+	s.prepare(req)
 
 	ctx := &types.HttpContext{
 		Request:  req,
@@ -239,7 +236,7 @@ func (s *server) handshake(transportName string, ctx *types.HttpContext) {
 		return
 	}
 
-	id, err := this.generateId(req)
+	id, err := s.generateId(req)
 	if err != nil {
 		utils.Log.Debug("error while generating an id")
 		s.sendErrorMessage(ctx, BAD_REQUEST)
@@ -248,13 +245,13 @@ func (s *server) handshake(transportName string, ctx *types.HttpContext) {
 
 	utils.Log.Debug(`handshaking client "%s"`, id)
 
-	transport, ok := transports.Transports[transportName]
+	_transport, ok := transports.Transports[transportName]
 	if !ok {
 		utils.Log.Debug(`error handshaking to transport "%s"`, transportName)
 		s.sendErrorMessage(ctx, BAD_REQUEST)
 		return
 	}
-
+	transport := _transport(ctx)
 	if "polling" == transportName {
 		transport.SetMaxHttpBufferSize(s.opts.MaxHttpBufferSize)
 		transport.SetGttpCompression(s.opts.HttpCompression)
@@ -279,56 +276,59 @@ func (s *server) handshake(transportName string, ctx *types.HttpContext) {
 	transport.OnRequest(ctx)
 
 	s.clients[id] = socket
-	s.clientsCount++
+	atomic.AddUint64(&s.clientsCount, 1)
 
 	socket.Once("close", func() {
 		delete(s.clients[id])
-		s.clientsCount--
+		atomic.AddUint64(&s.clientsCount, 1&math.MaxUint32)
 	})
 
 	s.Emit("connection", socket)
 }
 
-func (s *server) handleUpgrade(req, socket, upgradeHead) {
-	// this.prepare(req);
+func (s *server) handleUpgrade(ctx *types.HttpContext, socket Socket, upgradeHead interface{}) {
+	s.prepare(ctx)
 
-	// const self = this;
-	// this.verify(req, true, function(err, success) {
-	//   if (!success) {
-	//     abortConnection(socket, err);
-	//     return;
-	//   }
+	code, success := s.verify(ctx, true)
+	if !success {
+		s.abortConnection(socket, code)
+		return
+	}
 
 	//   const head = Buffer.from(upgradeHead); // eslint-disable-line node/no-deprecated-api
 	//   upgradeHead = null;
 
 	//   // delegate to ws
-	//   self.ws.handleUpgrade(req, socket, head, function(conn) {
-	//     self.onWebSocket(req, conn);
+	//   s.ws.handleUpgrade(req, socket, head, function(conn) {
+	//     s.onWebSocket(req, conn);
 	//   });
-	// });
 }
 
-func (s *server) onWebSocket(req, socket) {
-	// socket.on("error", onUpgradeError);
+func (s *server) onWebSocket(ctx *types.HttpContext, socket Socket) {
+	onUpgradeError := func() {
+		utils.Log.Debug("websocket error before upgrade")
+		// socket.close() not needed
+	}
 
-	// if (
-	//   transports[req._query.transport] !== undefined &&
-	//   !transports[req._query.transport].prototype.handlesUpgrades
-	// ) {
-	//   debug("transport doesnt handle upgraded requests");
-	//   socket.close();
-	//   return;
-	// }
+	socket.On("error", onUpgradeError)
 
-	// // get client id
-	// const id = req._query.sid;
+	transportName := ctx.Request.URL.Query().Get("transport")
 
-	// // keep a reference to the ws.Socket
-	// req.websocket = socket;
+	_transport, ok := transports.Transports[transportName]
+	if ok && !_transport(ctx).HandlesUpgrades() {
+		utils.Log.Debug("transport doesnt handle upgraded requests")
+		socket.Close()
+		return
+	}
+
+	// get client id
+	id := ctx.Request.URL.Query().Get("sid")
+
+	// keep a reference to the ws.Socket
+	ctx.Websocket = socket
 
 	// if (id) {
-	//   const client = this.clients[id];
+	//   const client = s.clients[id];
 	//   if (!client) {
 	//     debug("upgrade attempt for closed client");
 	//     socket.close();
@@ -350,14 +350,14 @@ func (s *server) onWebSocket(req, socket) {
 	//     } else {
 	//       transport.supportsBinary = true;
 	//     }
-	//     transport.perMessageDeflate = this.perMessageDeflate;
+	//     transport.perMessageDeflate = s.perMessageDeflate;
 	//     client.maybeUpgrade(transport);
 	//   }
 	// } else {
 	//   // transport error handling takes over
 	//   socket.removeListener("error", onUpgradeError);
 
-	//   this.handshake(req._query.transport, req);
+	//   s.handshake(req._query.transport, req);
 	// }
 
 	// function onUpgradeError() {
@@ -462,7 +462,7 @@ func (this server) sendErrorMessage(ctx, code) {
 	// }
 }
 
-func (this server) abortConnection(socket, code) {
+func (this server) abortConnection(socket Socket, code int) {
 	// socket.on("error", () => {
 	//   debug("ignoring error from closed connection");
 	// });

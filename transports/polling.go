@@ -13,10 +13,6 @@ import (
 	"strings"
 )
 
-type Polling interface {
-	Transport
-}
-
 type polling struct {
 	*transport
 

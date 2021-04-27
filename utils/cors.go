@@ -5,6 +5,12 @@ import (
 	"strings"
 )
 
+type cors struct {
+	options *types.Cors
+	ctx     *types.HttpContext
+	headers []*types.Kv
+}
+
 var initCors = &Cors{
 	Origin:               `*`,
 	Methods:              `GET,HEAD,PUT,PATCH,POST,DELETE`,
@@ -12,167 +18,163 @@ var initCors = &Cors{
 	OptionsSuccessStatus: 204,
 }
 
-func isOriginAllowed(origin string, allowedOrigin interface{}) bool {
-	switch ao := allowedOrigin.(type) {
+func (c *cors) isOriginAllowed(origin string, allowedOrigin interface{}) bool {
+	switch v := allowedOrigin.(type) {
 	case []interface{}:
-		for _, a := range ao {
-			if isOriginAllowed(origin, a) {
+		for _, a := range v {
+			if c.isOriginAllowed(origin, a) {
 				return true
 			}
 		}
 	case string:
-		return origin == ao
+		return origin == v
 	case *regexp.Regexp:
-		return ao.MatchString(origin)
+		return v.MatchString(origin)
 	case bool:
-		return ao
+		return v
 	}
 	return false
 }
 
-func configureOrigin(options *types.Cors, ctx *types.HttpContext) (headers []*types.Kv) {
-	requestOrigin := ctx.Request.Header.Get("Origin")
-	// ctx.Response.Header().Add(key, value)
-	if o, ok := options.Origin.(string); ok {
+func (c *cors) configureOrigin() *cors {
+	requestOrigin := c.ctx.Request.Header.Get("Origin")
+	if o, ok := c.options.Origin.(string); ok {
 		if o == "*" {
 			// allow any origin
-			headers = append(headers, &types.Kv{
+			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Allow-Origin",
 				Value: "*",
 			})
 		} else {
 			// fixed origin
-			headers = append(headers, &types.Kv{
+			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Allow-Origin",
 				Value: o,
 			})
 		}
 	} else {
 		// reflect origin
-		if isOriginAllowed(requestOrigin, options.Origin) {
-			headers = append(headers, &types.Kv{
+		if c.isOriginAllowed(requestOrigin, c.options.Origin) {
+			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Allow-Origin",
 				Value: requestOrigin,
 			})
 		} else {
-			headers = append(headers, &types.Kv{
+			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Allow-Origin",
 				Value: "false",
 			})
 		}
 	}
-	return headers
+	return c
 }
 
-func configureMethods(options *types.Cors) (headers []*types.Kv) {
-	switch methods := options.Methods.(type) {
+func (c *cors) configureMethods() *cors {
+	switch methods := c.options.Methods.(type) {
 	case string:
-		headers = append(headers, &types.Kv{
+		c.headers = append(c.headers, &types.Kv{
 			Key:   "Access-Control-Allow-Methods",
 			Value: methods,
 		})
 	case []string:
-		headers = append(headers, &types.Kv{
+		c.headers = append(c.headers, &types.Kv{
 			Key:   "Access-Control-Allow-Methods",
 			Value: strings.Join(methods, ","),
 		})
 	}
-	return headers
+	return c
 }
 
-func configureCredentials(options *types.Cors) (headers []*types.Kv) {
-	if options.Credentials {
-		headers = append(headers, &types.Kv{
+func (c *cors) configureCredentials() *cors {
+	if c.options.Credentials {
+		c.headers = append(c.headers, &types.Kv{
 			Key:   "Access-Control-Allow-Credentials",
 			Value: "true",
 		})
 	}
-	return headers
+	return c
 }
 
-func configureAllowedHeaders(options *types.Cors, ctx *types.HttpContext) (headers []*types.Kv) {
-	allowedHeaders := options.AllowedHeaders
+func (c *cors) configureAllowedHeaders() *cors {
+	allowedHeaders := c.options.AllowedHeaders
 	if allowedHeaders == nil {
-		allowedHeaders = options.Headers
+		allowedHeaders = c.options.Headers
 	}
 
 	switch h := allowedHeaders.(type) {
 	case nil:
-		head := ctx.Request.Header.Get("Access-Control-Request-Headers") // .headers wasn't specified, so reflect the request headers
+		head := c.ctx.Request.Header.Get("Access-Control-Request-Headers") // .c.headers wasn't specified, so reflect the request c.headers
 		if head != "" {
-			headers = append(headers, &types.Kv{
+			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Request-Headers",
 				Value: head,
 			})
 		}
 	case string:
 		if headers != "" {
-			headers = append(headers, &types.Kv{
+			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Allow-Headers",
 				Value: h,
 			})
 		}
 	case []string:
 		if len(headers) > 0 {
-			headers = append(headers, &types.Kv{
+			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Allow-Headers",
 				Value: strings.Join(methods, ","),
 			})
 		}
 	}
-	return headers
+	return c
 }
 
-func configureExposedHeaders(options *types.Cors) (headers []*types.Kv) {
-	switch headers := options.ExposedHeaders.(type) {
+func (c *cors) configureExposedHeaders() *cors {
+	switch headers := c.options.ExposedHeaders.(type) {
 	case string:
 		if headers != "" {
-			headers = append(headers, &types.Kv{
+			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Expose-Headers",
 				Value: methods,
 			})
 		}
 	case []string:
 		if len(headers) > 0 {
-			headers = append(headers, &types.Kv{
+			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Expose-Headers",
 				Value: strings.Join(methods, ","),
 			})
 		}
 	}
-	return headers
+	return c
 }
 
-func configureMaxAge(options *types.Cors) (headers []*types.Kv) {
-	if options.MaxAge != "" {
-		headers = append(headers, &types.Kv{
+func (c *cors) configureMaxAge() *cors {
+	if c.options.MaxAge != "" {
+		c.headers = append(c.headers, &types.Kv{
 			Key:   "Access-Control-Expose-Headers",
-			Value: options.MaxAge,
+			Value: c.options.MaxAge,
 		})
 	}
-	return headers
+	return c
 }
 
-func applyHeaders(headers []*types.Kv, ctx *types.HttpContext) {
-	for _, header := range headers {
-		ctx.Response.Header().Set(header.Key, headers.Value)
+func (c *cors) applyHeaders() *cors {
+	for _, header := range c.headers {
+		c.ctx.Response.Header().Set(header.Key, c.headers.Value)
 	}
 }
 
-func cors(options *types.Cors, ctx *types.HttpContext, next types.Fn) {
-	headers := []*types.Kv{}
-	method = strings.ToUpper(ctx.Request.Method)
+func _cors(options *types.Cors, ctx *types.HttpContext, next types.Fn) {
+	c := &_cors{
+		options: *types.Cors,
+		ctx:     *types.HttpContext,
+		headers: []*types.Kv{},
+	}
+	method = strings.ToUpper(c.ctx.Request.Method)
 
 	if method == "OPTIONS" {
 		// preflight
-		headers = append(headers, configureOrigin(options, ctx)...)
-		headers = append(headers, configureCredentials(options)...)
-		headers = append(headers, configureMethods(options)...)
-		headers = append(headers, configureAllowedHeaders(options, ctx)...)
-		headers = append(headers, configureMaxAge(options)...)
-		headers = append(headers, configureExposedHeaders(options)...)
-		applyHeaders(headers, ctx)
-
+		c.configureOrigin().configureCredentials().configureMethods().configureAllowedHeaders().configureMaxAge().configureExposedHeaders().applyHeaders()
 		if options.PreflightContinue {
 			next()
 		} else {
@@ -184,10 +186,7 @@ func cors(options *types.Cors, ctx *types.HttpContext, next types.Fn) {
 		}
 	} else {
 		// actual response
-		headers = append(headers, configureOrigin(options, ctx)...)
-		headers = append(headers, configureCredentials(options)...)
-		headers = append(headers, configureExposedHeaders(options)...)
-		applyHeaders(headers, ctx)
+		c.configureOrigin().configureCredentials().configureExposedHeaders().applyHeaders()
 		next()
 	}
 }

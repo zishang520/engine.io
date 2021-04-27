@@ -2,19 +2,13 @@ package types
 
 import (
 	"encoding/json"
+	"net/http"
 	"time"
 )
 
 var InitConfig = _config()
 
 type AllowRequest func(*HttpContext) (int, bool)
-
-type Cookie struct {
-	Name     string `json:"name,omitempty"`
-	Path     string `json:"path,omitempty"`
-	HttpOnly bool   `json:"httpOnly,omitempty"`
-	SameSite string `json:"sameSite,omitempty"`
-}
 
 type Cors struct {
 	Origin               interface{} `json:"origin,omitempty"`
@@ -37,7 +31,7 @@ type Config struct {
 	Transports        *Set               `json:"transports,omitempty"`
 	AllowUpgrades     *bool              `json:"allowUpgrades,omitempty"`
 	AllowRequest      *AllowRequest      `json:"allowRequest,omitempty"`
-	Cookie            *Cookie            `json:"cookie,omitempty"`
+	Cookie            *http.Cookie       `json:"cookie,omitempty"`
 	PerMessageDeflate *PerMessageDeflate `json:"perMessageDeflate,omitempty"`
 	HttpCompression   *HttpCompression   `json:"httpCompression,omitempty"`
 	Cors              *Cors              `json:"cors,omitempty"`

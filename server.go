@@ -40,7 +40,7 @@ type server struct {
 	events.EventEmmiter
 
 	clients      map[string]Socket
-	clientsCount int
+	clientsCount uint64
 	Opts         *types.Config
 
 	ws interface{}
@@ -223,76 +223,70 @@ func (s *server) handleRequest(req *http.Request, res http.ResponseWriter) {
 	}
 }
 
-func (s *server) generateId(_ *types.HttpContext) {
+func (s *server) generateId(_ *types.HttpContext) (string, error) {
 	return utils.Base64Id.GenerateId()
 }
 
 func (s *server) handshake(transportName string, ctx *types.HttpContext) {
-	// const protocol = req._query.EIO === "4" ? 4 : 3; // 3rd revision by default
-	// if (protocol === 3 && !this.opts.allowEIO3) {
-	//   debug("unsupported protocol version");
-	//   sendErrorMessage(
-	//     req,
-	//     req.res,
-	//     Server.errors.UNSUPPORTED_PROTOCOL_VERSION
-	//   );
-	//   return;
-	// }
+	protocol := 3 // 3rd revision by default
+	if ctx.Request.URL.Query().Get("EIO") == "4" {
+		protocol := 4
+	}
 
-	// let id;
-	// try {
-	//   id = await this.generateId(req);
-	// } catch (e) {
-	//   debug("error while generating an id");
-	//   sendErrorMessage(req, req.res, Server.errors.BAD_REQUEST);
-	//   return;
-	// }
+	if protocol == 3 && !s.opts.AllowEIO3 {
+		utils.Log.Debug("unsupported protocol version")
+		s.sendErrorMessage(ctx, UNSUPPORTED_PROTOCOL_VERSION)
+		return
+	}
 
-	// debug('handshaking client "%s"', id);
+	id, err := this.generateId(req)
+	if err != nil {
+		utils.Log.Debug("error while generating an id")
+		s.sendErrorMessage(ctx, BAD_REQUEST)
+		return
+	}
 
-	// try {
-	//   var transport = new transports[transportName](req);
-	//   if ("polling" === transportName) {
-	//     transport.maxHttpBufferSize = this.opts.maxHttpBufferSize;
-	//     transport.httpCompression = this.opts.httpCompression;
-	//   } else if ("websocket" === transportName) {
-	//     transport.perMessageDeflate = this.opts.perMessageDeflate;
-	//   }
+	utils.Log.Debug(`handshaking client "%s"`, id)
 
-	//   if (req._query && req._query.b64) {
-	//     transport.supportsBinary = false;
-	//   } else {
-	//     transport.supportsBinary = true;
-	//   }
-	// } catch (e) {
-	//   debug('error handshaking to transport "%s"', transportName);
-	//   sendErrorMessage(req, req.res, Server.errors.BAD_REQUEST);
-	//   return;
-	// }
-	// const socket = new Socket(id, this, transport, req, protocol);
-	// const self = this;
+	transport, ok := transports.Transports[transportName]
+	if !ok {
+		utils.Log.Debug(`error handshaking to transport "%s"`, transportName)
+		s.sendErrorMessage(ctx, BAD_REQUEST)
+		return
+	}
 
-	// if (this.opts.cookie) {
-	//   transport.on("headers", headers => {
-	//     headers["Set-Cookie"] = cookieMod.serialize(
-	//       this.opts.cookie.name,
-	//       id,
-	//       this.opts.cookie
-	//     );
-	//   });
-	// }
+	if "polling" == transportName {
+		transport.SetMaxHttpBufferSize(s.opts.MaxHttpBufferSize)
+		transport.SetGttpCompression(s.opts.HttpCompression)
+	} else if "websocket" == transportName {
+		transport.SetPerMessageDeflate(s.opts.PerMessageDeflate)
+	}
 
-	// transport.onRequest(req);
+	if _, ok := ctx.Request.URL.Query()["b64"]; ok {
+		transport.SetSupportsBinary(false)
+	} else {
+		transport.SetSupportsBinary(true)
+	}
 
-	// this.clients[id] = socket;
-	// this.clientsCount++;
+	socket := NewSocket(id, s, transport, ctx, protocol)
 
-	// socket.once("close", function() {
-	//   delete self.clients[id];
-	//   self.clientsCount--;
-	// });
+	if s.opts.Cookie != nil {
+		transport.On("headers", func(headers) {
+			headers["Set-Cookie"] = s.opts.Cookie.String()
+		})
+	}
 
-	this.emit("connection", socket)
+	transport.OnRequest(ctx)
+
+	s.clients[id] = socket
+	s.clientsCount++
+
+	socket.Once("close", func() {
+		delete(s.clients[id])
+		s.clientsCount--
+	})
+
+	s.Emit("connection", socket)
 }
 
 func (s *server) handleUpgrade(req, socket, upgradeHead) {

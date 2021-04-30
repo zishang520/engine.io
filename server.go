@@ -251,7 +251,7 @@ func (s *server) handshake(transportName string, ctx *types.HttpContext) {
 		s.sendErrorMessage(ctx, BAD_REQUEST)
 		return
 	}
-	transport := _transport(ctx)
+	transport := _transport.New(ctx)
 	if "polling" == transportName {
 		transport.SetMaxHttpBufferSize(s.opts.MaxHttpBufferSize)
 		transport.SetGttpCompression(s.opts.HttpCompression)
@@ -314,8 +314,7 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket Socket) {
 
 	transportName := ctx.Request.URL.Query().Get("transport")
 
-	_transport, ok := transports.Transports[transportName]
-	if ok && !_transport(ctx).HandlesUpgrades() {
+	if transport, ok := transports.Transports[transportName]; ok && !transport.HandlesUpgrades {
 		utils.Log.Debug("transport doesnt handle upgraded requests")
 		socket.Close()
 		return
@@ -327,43 +326,42 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket Socket) {
 	// keep a reference to the ws.Socket
 	ctx.Websocket = socket
 
-	// if (id) {
-	//   const client = s.clients[id];
-	//   if (!client) {
-	//     debug("upgrade attempt for closed client");
-	//     socket.close();
-	//   } else if (client.upgrading) {
-	//     debug("transport has already been trying to upgrade");
-	//     socket.close();
-	//   } else if (client.upgraded) {
-	//     debug("transport had already been upgraded");
-	//     socket.close();
-	//   } else {
-	//     debug("upgrading existing transport");
+	if id != "" {
+		client, ok := s.clients[id]
+		if !ok {
+			utils.Log.Debug("upgrade attempt for closed client")
+			socket.Close()
+		} else {
+			if client.Upgrading() {
+				utils.Log.Debug("transport has already been trying to upgrade")
+				socket.Close()
+			} else if client.Upgraded() {
+				utils.Log.Debug("transport had already been upgraded")
+				socket.Close()
+			} else {
+				utils.Log.Debug("upgrading existing transport")
 
-	//     // transport error handling takes over
-	//     socket.removeListener("error", onUpgradeError);
+				// transport error handling takes over
+				socket.RemoveListener("error", onUpgradeError)
 
-	//     const transport = new transports[req._query.transport](req);
-	//     if (req._query && req._query.b64) {
-	//       transport.supportsBinary = false;
-	//     } else {
-	//       transport.supportsBinary = true;
-	//     }
-	//     transport.perMessageDeflate = s.perMessageDeflate;
-	//     client.maybeUpgrade(transport);
-	//   }
-	// } else {
-	//   // transport error handling takes over
-	//   socket.removeListener("error", onUpgradeError);
+				transport := transports.Transports[transportName].New(ctx)
 
-	//   s.handshake(req._query.transport, req);
-	// }
+				if _, ok := ctx.Request.URL.Query()["b64"]; ok {
+					transport.SetSupportsBinary(false)
+				} else {
+					transport.SetSupportsBinary(true)
+				}
 
-	// function onUpgradeError() {
-	//   debug("websocket error before upgrade");
-	//   // socket.close() not needed
-	// }
+				transport.SetPerMessageDeflate(s.opts.PerMessageDeflate)
+				client.maybeUpgrade(transport)
+			}
+		}
+	} else {
+		// transport error handling takes over
+		socket.RemoveListener("error", onUpgradeError)
+
+		s.handshake(transportName, ctx)
+	}
 }
 
 /**

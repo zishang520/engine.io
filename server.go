@@ -221,8 +221,8 @@ func (s *server) handleRequest(req *http.Request, res http.ResponseWriter) {
 	}
 }
 
-func (s *server) generateId(_ *types.HttpContext) (string, error) {
-	return utils.Base64Id.GenerateId()
+func (s *server) generateId(ctx *types.HttpContext) (string, error) {
+	return utils.Base64Id.GenerateId(ctx)
 }
 
 func (s *server) handshake(transportName string, ctx *types.HttpContext) {
@@ -389,7 +389,7 @@ func (s *server) attach(server, options) {
 	//   }
 
 	//   // cache and clean up listeners
-	//   const listeners = server.listeners("request").slice(0);
+	//   const listeners = server.Listeners("request").slice(0);
 	//   server.removeAllListeners("request");
 	//   server.on("close", self.close.bind(self));
 	//   server.on("listening", self.init.bind(self));

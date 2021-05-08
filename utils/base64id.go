@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
+	"github.com/zishang520/engine.io/types"
 )
 
 type base64Id struct {
@@ -12,7 +13,7 @@ type base64Id struct {
 
 var Base64Id = base64Id{0}
 
-func (b *base64Id) GenerateId() (string, error) {
+func (b *base64Id) GenerateId(_ *types.HttpContext) (string, error) {
 	r := make([]byte, 18)
 	if _, err := rand.Read(r[:10]); err != nil {
 		return "", err

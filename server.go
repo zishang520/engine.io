@@ -1,6 +1,7 @@
 package engineio
 
 import (
+	"encoding/json"
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/transports"
@@ -435,50 +436,51 @@ func (s *server) attach(server, options) {
  * @api private
  */
 
-func (this server) sendErrorMessage(ctx, code) {
-	// const headers = { "Content-Type": "application/json" };
+func (this server) sendErrorMessage(ctx *types.HttpContext, code int) {
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
 
-	// const isForbidden = !Server.errorMessages.hasOwnProperty(code);
-	// if (isForbidden) {
-	//   res.writeHead(403, headers);
-	//   res.end(
-	//     JSON.stringify({
-	//       code: Server.errors.FORBIDDEN,
-	//       message: code || Server.errorMessages[Server.errors.FORBIDDEN]
-	//     })
-	//   );
-	//   return;
-	// }
-	// if (res !== undefined) {
-	//   res.writeHead(400, headers);
-	//   res.end(
-	//     JSON.stringify({
-	//       code: code,
-	//       message: Server.errorMessages[code]
-	//     })
-	//   );
-	// }
+	if _, isForbidden := errorMessages[code]; !isForbidden {
+		ctx.Response.WriteHeader(403)
+		for key, value := range headers {
+			ctx.Response.Header().Set(key, value)
+		}
+		json.NewEncoder(ctx.Response).Encode(&types.ErrorMessage{
+			Code:    FORBIDDEN,
+			Message: errorMessages[FORBIDDEN],
+		})
+		return
+	}
+	ctx.Response.WriteHeader(400)
+	for key, value := range headers {
+		ctx.Response.Header().Set(key, value)
+	}
+	json.NewEncoder(ctx.Response).Encode(&types.ErrorMessage{
+		Code:    code,
+		Message: errorMessages[code],
+	})
 }
 
 func (this server) abortConnection(socket Socket, code int) {
-	// socket.on("error", () => {
-	//   debug("ignoring error from closed connection");
-	// });
-	// if (socket.writable) {
-	//   const message = Server.errorMessages.hasOwnProperty(code)
-	//     ? Server.errorMessages[code]
-	//     : String(code || "");
-	//   const length = Buffer.byteLength(message);
-	//   socket.write(
-	//     "HTTP/1.1 400 Bad Request\r\n" +
-	//       "Connection: close\r\n" +
-	//       "Content-type: text/html\r\n" +
-	//       "Content-Length: " +
-	//       length +
-	//       "\r\n" +
-	//       "\r\n" +
-	//       message
-	//   );
-	// }
-	socket.destroy()
+	socket.On("error", func() {
+		utils.Log.Debug("ignoring error from closed connection")
+	})
+	if socket.Writable() {
+		//   const message = Server.errorMessages.hasOwnProperty(code)
+		//     ? Server.errorMessages[code]
+		//     : String(code || "");
+		//   const length = Buffer.byteLength(message);
+		//   socket.write(
+		//     "HTTP/1.1 400 Bad Request\r\n" +
+		//       "Connection: close\r\n" +
+		//       "Content-type: text/html\r\n" +
+		//       "Content-Length: " +
+		//       length +
+		//       "\r\n" +
+		//       "\r\n" +
+		//       message
+		//   );
+	}
+	socket.Destroy()
 }

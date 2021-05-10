@@ -36,6 +36,7 @@ type Config struct {
 	HttpCompression   *HttpCompression   `json:"httpCompression,omitempty"`
 	Cors              *Cors              `json:"cors,omitempty"`
 	AllowEIO3         *bool              `json:"allowEIO3,omitempty"`
+	InitialPacket     interface{}        `json:"initialPacket,omitempty"`
 }
 
 func (c *Cors) Assign(data *Cors) error {

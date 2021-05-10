@@ -2,7 +2,9 @@ package engineio
 
 import (
 	"encoding/json"
+	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/types"
+	"github.com/zishang520/engine.io/utils"
 )
 
 type socket struct {
@@ -20,9 +22,12 @@ type socket struct {
 	request             interface{}
 	protocol            int
 	remoteAddress       string
-	checkIntervalTimer  int
-	upgradeTimeoutTimer int
-	pingTimeoutTimer    int
+	checkIntervalTimer  chan struct{}
+	upgradeTimeoutTimer chan struct{}
+	pingTimeoutTimer    chan struct{}
+	pingIntervalTimer   chan struct{}
+
+	transport types.Transport
 }
 
 /**
@@ -51,10 +56,10 @@ func NewSocket(id string, server *server, transport types.Transport, ctx *types.
 	// 	s.remoteAddress = req.connection.remoteAddress
 	// }
 
-	s.checkIntervalTimer = 0
-	s.upgradeTimeoutTimer = 0
-	s.pingTimeoutTimer = 0
-	s.pingIntervalTimer = 0
+	s.checkIntervalTimer = make(chan struct{})
+	s.upgradeTimeoutTimer = make(chan struct{})
+	s.pingTimeoutTimer = make(chan struct{})
+	s.pingIntervalTimer = make(chan struct{})
 
 	s.setTransport(transport)
 	s.onOpen()
@@ -72,28 +77,26 @@ func (s *socket) onOpen() {
 	s.readyState = "open"
 
 	// sends an `open` packet
-	s.transport.sid = s.id
-	// s.sendPacket(
-	//   "open",
-	//   JSON.stringify({
-	//     sid: s.id,
-	//     upgrades: s.getAvailableUpgrades(),
-	//     pingInterval: s.server.opts.pingInterval,
-	//     pingTimeout: s.server.opts.pingTimeout
-	//   })
-	// );
+	s.transport.Sid(s.id)
+	s.sendPacket(
+		packet.OPEN,
+		map[string]interface{}{
+			"sid":          s.id,
+			"upgrades":     s.getAvailableUpgrades(),
+			"pingInterval": s.server.Opts.PingInterval,
+			"pingTimeout":  s.server.Opts.PingTimeout,
+		},
+	)
 
-	if s.server.opts.initialPacket {
-		s.sendPacket("message", s.server.opts.initialPacket)
+	if s.server.Opts.InitialPacket != nil {
+		s.sendPacket(packet.MESSAGE, s.server.Opts.InitialPacket)
 	}
 
-	s.emit("open")
+	s.Emit("open")
 
 	if s.protocol == 3 {
 		// in protocol v3, the client sends a ping, and the server answers with a pong
-		// s.resetPingTimeout(
-		//   s.server.opts.pingInterval + s.server.opts.pingTimeout
-		// );
+		s.resetPingTimeout(s.server.Opts.PingInterval + s.server.Opts.PingTimeout)
 	} else {
 		// in protocol v4, the server sends a ping, and the client answers with a pong
 		s.schedulePing()
@@ -107,27 +110,25 @@ func (s *socket) onOpen() {
  * @api private
  */
 
-func (s *socket) onPacket(packet) {
+func (s *socket) onPacket(data packet.Packet) {
 	if "open" == s.readyState {
 		// export packet event
-		debug("packet")
-		s.emit("packet", packet)
+		utils.Log.Debug("packet")
+		s.Emit("packet", data)
 
 		// Reset ping timeout on any packet, incoming data is a good sign of
 		// other side's liveness
-		// s.resetPingTimeout(
-		//   s.server.opts.pingInterval + s.server.opts.pingTimeout
-		// );
+		s.resetPingTimeout(s.server.Opts.PingInterval + s.server.Opts.PingTimeout)
 
-		switch packet.Type {
+		switch data.Type {
 		case "ping":
 			if s.transport.protocol != 3 {
 				s.onError("invalid heartbeat direction")
 				return
 			}
-			debug("got ping")
-			s.sendPacket("pong")
-			s.emit("heartbeat")
+			utils.Log.Debug("got ping")
+			s.sendPacket(packet.PONG, nil)
+			s.Emit("heartbeat")
 			break
 
 		case "pong":
@@ -135,9 +136,9 @@ func (s *socket) onPacket(packet) {
 				s.onError("invalid heartbeat direction")
 				return
 			}
-			debug("got pong")
+			utils.Log.Debug("got pong")
 			s.schedulePing()
-			s.emit("heartbeat")
+			s.Emit("heartbeat")
 			break
 
 		case "error":
@@ -145,72 +146,77 @@ func (s *socket) onPacket(packet) {
 			break
 
 		case "message":
-			s.emit("data", packet.data)
-			s.emit("message", packet.data)
+			s.Emit("data", data.Data)
+			s.Emit("message", data.Data)
 			break
 		}
 	} else {
-		debug("packet received with closed socket")
+		utils.Log.Debug("packet received with closed socket")
 	}
 }
 
-func (s *socket) onError(err) {
-	debug("transport error")
+func (s *socket) onError(err string) {
+	utils.Log.Debug("transport error")
 	s.onClose("transport error", err)
 }
 
 func (s *socket) schedulePing() {
-	clearTimeout(s.pingIntervalTimer)
-	// s.pingIntervalTimer = setTimeout(() => {
-	//   debug(
-	//     "writing ping packet - expecting pong within %sms",
-	//     s.server.opts.pingTimeout
-	//   );
-	//   s.sendPacket("ping");
-	//   s.resetPingTimeout(s.server.opts.pingTimeout);
-	// }, s.server.opts.pingInterval);
+	s.pingIntervalTimer <- struct{}{}
+	go func() {
+		select {
+		case <-time.After(s.server.Opts.PingInterval):
+			utils.Log.Debug("writing ping packet - expecting pong within %sms", s.server.opts.pingTimeout)
+			s.sendPacket(packet.PING)
+			s.resetPingTimeout(s.server.Opts.PingTimeout)
+		case <-s.pingIntervalTimer:
+		}
+	}()
 }
 
-func (s *socket) resetPingTimeout(timeout) {
-	clearTimeout(s.pingTimeoutTimer)
-	// s.pingTimeoutTimer = setTimeout(() => {
-	//   if (s.readyState == "closed") {
-	//   	return;
-	//   }
-	//   s.onClose("ping timeout");
-	// }, timeout);
+func (s *socket) resetPingTimeout(timeout time.Duration) {
+	s.pingTimeoutTimer <- struct{}{}
+	go func() {
+		select {
+		case <-time.After(timeout):
+			if s.readyState == "closed" {
+				return
+			}
+			s.onClose("ping timeout")
+		case <-s.pingTimeoutTimer:
+		}
+	}()
 }
 
-func (s *socket) setTransport(transport) {
-	const onError = s.onError.bind(s)
-	const onPacket = s.onPacket.bind(s)
-	const flush = s.flush.bind(s)
-	const onClose = s.onClose.bind(s, "transport close")
+func (s *socket) setTransport(transport Transport) {
+	onError := s.onError.bind(s)
+	onPacket := s.onPacket.bind(s)
+	flush := s.flush.bind(s)
+	onClose := s.onClose.bind(s, "transport close")
 
 	s.transport = transport
-	s.transport.once("error", onError)
-	s.transport.on("packet", onPacket)
-	s.transport.on("drain", flush)
-	s.transport.once("close", onClose)
+	s.transport.Once("error", onError)
+	s.transport.On("packet", onPacket)
+	s.transport.On("drain", flush)
+	s.transport.Once("close", onClose)
 	// s function will manage packet events (also message callbacks)
 	s.setupSendCallback()
 
-	// s.cleanupFn.push(function() {
-	//   transport.removeListener("error", onError);
-	//   transport.removeListener("packet", onPacket);
-	//   transport.removeListener("drain", flush);
-	//   transport.removeListener("close", onClose);
-	// });
+	s.cleanupFn = append(s.cleanupFn, func() {
+		transport.RemoveListener("error", onError)
+		transport.RemoveListener("packet", onPacket)
+		transport.RemoveListener("drain", flush)
+		transport.RemoveListener("close", onClose)
+	})
 }
 
 func (s *socket) maybeUpgrade(transport) {
-	debug(`might upgrade socket transport from "%s" to "%s"`, s.transport.name, transport.name)
+	utils.Log.Debug(`might upgrade socket transport from "%s" to "%s"`, s.transport.name, transport.name)
 
 	s.upgrading = true
 
 	// set transport upgrade timer
 	// self.upgradeTimeoutTimer = setTimeout(function() {
-	//   debug("client did not complete upgrade - closing transport");
+	//   utils.Log.Debug("client did not complete upgrade - closing transport");
 	//   cleanup();
 	//   if ("open" == transport.readyState) {
 	//     transport.close();
@@ -220,17 +226,17 @@ func (s *socket) maybeUpgrade(transport) {
 	// function onPacket(packet) {
 	//   if ("ping" == packet.type && "probe" == packet.data) {
 	//     transport.send([{ type: "pong", data: "probe" }]);
-	//     self.emit("upgrading", transport);
+	//     self.Emit("upgrading", transport);
 	//     clearInterval(self.checkIntervalTimer);
 	//     self.checkIntervalTimer = setInterval(check, 100);
 	//   } else if ("upgrade" == packet.type && self.readyState != "closed") {
-	//     debug("got upgrade packet - upgrading");
+	//     utils.Log.Debug("got upgrade packet - upgrading");
 	//     cleanup();
 	//     self.transport.discard();
 	//     self.upgraded = true;
 	//     self.clearTransport();
 	//     self.setTransport(transport);
-	//     self.emit("upgrade", transport);
+	//     self.Emit("upgrade", transport);
 	//     self.flush();
 	//     if (self.readyState == "closing") {
 	//       transport.close(function() {
@@ -246,7 +252,7 @@ func (s *socket) maybeUpgrade(transport) {
 	// // we force a polling cycle to ensure a fast upgrade
 	// function check() {
 	//   if ("polling" == self.transport.name && self.transport.writable) {
-	//     debug("writing a noop packet to polling for fast upgrade");
+	//     utils.Log.Debug("writing a noop packet to polling for fast upgrade");
 	//     self.transport.send([{ type: "noop" }]);
 	//   }
 	// }
@@ -267,7 +273,7 @@ func (s *socket) maybeUpgrade(transport) {
 	// }
 
 	// function onError(err) {
-	//   debug("client did not complete upgrade - %s", err);
+	//   utils.Log.Debug("client did not complete upgrade - %s", err);
 	//   cleanup();
 	//   transport.close();
 	//   transport = null;
@@ -306,7 +312,7 @@ func (s *socket) clearTransport() {
 
 	// silence further transport errors and prevent uncaught exceptions
 	/* s.transport.on("error", function() {
-	   debug("error triggered by discarded transport");
+	   utils.Log.Debug("error triggered by discarded transport");
 	 });*/
 
 	// ensure transport won't stay open
@@ -315,7 +321,7 @@ func (s *socket) clearTransport() {
 	clearTimeout(s.pingTimeoutTimer)
 }
 
-func (s *socket) onClose(reason, description) {
+func (s *socket) onClose(reason string, description string) {
 	if "closed" != s.readyState {
 		s.readyState = "closed"
 
@@ -335,7 +341,7 @@ func (s *socket) onClose(reason, description) {
 		s.packetsFn = []interface{}{}
 		s.sentCallbackFn = []interface{}{}
 		s.clearTransport()
-		s.emit("close", reason, description)
+		s.Emit("close", reason, description)
 	}
 }
 
@@ -358,10 +364,10 @@ func (s *socket) setupSendCallback() {
 	//   if (self.sentCallbackFn.length > 0) {
 	//     const seqFn = self.sentCallbackFn.splice(0, 1)[0];
 	//     if ("function" === typeof seqFn) {
-	//       debug("executing send callback");
+	//       utils.Log.Debug("executing send callback");
 	//       seqFn(self.transport);
 	//     } else if (Array.isArray(seqFn)) {
-	//       debug("executing batch send callback");
+	//       utils.Log.Debug("executing batch send callback");
 	//       const l = seqFn.length;
 	//       let i = 0;
 	//       for (; i < l; i++) {
@@ -412,16 +418,16 @@ func (s *socket) sendPacket(packet_type string, data io.Reader, options interfac
 	// options.compress = false !== options.compress;
 
 	// if ("closing" !== s.readyState && "closed" !== s.readyState) {
-	//   debug('sending packet "%s" (%s)', type, data);
+	//   utils.Log.Debug('sending packet "%s" (%s)', packet_type, data);
 
 	//   const packet = {
-	//     type: type,
+	//     type: packet_type,
 	//     options: options
 	//   };
 	//   if (data) packet.data = data;
 
 	//   // exports packetCreate event
-	//   s.emit("packetCreate", packet);
+	//   s.Emit("packetCreate", packet);
 
 	//   s.writeBuffer.push(packet);
 
@@ -444,9 +450,9 @@ func (s *socket) flush() {
 	//   s.transport.writable &&
 	//   s.writeBuffer.length
 	// ) {
-	//   debug("flushing buffer to transport");
-	//   s.emit("flush", s.writeBuffer);
-	//   s.server.emit("flush", s, s.writeBuffer);
+	//   utils.Log.Debug("flushing buffer to transport");
+	//   s.Emit("flush", s.writeBuffer);
+	//   s.server.Emit("flush", s, s.writeBuffer);
 	//   const wbuf = s.writeBuffer;
 	//   s.writeBuffer = [];
 	//   if (!s.transport.supportsFraming) {
@@ -456,8 +462,8 @@ func (s *socket) flush() {
 	//   }
 	//   s.packetsFn = [];
 	//   s.transport.send(wbuf);
-	//   s.emit("drain");
-	//   s.server.emit("drain", s);
+	//   s.Emit("drain");
+	//   s.server.Emit("drain", s);
 	// }
 }
 

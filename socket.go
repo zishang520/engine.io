@@ -169,6 +169,7 @@ func (s *socket) schedulePing() {
 			s.sendPacket(packet.PING)
 			s.resetPingTimeout(s.server.Opts.PingTimeout)
 		case <-s.pingIntervalTimer:
+			return
 		}
 	}()
 }
@@ -183,6 +184,7 @@ func (s *socket) resetPingTimeout(timeout time.Duration) {
 			}
 			s.onClose("ping timeout")
 		case <-s.pingTimeoutTimer:
+			return
 		}
 	}()
 }
@@ -224,56 +226,62 @@ func (s *socket) maybeUpgrade(transport) {
 				transport.Close()
 			}
 		case <-s.upgradeTimeoutTimer:
+			return
 		}
 	}()
 
-	onPacket :=	func(data packet.Packet) {
-	  if ("ping" == data.Type && "probe" == data.Data) {
-	    transport.send([{ type: "pong", data: "probe" }]);
-	    self.Emit("upgrading", transport);
-	    clearInterval(self.checkIntervalTimer);
-	    self.checkIntervalTimer = setInterval(check, 100);
-	  } else if ("upgrade" == data.Type && self.readyState != "closed") {
-	    utils.Log.Debug("got upgrade packet - upgrading");
-	    cleanup();
-	    self.transport.discard();
-	    self.upgraded = true;
-	    self.clearTransport();
-	    self.setTransport(transport);
-	    self.Emit("upgrade", transport);
-	    self.flush();
-	    if (self.readyState == "closing") {
-	      transport.close(function() {
-	        self.onClose("forced close");
-	      });
-	    }
-	  } else {
-	    cleanup();
-	    transport.close();
-	  }
+	onPacket := func(data *packet.Packet) {
+		if "ping" == data.Type && "probe" == data.Data {
+			transport.Send([]*packet.Packet{data})
+			s.Emit("upgrading", transport)
+			s.checkIntervalTimer <- struct{}{}
+			// we force a polling cycle to ensure a fast upgrade
+			go func() {
+				for {
+					select {
+					case <-time.After(100 * time.Millisecond):
+						if "polling" == s.transport.Name && s.transport.writable {
+							utils.Log.Debug("writing a noop packet to polling for fast upgrade")
+							// s.transport.send([{ type: "noop" }]);
+						}
+					case <-s.checkIntervalTimer:
+						return
+					}
+				}
+			}()
+		} else if "upgrade" == data.Type && s.readyState != "closed" {
+			utils.Log.Debug("got upgrade packet - upgrading")
+			cleanup()
+			s.transport.discard()
+			s.upgraded = true
+			s.clearTransport()
+			s.setTransport(transport)
+			s.Emit("upgrade", transport)
+			s.flush()
+			if s.readyState == "closing" {
+				transport.close(func() {
+					s.onClose("forced close")
+				})
+			}
+		} else {
+			cleanup()
+			transport.close()
+		}
 	}
 
-	// // we force a polling cycle to ensure a fast upgrade
-	// function check() {
-	//   if ("polling" == self.transport.name && self.transport.writable) {
-	//     utils.Log.Debug("writing a noop packet to polling for fast upgrade");
-	//     self.transport.send([{ type: "noop" }]);
-	//   }
-	// }
-
 	// function cleanup() {
-	//   self.upgrading = false;
+	//   s.upgrading = false;
 
-	//   clearInterval(self.checkIntervalTimer);
-	//   self.checkIntervalTimer = null;
+	//   clearInterval(s.checkIntervalTimer);
+	//   s.checkIntervalTimer = null;
 
-	//   clearTimeout(self.upgradeTimeoutTimer);
-	//   self.upgradeTimeoutTimer = null;
+	//   clearTimeout(s.upgradeTimeoutTimer);
+	//   s.upgradeTimeoutTimer = null;
 
 	//   transport.removeListener("packet", onPacket);
 	//   transport.removeListener("close", onTransportClose);
 	//   transport.removeListener("error", onError);
-	//   self.removeListener("close", onClose);
+	//   s.removeListener("close", onClose);
 	// }
 
 	// function onError(err) {
@@ -336,11 +344,11 @@ func (s *socket) onClose(reason string, description string) {
 		clearInterval(s.checkIntervalTimer)
 		s.checkIntervalTimer = null
 		clearTimeout(s.upgradeTimeoutTimer)
-		// const self = s;
+		// const s = s;
 		// clean writeBuffer in next tick, so developers can still
 		// grab the writeBuffer on 'close' event
 		// process.nextTick(function() {
-		//   self.writeBuffer = [];
+		//   s.writeBuffer = [];
 		// });
 		s.packetsFn = []interface{}{}
 		s.sentCallbackFn = []interface{}{}

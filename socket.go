@@ -215,39 +215,43 @@ func (s *socket) maybeUpgrade(transport) {
 	s.upgrading = true
 
 	// set transport upgrade timer
-	// self.upgradeTimeoutTimer = setTimeout(function() {
-	//   utils.Log.Debug("client did not complete upgrade - closing transport");
-	//   cleanup();
-	//   if ("open" == transport.readyState) {
-	//     transport.close();
-	//   }
-	// }, s.server.opts.upgradeTimeout);
+	go func() {
+		select {
+		case <-time.After(s.server.Opts.UpgradeTimeout):
+			utils.Log.Debug("client did not complete upgrade - closing transport")
+			cleanup()
+			if "open" == transport.ReadyState() {
+				transport.Close()
+			}
+		case <-s.upgradeTimeoutTimer:
+		}
+	}()
 
-	// function onPacket(packet) {
-	//   if ("ping" == packet.type && "probe" == packet.data) {
-	//     transport.send([{ type: "pong", data: "probe" }]);
-	//     self.Emit("upgrading", transport);
-	//     clearInterval(self.checkIntervalTimer);
-	//     self.checkIntervalTimer = setInterval(check, 100);
-	//   } else if ("upgrade" == packet.type && self.readyState != "closed") {
-	//     utils.Log.Debug("got upgrade packet - upgrading");
-	//     cleanup();
-	//     self.transport.discard();
-	//     self.upgraded = true;
-	//     self.clearTransport();
-	//     self.setTransport(transport);
-	//     self.Emit("upgrade", transport);
-	//     self.flush();
-	//     if (self.readyState == "closing") {
-	//       transport.close(function() {
-	//         self.onClose("forced close");
-	//       });
-	//     }
-	//   } else {
-	//     cleanup();
-	//     transport.close();
-	//   }
-	// }
+	onPacket :=	func(data packet.Packet) {
+	  if ("ping" == data.Type && "probe" == data.Data) {
+	    transport.send([{ type: "pong", data: "probe" }]);
+	    self.Emit("upgrading", transport);
+	    clearInterval(self.checkIntervalTimer);
+	    self.checkIntervalTimer = setInterval(check, 100);
+	  } else if ("upgrade" == data.Type && self.readyState != "closed") {
+	    utils.Log.Debug("got upgrade packet - upgrading");
+	    cleanup();
+	    self.transport.discard();
+	    self.upgraded = true;
+	    self.clearTransport();
+	    self.setTransport(transport);
+	    self.Emit("upgrade", transport);
+	    self.flush();
+	    if (self.readyState == "closing") {
+	      transport.close(function() {
+	        self.onClose("forced close");
+	      });
+	    }
+	  } else {
+	    cleanup();
+	    transport.close();
+	  }
+	}
 
 	// // we force a polling cycle to ensure a fast upgrade
 	// function check() {
@@ -287,11 +291,11 @@ func (s *socket) maybeUpgrade(transport) {
 	//   onError("socket closed");
 	// }
 
-	transport.on("packet", onPacket)
-	transport.once("close", onTransportClose)
-	transport.once("error", onError)
+	transport.On("packet", onPacket)
+	transport.Once("close", onTransportClose)
+	transport.Once("error", onError)
 
-	self.once("close", onClose)
+	s.Once("close", onClose)
 }
 
 /**
@@ -352,32 +356,29 @@ func (s *socket) onClose(reason string, description string) {
  */
 
 func (s *socket) setupSendCallback() {
-	const self = s
-	s.transport.on("drain", onDrain)
-
-	// s.cleanupFn.push(function() {
-	//   self.transport.removeListener("drain", onDrain);
-	// });
-
 	// the message was sent successfully, execute the callback
-	// function onDrain() {
-	//   if (self.sentCallbackFn.length > 0) {
-	//     const seqFn = self.sentCallbackFn.splice(0, 1)[0];
-	//     if ("function" === typeof seqFn) {
-	//       utils.Log.Debug("executing send callback");
-	//       seqFn(self.transport);
-	//     } else if (Array.isArray(seqFn)) {
-	//       utils.Log.Debug("executing batch send callback");
-	//       const l = seqFn.length;
-	//       let i = 0;
-	//       for (; i < l; i++) {
-	//         if ("function" === typeof seqFn[i]) {
-	//           seqFn[i](self.transport);
-	//         }
-	//       }
-	//     }
-	//   }
-	// }
+	onDrain := func() {
+		if len(s.sentCallbackFn) > 0 {
+			seqFn := s.sentCallbackFn[0:1][0]
+			switch fn := seqFn.(type) {
+			case func():
+				utils.Log.Debug("executing send callback")
+				fn(s.transport)
+			case []func():
+				utils.Log.Debug("executing batch send callback")
+				for _, _fn := range fn {
+					_fn(s.transport)
+				}
+			}
+		}
+	}
+
+	s.transport.On("drain", onDrain)
+
+	s.cleanupFn = append(s.cleanupFn, func() {
+		s.transport.RemoveListener("drain", onDrain)
+	})
+
 }
 
 /**

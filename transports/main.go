@@ -9,6 +9,7 @@ type Func func(*types.HttpContext) types.Transport
 type T struct {
 	New             Func
 	HandlesUpgrades bool
+	UpgradesTo      func() *types.Set
 }
 
 var (
@@ -22,6 +23,9 @@ var (
 				return NewPolling(ctx)
 			},
 			HandlesUpgrades: false,
+			UpgradesTo: func() *types.Set {
+				return &types.Set{}
+			},
 		},
 
 		"websocket": &T{
@@ -29,6 +33,9 @@ var (
 				return NewWebSocket(ctx)
 			},
 			HandlesUpgrades: true,
+			UpgradesTo: func() *types.Set {
+				return &types.Set{"websocket": types.NULL}
+			},
 		},
 	}
 )

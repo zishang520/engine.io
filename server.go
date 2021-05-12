@@ -69,7 +69,7 @@ func NewServer(opts *types.Config) *server {
  */
 
 func (s *server) init() {
-	if _, ok := s.Opts.Transports["websocket"]; !ok {
+	if !s.Opts.Transports.Has("websocket") {
 		return
 	}
 
@@ -110,7 +110,7 @@ func (s *server) upgrades(transport string) *types.Set {
 func (s *server) verify(ctx *types.HttpContext, upgrade bool) (int, bool) {
 	// transport check
 	transport := ctx.Request.URL.Query().Get("transport")
-	if _, ok := s.Opts.Transports[transport]; !ok {
+	if !s.Opts.Transports.Has(transport) {
 		utils.Log.Debug(`unknown transport "%s"`, transport)
 		return UNKNOWN_TRANSPORT, false
 	}

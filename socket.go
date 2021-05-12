@@ -466,18 +466,14 @@ func (s *socket) flush() {
  * @api private
  */
 
-func (s *socket) getAvailableUpgrades() {
-	// const availableUpgrades = [];
-	// const allUpgrades = s.server.upgrades(s.transport.name);
-	// let i = 0;
-	// const l = allUpgrades.length;
-	// for (; i < l; ++i) {
-	//   const upg = allUpgrades[i];
-	//   if (s.server.opts.transports.indexOf(upg) !== -1) {
-	//     availableUpgrades.push(upg);
-	//   }
-	// }
-	// return availableUpgrades;
+func (s *socket) getAvailableUpgrades() []string {
+	availableUpgrades := []string{}
+	for _, upg := range s.server.upgrades(s.transport.Name()) {
+		if s.server.Opts.Transports.Has(upg) {
+			availableUpgrades = append(availableUpgrades, upg)
+		}
+	}
+	return availableUpgrades
 }
 
 /**
@@ -489,16 +485,18 @@ func (s *socket) getAvailableUpgrades() {
  */
 
 func (s *socket) close(discard) {
-	// if ("open" !== s.readyState) return;
+	if "open" != s.readyState {
+		return
+	}
 
-	// s.readyState = "closing";
+	s.readyState = "closing"
 
-	// if (s.writeBuffer.length) {
-	//   s.once("drain", s.closeTransport.bind(s, discard));
-	//   return;
-	// }
+	if s.writeBuffer.length {
+		s.Once("drain", s.closeTransport.bind(s, discard))
+		return
+	}
 
-	// s.closeTransport(discard);
+	s.closeTransport(discard)
 }
 
 /**

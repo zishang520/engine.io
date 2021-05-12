@@ -1,12 +1,16 @@
 package types
 
-type Void struct{}
-
 type Set map[string]Void
 
-type Kv struct {
-	Key   string
-	Value string
+func (s *Set) Has(key string) bool {
+	_, exists := s[key]
+	return exists
 }
 
-var NULL Void = struct{}{}
+func (s *Set) Add(key string, value Void) {
+	s[key] = value
+}
+
+func (s *Set) Del(key string) {
+	delete(s, key)
+}

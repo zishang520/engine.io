@@ -22,10 +22,10 @@ type socket struct {
 	request             interface{}
 	protocol            int
 	remoteAddress       string
-	checkIntervalTimer  chan struct{}
-	upgradeTimeoutTimer chan struct{}
-	pingTimeoutTimer    chan struct{}
-	pingIntervalTimer   chan struct{}
+	checkIntervalTimer  *utils.Timer
+	upgradeTimeoutTimer *utils.Timer
+	pingTimeoutTimer    *utils.Timer
+	pingIntervalTimer   *utils.Timer
 
 	transport types.Transport
 }
@@ -184,9 +184,9 @@ func (s *socket) resetPingTimeout(timeout time.Duration) {
 }
 
 func (s *socket) setTransport(transport Transport) {
-	onError := s.onError.bind(s)
-	onPacket := s.onPacket.bind(s)
-	flush := s.flush.bind(s)
+	onError := s.onError
+	onPacket := s.onPacket
+	flush := s.flush
 	onClose := s.onClose.bind(s, "transport close")
 
 	s.transport = transport
@@ -210,19 +210,22 @@ func (s *socket) maybeUpgrade(transport) {
 
 	s.upgrading = true
 
-	// set transport upgrade timer
-	go func() {
-		select {
-		case <-time.After(s.server.Opts.UpgradeTimeout):
-			utils.Log.Debug("client did not complete upgrade - closing transport")
-			cleanup()
-			if "open" == transport.ReadyState() {
-				transport.Close()
-			}
-		case <-s.upgradeTimeoutTimer:
-			return
+	cleanup := func() {
+		s.upgrading = false
+
+		if s.checkIntervalTimer != nil {
+			utils.ClearInterval(s.checkIntervalTimer)
 		}
-	}()
+
+		if s.upgradeTimeoutTimer != nil {
+			utils.ClearTimeout(s.upgradeTimeoutTimer)
+		}
+
+		transport.RemoveListener("packet", onPacket)
+		transport.RemoveListener("close", onTransportClose)
+		transport.RemoveListener("error", onError)
+		s.RemoveListener("close", onClose)
+	}
 
 	onPacket := func(data *packet.Packet) {
 		var sb = strings.Builder
@@ -264,35 +267,29 @@ func (s *socket) maybeUpgrade(transport) {
 		}
 	}
 
-	// function cleanup() {
-	//   s.upgrading = false;
+	onError := func(err) {
+		utils.Log.Debug("client did not complete upgrade - %s", err)
+		cleanup()
+		transport.Close()
+		transport = nil
+	}
 
-	//   clearInterval(s.checkIntervalTimer);
-	//   s.checkIntervalTimer = null;
+	onTransportClose := func() {
+		onError("transport closed")
+	}
 
-	//   clearTimeout(s.upgradeTimeoutTimer);
-	//   s.upgradeTimeoutTimer = null;
+	onClose := func() {
+		onError("socket closed")
+	}
 
-	//   transport.removeListener("packet", onPacket);
-	//   transport.removeListener("close", onTransportClose);
-	//   transport.removeListener("error", onError);
-	//   s.removeListener("close", onClose);
-	// }
-
-	// function onError(err) {
-	//   utils.Log.Debug("client did not complete upgrade - %s", err);
-	//   cleanup();
-	//   transport.close();
-	//   transport = null;
-	// }
-
-	// function onTransportClose() {
-	//   onError("transport closed");
-	// }
-
-	// function onClose() {
-	//   onError("socket closed");
-	// }
+	// set transport upgrade timer
+	s.upgradeTimeoutTimer = utils.SetTimeOut(func() {
+		utils.Log.Debug("client did not complete upgrade - closing transport")
+		cleanup()
+		if "open" == transport.ReadyState() {
+			transport.Close()
+		}
+	}, s.server.Opts.UpgradeTimeout)
 
 	transport.On("packet", onPacket)
 	transport.Once("close", onTransportClose)
@@ -308,24 +305,21 @@ func (s *socket) maybeUpgrade(transport) {
  */
 
 func (s *socket) clearTransport() {
-	// let cleanup;
-
-	const toCleanUp = s.cleanupFn.length
-
-	// for (let i = 0; i < toCleanUp; i++) {
-	//   cleanup = s.cleanupFn.shift();
-	//   cleanup();
-	// }
+	for _, cleanup := range s.cleanupFn {
+		cleanup()
+	}
 
 	// silence further transport errors and prevent uncaught exceptions
-	/* s.transport.on("error", function() {
-	   utils.Log.Debug("error triggered by discarded transport");
-	 });*/
+	s.transport.on("error", func() {
+		utils.Log.Debug("error triggered by discarded transport")
+	})
 
 	// ensure transport won't stay open
-	s.transport.close()
+	s.transport.Close()
 
-	clearTimeout(s.pingTimeoutTimer)
+	if s.pingTimeoutTimer != nil {
+		utils.ClearTimeout(s.pingTimeoutTimer)
+	}
 }
 
 func (s *socket) onClose(reason string, description string) {
@@ -333,18 +327,24 @@ func (s *socket) onClose(reason string, description string) {
 		s.readyState = "closed"
 
 		// clear timers
-		clearTimeout(s.pingIntervalTimer)
-		clearTimeout(s.pingTimeoutTimer)
+		if s.pingIntervalTimer != nil {
+			utils.ClearTimeout(s.pingIntervalTimer)
+		}
+		if s.pingTimeoutTimer != nil {
+			utils.ClearTimeout(s.pingTimeoutTimer)
+		}
 
-		clearInterval(s.checkIntervalTimer)
-		s.checkIntervalTimer = null
-		clearTimeout(s.upgradeTimeoutTimer)
-		// const s = s;
+		if s.checkIntervalTimer != nil {
+			utils.ClearInterval(s.checkIntervalTimer)
+		}
+		if s.upgradeTimeoutTimer != nil {
+			utils.ClearTimeout(s.upgradeTimeoutTimer)
+		}
 		// clean writeBuffer in next tick, so developers can still
 		// grab the writeBuffer on 'close' event
-		// process.nextTick(function() {
-		//   s.writeBuffer = [];
-		// });
+		defer func() {
+			s.writeBuffer = []interface{}{}
+		}()
 		s.packetsFn = []interface{}{}
 		s.sentCallbackFn = []interface{}{}
 		s.clearTransport()

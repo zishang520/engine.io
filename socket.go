@@ -15,7 +15,7 @@ type socket struct {
 	upgrading           bool
 	upgraded            bool
 	readyState          string
-	writeBuffer         types.BytesBuffer
+	writeBuffer         []*packet.Packet
 	packetsFn           []interface{}
 	sentCallbackFn      []interface{}
 	cleanupFn           []interface{}
@@ -42,7 +42,7 @@ func NewSocket(id string, server *server, transport types.Transport, ctx *types.
 	s.upgrading = false
 	s.upgraded = false
 	s.readyState = "opening"
-	s.writeBuffer = types.NewBytesBuffer(nil)
+	s.writeBuffer = []*packet.Packet{}
 	s.packetsFn = []interface{}{}
 	s.sentCallbackFn = []interface{}{}
 	s.cleanupFn = []interface{}{}
@@ -343,7 +343,7 @@ func (s *socket) onClose(reason string, description string) {
 		// clean writeBuffer in next tick, so developers can still
 		// grab the writeBuffer on 'close' event
 		defer func() {
-			s.writeBuffer = []interface{}{}
+			s.writeBuffer = []*packet.Packet{}
 		}()
 		s.packetsFn = []interface{}{}
 		s.sentCallbackFn = []interface{}{}
@@ -442,26 +442,22 @@ func (s *socket) sendPacket(packet_type packet.Type, data io.Reader, options *pa
  */
 
 func (s *socket) flush() {
-	// if (
-	//   "closed" != s.readyState &&
-	//   s.transport.writable &&
-	//   s.writeBuffer.length
-	// ) {
-	//   utils.Log.Debug("flushing buffer to transport");
-	//   s.Emit("flush", s.writeBuffer);
-	//   s.server.Emit("flush", s, s.writeBuffer);
-	//   const wbuf = s.writeBuffer;
-	//   s.writeBuffer = [];
-	//   if (!s.transport.supportsFraming) {
-	//     s.sentCallbackFn.push(s.packetsFn);
-	//   } else {
-	//     s.sentCallbackFn.push.apply(s.sentCallbackFn, s.packetsFn);
-	//   }
-	//   s.packetsFn = [];
-	//   s.transport.send(wbuf);
-	//   s.Emit("drain");
-	//   s.server.Emit("drain", s);
-	// }
+	if "closed" != s.readyState && s.transport.Writable() && len(s.writeBuffer) > 0 {
+		utils.Log.Debug("flushing buffer to transport")
+		s.Emit("flush", s.writeBuffer)
+		s.server.Emit("flush", s, s.writeBuffer)
+		wbuf := s.writeBuffer
+		s.writeBuffer = []*packet.Packet{}
+		if !s.transport.supportsFraming() {
+			s.sentCallbackFn = append(s.sentCallbackFn, s.packetsFn)
+		} else {
+			s.sentCallbackFn = append(s.sentCallbackFn, s.packetsFn...)
+		}
+		s.packetsFn = []interface{}{}
+		s.transport.Send(wbuf)
+		s.Emit("drain")
+		s.server.Emit("drain", s)
+	}
 }
 
 /**

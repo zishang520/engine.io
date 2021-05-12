@@ -24,6 +24,13 @@ func main() {
 	fmt.Println(x.ReadRune())
 	fmt.Println(x.ReadRune())
 	fmt.Println(x.ReadRune())
+	s := make(chan struct{})
+	go func() {
+		select {
+		case <-s:
+			fmt.Println("通道关闭")
+		}
+	}()
 	// 	fmt.Println(b)
 	// 	fmt.Println(c)
 	// 	return true

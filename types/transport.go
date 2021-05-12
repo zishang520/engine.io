@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/zishang520/engine.io/events"
+	"github.com/zishang520/engine.io/packet"
 	"io"
 )
 

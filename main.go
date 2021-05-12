@@ -11,6 +11,19 @@ import (
 	"time"
 )
 
+var closeTimeoutTimer *utils.Timer = nil
+
+var ti int = 0
+
+func test() {
+	if closeTimeoutTimer != nil {
+		utils.ClearTimeOut(closeTimeoutTimer)
+	}
+	closeTimeoutTimer = utils.SetInterval(func() {
+		utils.Log.Debug("2s后执行的代码")
+	}, 2000*time.Millisecond)
+}
+
 func main() {
 	buf, err := parser.ParserV4.EncodePayload([]*packet.Packet{
 		&packet.Packet{
@@ -74,35 +87,27 @@ func main() {
 	fmt.Println(errs)
 	fmt.Println(parser.ParserV4.Protocol())
 	fmt.Println(bufs.String())
-	fmt.Println(utils.Base64Id.GenerateId())
-	fmt.Println(utils.Base64Id.GenerateId())
-	fmt.Println(utils.Base64Id.GenerateId())
+	fmt.Println(utils.Base64Id.GenerateId(nil))
+	fmt.Println(utils.Base64Id.GenerateId(nil))
+	fmt.Println(utils.Base64Id.GenerateId(nil))
 	utils.Log.DEBUG = true
 	utils.Log.Debug("121212")
 	r := regexp.MustCompile(`\\\\n`)
 	utils.Log.Debug(r.ReplaceAllString("\n\\n\\\\n", `\n`))
-	closeTimeoutTimer := make(chan struct{})
-	go func() {
-		select {
-		case <-time.After(5000 * time.Millisecond):
-			utils.Log.Debug("时间到")
-		case <-closeTimeoutTimer:
-			utils.Log.Debug("计时器关闭啦")
-		}
-	}()
+	test()
+	test()
+	test()
+	test()
 	t := time.Duration(0)
-	a := false
-	ops := types.NewOpts()
-	const axxxx int = nil
-	utils.Log.Debug(axxxx)
-	utils.Log.Debug(ops.Cookie)
-	utils.Log.Debug(ops.PerMessageDeflate)
-	utils.Log.Debug(ops.UpgradeTimeout)
-	ops.Assign(&types.Opts{PingTimeout: &t, Cors: &a})
-	utils.Log.Debug(ops)
-	time.Sleep(2 * time.Second)
-	closeTimeoutTimer <- struct{}{}
+	ops := types.InitConfig
+	utils.Log.Debug("%v", ops.Cookie)
+	utils.Log.Debug("%v", ops.PerMessageDeflate)
+	utils.Log.Debug("%v", ops.UpgradeTimeout)
+	ops.Assign(&types.Config{PingTimeout: &t, Cors: &types.Cors{}})
+	utils.Log.Debug("%v", ops)
 	time.Sleep(10 * time.Second)
+	utils.ClearTimeOut(closeTimeoutTimer)
+	time.Sleep(30 * time.Second)
 
 	// fmt.Println(parser.DecodePayload(strings.NewReader(`209:2😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁103:2[]by:te{0, 1你好呀, 2, 3, 4, 5, 6, 7, 8, 9}b2W11ieXRlezAsIDHkvaDlpb3lkYAsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDl91:6`), func(a *packet.Packet, b int, c int) bool {
 	// 	fmt.Println(a)

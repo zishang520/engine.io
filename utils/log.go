@@ -20,8 +20,8 @@ var (
  * @param  {...interface{}} message
  * @return {void}
  */
-func (*_log) Comment(message ...interface{}) {
-	fmt.Print(color.Tag("default").Sprint(fmt.Sprint(message...)))
+func (*_log) Comment(message string, args ...interface{}) {
+	fmt.Print(color.Tag("default").Sprint(fmt.Sprintf(message, args...)))
 }
 
 /**
@@ -30,8 +30,8 @@ func (*_log) Comment(message ...interface{}) {
  * @param  {...interface{}} message
  * @return {void}
  */
-func (*_log) Line(message ...interface{}) {
-	fmt.Println(color.Tag("default").Sprint(fmt.Sprint(message...)))
+func (*_log) Line(message string, args ...interface{}) {
+	fmt.Println(color.Tag("default").Sprint(fmt.Sprintf(message, args...)))
 }
 
 /**
@@ -40,8 +40,8 @@ func (*_log) Line(message ...interface{}) {
  * @param  {...interface{}} message
  * @return {void}
  */
-func (*_log) Default(message ...interface{}) {
-	log.Println(color.Tag("default").Sprint(fmt.Sprint(message...)))
+func (*_log) Default(message string, args ...interface{}) {
+	log.Println(color.Tag("default").Sprint(fmt.Sprintf(message, args...)))
 }
 
 /**
@@ -50,8 +50,8 @@ func (*_log) Default(message ...interface{}) {
  * @param  {...interface{}} message
  * @return {void}
  */
-func (*_log) Info(message ...interface{}) {
-	log.Println(color.Info.Sprint(fmt.Sprint(message...)))
+func (*_log) Info(message string, args ...interface{}) {
+	log.Println(color.Info.Sprint(fmt.Sprintf(message, args...)))
 }
 
 /**
@@ -60,9 +60,9 @@ func (*_log) Info(message ...interface{}) {
  * @param  {...interface{}} message
  * @return {void}
  */
-func (l *_log) Debug(message ...interface{}) {
+func (l *_log) Debug(message string, args ...interface{}) {
 	if l.DEBUG {
-		fmt.Println(color.Debug.Sprint(fmt.Sprint(message...)))
+		fmt.Println(color.Debug.Sprint(fmt.Sprintf(message, args...)))
 	}
 }
 
@@ -72,8 +72,8 @@ func (l *_log) Debug(message ...interface{}) {
  * @param  {...interface{}} message
  * @return {void}
  */
-func (*_log) Success(message ...interface{}) {
-	log.Println(color.Success.Sprint(fmt.Sprint(message...)))
+func (*_log) Success(message string, args ...interface{}) {
+	log.Println(color.Success.Sprint(fmt.Sprintf(message, args...)))
 }
 
 /**
@@ -82,8 +82,8 @@ func (*_log) Success(message ...interface{}) {
  * @param  {...interface{}} message
  * @return {void}
  */
-func (*_log) Error(message ...interface{}) {
-	log.Println(color.Danger.Sprint(fmt.Sprint(message...)))
+func (*_log) Error(message string, args ...interface{}) {
+	log.Println(color.Danger.Sprint(fmt.Sprintf(message, args...)))
 }
 
 /**
@@ -92,8 +92,8 @@ func (*_log) Error(message ...interface{}) {
  * @param  {...interface{}} message
  * @return {void}
  */
-func (*_log) Warning(message ...interface{}) {
-	log.Println(color.Warn.Sprint(fmt.Sprint(message...)))
+func (*_log) Warning(message string, args ...interface{}) {
+	log.Println(color.Warn.Sprint(fmt.Sprintf(message, args...)))
 }
 
 /**
@@ -102,6 +102,6 @@ func (*_log) Warning(message ...interface{}) {
  * @param  {...interface{}} message
  * @return {void}
  */
-func (*_log) Fatal(message ...interface{}) {
-	log.Fatal(color.Error.Sprint(fmt.Sprint(message...)))
+func (*_log) Fatal(message string, args ...interface{}) {
+	log.Fatal(color.Error.Sprint(fmt.Sprintf(message, args...)))
 }

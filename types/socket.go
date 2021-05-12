@@ -5,5 +5,5 @@ import (
 )
 
 type Socket interface {
-	events.EventEmmiter
+	events.EventEmitter
 }

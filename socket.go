@@ -56,10 +56,10 @@ func NewSocket(id string, server *server, transport types.Transport, ctx *types.
 	// 	s.remoteAddress = req.connection.remoteAddress
 	// }
 
-	s.checkIntervalTimer = make(chan struct{})
-	s.upgradeTimeoutTimer = make(chan struct{})
-	s.pingTimeoutTimer = make(chan struct{})
-	s.pingIntervalTimer = make(chan struct{})
+	s.checkIntervalTimer = nil
+	s.upgradeTimeoutTimer = nil
+	s.pingTimeoutTimer = nil
+	s.pingIntervalTimer = nil
 
 	s.setTransport(transport)
 	s.onOpen()
@@ -161,32 +161,26 @@ func (s *socket) onError(err string) {
 }
 
 func (s *socket) schedulePing() {
-	s.pingIntervalTimer <- struct{}{}
-	go func() {
-		select {
-		case <-time.After(s.server.Opts.PingInterval):
-			utils.Log.Debug("writing ping packet - expecting pong within %sms", s.server.opts.pingTimeout)
-			s.sendPacket(packet.PING)
-			s.resetPingTimeout(s.server.Opts.PingTimeout)
-		case <-s.pingIntervalTimer:
-			return
-		}
-	}()
+	if s.pingIntervalTimer != nil {
+		utils.ClearTimeOut(s.pingIntervalTimer)
+	}
+	s.pingIntervalTimer = utils.SetTimeOut(func() {
+		utils.Log.Debug("writing ping packet - expecting pong within %sms", s.server.opts.pingTimeout)
+		s.sendPacket(packet.PING)
+		s.resetPingTimeout(s.server.Opts.PingTimeout)
+	}, s.server.Opts.PingInterval)
 }
 
 func (s *socket) resetPingTimeout(timeout time.Duration) {
-	s.pingTimeoutTimer <- struct{}{}
-	go func() {
-		select {
-		case <-time.After(timeout):
-			if s.readyState == "closed" {
-				return
-			}
-			s.onClose("ping timeout")
-		case <-s.pingTimeoutTimer:
+	if s.pingTimeoutTimer != nil {
+		utils.ClearTimeOut(s.pingTimeoutTimer)
+	}
+	s.pingTimeoutTimer = utils.SetTimeOut(func() {
+		if s.readyState == "closed" {
 			return
 		}
-	}()
+		s.onClose("ping timeout")
+	}, timeout)
 }
 
 func (s *socket) setTransport(transport Transport) {
@@ -231,24 +225,25 @@ func (s *socket) maybeUpgrade(transport) {
 	}()
 
 	onPacket := func(data *packet.Packet) {
-		if "ping" == data.Type && "probe" == data.Data {
+		var sb = strings.Builder
+		io.Copy(sb, data.Data)
+		if "ping" == data.Type && "probe" == sb.String() {
 			transport.Send([]*packet.Packet{data})
 			s.Emit("upgrading", transport)
-			s.checkIntervalTimer <- struct{}{}
+			if s.checkIntervalTimer != nil {
+				utils.ClearInterval(s.checkIntervalTimer)
+			}
 			// we force a polling cycle to ensure a fast upgrade
-			go func() {
-				for {
-					select {
-					case <-time.After(100 * time.Millisecond):
-						if "polling" == s.transport.Name && s.transport.writable {
-							utils.Log.Debug("writing a noop packet to polling for fast upgrade")
-							// s.transport.send([{ type: "noop" }]);
-						}
-					case <-s.checkIntervalTimer:
-						return
-					}
+			s.checkIntervalTimer = utils.SetInterval(func() {
+				if "polling" == s.transport.Name && s.transport.writable {
+					utils.Log.Debug("writing a noop packet to polling for fast upgrade")
+					s.transport.send([]*packet.Packet{
+						&packet.Packet{
+							Type: packet.NOOP,
+						},
+					})
 				}
-			}()
+			}, 100*time.Millisecond)
 		} else if "upgrade" == data.Type && s.readyState != "closed" {
 			utils.Log.Debug("got upgrade packet - upgrading")
 			cleanup()

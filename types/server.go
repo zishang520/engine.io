@@ -5,5 +5,5 @@ import (
 )
 
 type Server interface {
-	events.EventEmmiter
+	events.EventEmitter
 }

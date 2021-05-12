@@ -2,6 +2,7 @@ package utils
 
 import (
 	"github.com/zishang520/engine.io/types"
+	"regexp"
 	"strings"
 )
 
@@ -11,7 +12,7 @@ type cors struct {
 	headers []*types.Kv
 }
 
-var initCors = &Cors{
+var initCors = &types.Cors{
 	Origin:               `*`,
 	Methods:              `GET,HEAD,PUT,PATCH,POST,DELETE`,
 	PreflightContinue:    false,
@@ -111,17 +112,17 @@ func (c *cors) configureAllowedHeaders() *cors {
 			})
 		}
 	case string:
-		if headers != "" {
+		if h != "" {
 			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Allow-Headers",
 				Value: h,
 			})
 		}
 	case []string:
-		if len(headers) > 0 {
+		if len(h) > 0 {
 			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Allow-Headers",
-				Value: strings.Join(methods, ","),
+				Value: strings.Join(h, ","),
 			})
 		}
 	}
@@ -134,14 +135,14 @@ func (c *cors) configureExposedHeaders() *cors {
 		if headers != "" {
 			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Expose-Headers",
-				Value: methods,
+				Value: headers,
 			})
 		}
 	case []string:
 		if len(headers) > 0 {
 			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Expose-Headers",
-				Value: strings.Join(methods, ","),
+				Value: strings.Join(headers, ","),
 			})
 		}
 	}
@@ -160,17 +161,18 @@ func (c *cors) configureMaxAge() *cors {
 
 func (c *cors) applyHeaders() *cors {
 	for _, header := range c.headers {
-		c.ctx.Response.Header().Set(header.Key, c.headers.Value)
+		c.ctx.Response.Header().Set(header.Key, header.Value)
 	}
+	return c
 }
 
 func _cors(options *types.Cors, ctx *types.HttpContext, next types.Fn) {
-	c := &_cors{
-		options: *types.Cors,
-		ctx:     *types.HttpContext,
+	c := &cors{
+		options: options,
+		ctx:     ctx,
 		headers: []*types.Kv{},
 	}
-	method = strings.ToUpper(c.ctx.Request.Method)
+	method := strings.ToUpper(c.ctx.Request.Method)
 
 	if method == "OPTIONS" {
 		// preflight
@@ -193,11 +195,11 @@ func _cors(options *types.Cors, ctx *types.HttpContext, next types.Fn) {
 
 func MiddlewareWrapper(options *types.Cors) func(*types.HttpContext, types.Fn) {
 	return func(ctx *types.HttpContext, next types.Fn) {
-		corsOptions = initCors.Assign(options)
-		if corsOptions.Origin == nil {
+		initCors.Assign(options)
+		if initCors.Origin == nil {
 			next()
 		} else {
-			cors(corsOptions, ctx, next)
+			_cors(initCors, ctx, next)
 		}
 	}
 }

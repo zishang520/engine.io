@@ -81,16 +81,19 @@ func (p *polling) OnPollRequest(ctx *types.HttpContext) {
 
 	p.pollCtx = true
 
-	_RemoveListener := make(chan struct{})
+	removeListener := make(chan struct{})
 	p.ctx.Cleanup = func() {
-		_RemoveListener <- struct{}{}
+		if removeListener != nil {
+			close(removeListener)
+			removeListener = nil
+		}
 		p.ctx = nil
 	}
 	go func() {
 		select {
 		case <-p.ctx.Request.(http.CloseNotifier).CloseNotify():
 			p.OnError("poll connection closed prematurely")
-		case <-_RemoveListener:
+		case <-removeListener:
 		}
 	}()
 
@@ -294,7 +297,7 @@ func (p *polling) Compress(data io.Reader, encoding string) *bufio.Reader {
 func (p *polling) DoClose(fn types.Fn) {
 	utils.Log.Debug("closing")
 
-	closeTimeoutTimer := make(chan struct{})
+	var closeTimeoutTimer *utils.Timer = nil
 
 	if p.dataCtx {
 		utils.Log.Debug("aborting ongoing data request")
@@ -303,7 +306,7 @@ func (p *polling) DoClose(fn types.Fn) {
 	}
 
 	onClose := func() {
-		closeTimeoutTimer <- struct{}{}
+		utils.ClearTimeOut(closeTimeoutTimer)
 		fn()
 		p.OnClose()
 	}
@@ -322,13 +325,10 @@ func (p *polling) DoClose(fn types.Fn) {
 	} else {
 		utils.Log.Debug("transport not writable - buffering orderly close")
 		p.shouldClose = onClose
-		go func() {
-			select {
-			case <-time.After(p.closeTimeout * time.Millisecond):
-				onClose()
-			case <-closeTimeoutTimer:
-			}
-		}()
+
+		closeTimeoutTimer = utils.SetTimeOut(func() {
+			onClose()
+		}, p.closeTimeout*time.Millisecond)
 	}
 }
 

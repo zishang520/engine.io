@@ -18,7 +18,7 @@ const (
 )
 
 type Option struct {
-	Compress bool
+	Compress bool `json:"compress"`
 }
 
 type Packet struct {

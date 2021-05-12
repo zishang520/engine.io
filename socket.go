@@ -381,7 +381,6 @@ func (s *socket) setupSendCallback() {
 	s.cleanupFn = append(s.cleanupFn, func() {
 		s.transport.RemoveListener("drain", onDrain)
 	})
-
 }
 
 /**
@@ -412,34 +411,28 @@ func (s *socket) Write(data interface{}, options interface{}, callback interface
  * @api private
  */
 
-func (s *socket) sendPacket(packet_type string, data io.Reader, options interface{}, callback interface{}) {
-	// if ("function" == typeof options) {
-	//   callback = options;
-	//   options = null;
-	// }
+func (s *socket) sendPacket(packet_type packet.Type, data io.Reader, options *packet.Option, callback interface{}) {
+	if "closing" != s.readyState && "closed" != s.readyState {
+		utils.Log.Debug(`sending packet "%s" (%s)`, packet_type, data)
 
-	// options = options || {};
-	// options.compress = false !== options.compress;
+		packet := &packet.Packet{
+			Type:    packet_type,
+			Options: options,
+			Data:    data,
+		}
 
-	// if ("closing" !== s.readyState && "closed" !== s.readyState) {
-	//   utils.Log.Debug('sending packet "%s" (%s)', packet_type, data);
+		// exports packetCreate event
+		s.Emit("packetCreate", packet)
 
-	//   const packet = {
-	//     type: packet_type,
-	//     options: options
-	//   };
-	//   if (data) packet.data = data;
+		s.writeBuffer = append(s.writeBuffer, packet)
 
-	//   // exports packetCreate event
-	//   s.Emit("packetCreate", packet);
+		// add send callback to object, if defined
+		if callback != nil {
+			s.packetsFn = append(s.packetsFn, callback)
+		}
 
-	//   s.writeBuffer.push(packet);
-
-	//   // add send callback to object, if defined
-	//   if (callback) s.packetsFn.push(callback);
-
-	//   s.flush();
-	// }
+		s.flush()
+	}
 }
 
 /**

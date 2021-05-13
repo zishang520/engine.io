@@ -142,7 +142,7 @@ func (s *socket) onPacket(data packet.Packet) {
 			break
 
 		case "error":
-			s.onClose("parse error")
+			s.OnClose("parse error")
 			break
 
 		case "message":
@@ -157,7 +157,7 @@ func (s *socket) onPacket(data packet.Packet) {
 
 func (s *socket) onError(err string) {
 	utils.Log.Debug("transport error")
-	s.onClose("transport error", err)
+	s.OnClose("transport error", err)
 }
 
 func (s *socket) schedulePing() {
@@ -179,7 +179,7 @@ func (s *socket) resetPingTimeout(timeout time.Duration) {
 		if s.readyState == "closed" {
 			return
 		}
-		s.onClose("ping timeout")
+		s.OnClose("ping timeout")
 	}, timeout)
 }
 
@@ -187,7 +187,7 @@ func (s *socket) setTransport(transport Transport) {
 	onError := s.onError
 	onPacket := s.onPacket
 	flush := s.flush
-	onClose := s.onClose.bind(s, "transport close")
+	onClose := s.OnClose("transport close")
 
 	s.transport = transport
 	s.transport.Once("error", onError)
@@ -258,7 +258,7 @@ func (s *socket) maybeUpgrade(transport) {
 			s.flush()
 			if s.readyState == "closing" {
 				transport.close(func() {
-					s.onClose("forced close")
+					s.OnClose("forced close")
 				})
 			}
 		} else {
@@ -322,7 +322,8 @@ func (s *socket) clearTransport() {
 	}
 }
 
-func (s *socket) onClose(reason string, description string) {
+func (s *socket) OnClose(reason string, description ...string) {
+	description = append(description, "")
 	if "closed" != s.readyState {
 		s.readyState = "closed"
 
@@ -348,7 +349,7 @@ func (s *socket) onClose(reason string, description string) {
 		s.packetsFn = []interface{}{}
 		s.sentCallbackFn = []interface{}{}
 		s.clearTransport()
-		s.Emit("close", reason, description)
+		s.Emit("close", reason, description[0])
 	}
 }
 
@@ -508,7 +509,7 @@ func (s *socket) close(discard) {
 
 func (s *socket) closeTransport(discard) {
 	if discard {
-		s.transport.discard()
+		s.transport.Discard()
 	}
-	s.transport.close(s.onClose.bind(s, "forced close"))
+	s.transport.Close(s.OnClose("forced close"))
 }

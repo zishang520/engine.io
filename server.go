@@ -374,7 +374,7 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket Socket) {
  */
 
 // func (s *Kernel) ServeHTTP(response http.ResponseWriter, request *http.Request) {
-func (s *server) attach(server, options) {
+func (s *server) attach(server, options *types.Config) {
 	//   const self = this;
 	//   options = options || {};
 	//   let path = (options.path || "/engine.io").replace(/\/$/, "");

@@ -2,7 +2,6 @@ package engineio
 
 import (
 	"fmt"
-	"github.com/larisgo/laravel-echo-server/options"
 	"net"
 	"net/http"
 	"net/url"

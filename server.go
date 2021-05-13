@@ -2,6 +2,7 @@ package engineio
 
 import (
 	"encoding/json"
+	"github.com/gorilla/websocket"
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/transports"
@@ -75,6 +76,11 @@ func (s *server) init() {
 
 	if s.ws != nil {
 		s.ws.close()
+	}
+
+	s.ws = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
 	}
 
 	// s.ws = new s.opts.wsEngine({

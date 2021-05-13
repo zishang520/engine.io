@@ -75,7 +75,7 @@ func (s *server) init() {
 	}
 
 	if s.ws != nil {
-		s.ws.close()
+		s.ws.Close()
 	}
 
 	s.ws = websocket.Upgrader{

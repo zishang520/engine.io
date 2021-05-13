@@ -485,7 +485,7 @@ func (s *socket) getAvailableUpgrades() []string {
  * @api public
  */
 
-func (s *socket) close(discard) {
+func (s *socket) Close(discard) {
 	if "open" != s.readyState {
 		return
 	}

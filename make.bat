@@ -7,14 +7,23 @@ set GOPATH="%~dp0vendor"
 rem Set the GOPROXY environment variable
 set GOPROXY=https://goproxy.io
 
-if /i "%args%"=="install" goto install
-if /i "%args%"=="all" goto all
-if /i "%args%"=="run" goto run
+if /i "%args%"=="update" goto %args%
+if /i "%args%"=="install" goto %args%
+if /i "%args%"=="all" goto %args%
+if /i "%args%"=="run" goto %args%
 
 goto DEFAULT_CASE
-:install
-    mkdir vendor
+:update
+    if not exist vendor (
+        mkdir vendor
+    )
     CALL go mod tidy
+    GOTO END_CASE
+:install
+    if not exist vendor (
+        mkdir vendor
+    )
+    CALL go mod download
     GOTO END_CASE
 :all
     echo ========================

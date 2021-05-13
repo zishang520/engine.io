@@ -23,20 +23,23 @@ type Cors struct {
 }
 
 type Config struct {
-	WsEngine          *string            `json:"wsEngine,omitempty"`
-	PingTimeout       *time.Duration     `json:"pingTimeout,omitempty"`
-	PingInterval      *time.Duration     `json:"pingInterval,omitempty"`
-	UpgradeTimeout    *time.Duration     `json:"upgradeTimeout,omitempty"`
-	MaxHttpBufferSize *int               `json:"maxHttpBufferSize,omitempty"`
-	Transports        *Set               `json:"transports,omitempty"`
-	AllowUpgrades     *bool              `json:"allowUpgrades,omitempty"`
-	AllowRequest      *AllowRequest      `json:"allowRequest,omitempty"`
-	Cookie            *http.Cookie       `json:"cookie,omitempty"`
-	PerMessageDeflate *PerMessageDeflate `json:"perMessageDeflate,omitempty"`
-	HttpCompression   *HttpCompression   `json:"httpCompression,omitempty"`
-	Cors              *Cors              `json:"cors,omitempty"`
-	AllowEIO3         *bool              `json:"allowEIO3,omitempty"`
-	InitialPacket     interface{}        `json:"initialPacket,omitempty"`
+	WsEngine              *string            `json:"wsEngine,omitempty"`
+	Path                  *string            `json:"path,omitempty"`
+	DestroyUpgrade        *bool              `json:"destroyUpgrade,omitempty"`
+	DestroyUpgradeTimeout *time.Duration     `json:"destroyUpgradeTimeout,omitempty"`
+	PingTimeout           *time.Duration     `json:"pingTimeout,omitempty"`
+	PingInterval          *time.Duration     `json:"pingInterval,omitempty"`
+	UpgradeTimeout        *time.Duration     `json:"upgradeTimeout,omitempty"`
+	MaxHttpBufferSize     *int               `json:"maxHttpBufferSize,omitempty"`
+	Transports            *Set               `json:"transports,omitempty"`
+	AllowUpgrades         *bool              `json:"allowUpgrades,omitempty"`
+	AllowRequest          *AllowRequest      `json:"allowRequest,omitempty"`
+	Cookie                *http.Cookie       `json:"cookie,omitempty"`
+	PerMessageDeflate     *PerMessageDeflate `json:"perMessageDeflate,omitempty"`
+	HttpCompression       *HttpCompression   `json:"httpCompression,omitempty"`
+	Cors                  *Cors              `json:"cors,omitempty"`
+	AllowEIO3             *bool              `json:"allowEIO3,omitempty"`
+	InitialPacket         interface{}        `json:"initialPacket,omitempty"`
 }
 
 func (c *Cors) Assign(data *Cors) error {

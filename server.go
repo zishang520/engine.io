@@ -42,7 +42,7 @@ type server struct {
 	clientsCount uint64
 	Opts         *types.Config
 
-	ws interface{}
+	ws *websocket.Upgrader
 }
 
 func NewServer(opts *types.Config) *server {
@@ -74,11 +74,11 @@ func (s *server) init() {
 		return
 	}
 
-	if s.ws != nil {
-		s.ws.Close()
-	}
+	// if s.ws != nil {
+	// 	s.ws.Close()
+	// }
 
-	s.ws = websocket.Upgrader{
+	s.ws = &websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
@@ -179,7 +179,7 @@ func (s *server) close() {
 	}
 	if s.ws != nil {
 		utils.Log.Debug("closing webSocketServer")
-		s.ws.Close()
+		// s.ws.Close()
 		// don't delete s.ws because it can be used again if the http server starts listening again
 	}
 	return s
@@ -200,6 +200,7 @@ func (s *server) handleRequest(req *http.Request, res http.ResponseWriter) {
 	ctx := &types.HttpContext{
 		Request:  req,
 		Response: res,
+		Context:  r.Context(),
 	}
 
 	callback := func(err int, success bool) {
@@ -372,27 +373,66 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket Socket) {
 }
 
 /**
- * Captures upgrade requests for a http.Server.
+ * Captures upgrade requests for a HttpServer.
  *
- * @param {http.Server} server
+ * @param {HttpServer} server
  * @param {Object} options
  * @api public
  */
 
 // func (s *Kernel) ServeHTTP(response http.ResponseWriter, request *http.Request) {
-func (s *server) attach(server, options *types.Config) {
-	//   const self = this;
-	//   options = options || {};
-	//   let path = (options.path || "/engine.io").replace(/\/$/, "");
+func (s *server) attach(server *HttpServer, options *types.Config) {
+	if options == nil {
+		options = s.Opts
+	}
+	path := "/engine.io"
+	if options.Path != nil && *options.Path != "" {
+		path = strings.TrimRight(*options.Path, "/")
+	}
 
-	//   const destroyUpgradeTimeout = options.destroyUpgradeTimeout || 1000;
+	destroyUpgradeTimeout := 1000 * time.Millisecond
+	if options.DestroyUpgradeTimeout != nil {
+		destroyUpgradeTimeout = *options.DestroyUpgradeTimeout
+	}
 
-	//   // normalize path
-	//   path += "/";
+	// normalize path
+	path += "/"
 
-	//   function check(req) {
-	//     return path === req.url.substr(0, path.length);
-	//   }
+	server.RegisterOnShutdown(func() {
+		s.close()
+	})
+	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// s.init()
+		if !websocket.IsWebSocketUpgrade(r) {
+			if strings.HasPrefix(cleanPath(r.URL.Path), path) {
+				utils.Log.Debug(`intercepting request for path "%s"`, path)
+				s.handleRequest(r, w)
+			} else {
+				server.DefaultHandler.ServeHTTP(w, r)
+			}
+		} else {
+			if s.Opts.Transports.Has("websocket") {
+				if strings.HasPrefix(cleanPath(r.URL.Path), path) {
+					conn, err := s.ws.Upgrade(w, r, r.Header)
+					if err != nil {
+						log.Println(err)
+						return
+					}
+				} else if options.DestroyUpgrade {
+					// default node behavior is to disconnect when no handlers
+					// but by adding a handler, we prevent that
+					// and if no eio thing handles the upgrade
+					// then the socket needs to die!
+					utils.SetTimeOut(func() {
+						// r.Context()
+						// if socket.writable && socket.bytesWritten <= 0 {
+						// 	return socket.end()
+						// }
+					}, destroyUpgradeTimeout)
+				}
+			}
+		}
+	})
 
 	//   // cache and clean up listeners
 	//   const listeners = server.Listeners("request").slice(0);

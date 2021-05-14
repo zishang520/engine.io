@@ -6,11 +6,8 @@ import (
 )
 
 type HttpContext struct {
-	Request   *http.Request
-	Response  http.ResponseWriter
+	*fasthttp.RequestCtx
 	Websocket *WebSocketConn
-
-	Context context.Context
 
 	Cleanup Fn
 }

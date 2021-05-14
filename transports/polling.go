@@ -143,7 +143,7 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 	}
 	ctx.Response.WriteHeader(200)
 	for key, value := range p.Headers(p.ctx, headers) {
-		ctx.Response.Header().Set(key, value)
+		ctx.Response.Header.Set(key, value)
 	}
 	io.WriteString(ctx.Response, "OK")
 	p.dataCtx = nil
@@ -239,7 +239,7 @@ func (p *polling) DoWrite(data io.Reader, options *packet.Option, callback types
 		ctx.Response.WriteHeader(200)
 		headers["Content-Length"] = length
 		for key, value := range p.Headers(p.ctx, headers) {
-			ctx.Response.Header().Set(key, value)
+			ctx.Response.Header.Set(key, value)
 		}
 		io.Copy(ctx.Response, data)
 		callback()

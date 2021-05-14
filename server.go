@@ -43,7 +43,7 @@ type server struct {
 	clientsCount uint64
 	Opts         *types.Config
 
-	ws *websocket.Upgrader
+	ws *websocket.FastHTTPUpgrader
 }
 
 func NewServer(opts *types.Config) *server {
@@ -81,17 +81,11 @@ func (s *server) init() {
 	// 	s.ws.Close()
 	// }
 
-	s.ws = &websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+	s.ws = &websocket.FastHTTPUpgrader{
+		ReadBufferSize:    1024,
+		WriteBufferSize:   1024,
+		EnableCompression: s.Opts.PerMessageDeflate != nil,
 	}
-
-	// s.ws = new s.opts.wsEngine({
-	//   noServer: true,
-	//   clientTracking: false,
-	//   perMessageDeflate: s.opts.perMessageDeflate,
-	//   maxPayload: s.opts.maxHttpBufferSize
-	// });
 }
 
 /**
@@ -118,21 +112,21 @@ func (s *server) upgrades(transport string) *types.Set {
 
 func (s *server) verify(ctx *types.HttpContext, upgrade bool) (int, bool) {
 	// transport check
-	transport := ctx.Request.URL.Query().Get("transport")
+	transport := string(ctx.QueryArgs().Peek("transport"))
 	if !s.Opts.Transports.Has(transport) {
 		utils.Log.Debug(`unknown transport "%s"`, transport)
 		return UNKNOWN_TRANSPORT, false
 	}
 
 	// 'Origin' header check
-	if utils.CheckInvalidHeaderChar(ctx.Request.Header.Get("Origin")) {
+	if utils.CheckInvalidHeaderChar(ctx.Request.Header.Peek("Origin")) {
 		ctx.Request.Header.Del("Origin")
 		utils.Log.Debug("origin header invalid")
 		return BAD_REQUEST, false
 	}
 
 	// sid check
-	sid := ctx.Request.URL.Query().Get("sid")
+	sid := string(ctx.QueryArgs().Peek("sid"))
 	if sid != "" {
 		if _, ok := s.clients[sid]; !ok {
 			utils.Log.Debug(`unknown sid "%s"`, sid)
@@ -144,7 +138,7 @@ func (s *server) verify(ctx *types.HttpContext, upgrade bool) (int, bool) {
 		}
 	} else {
 		// handshake is GET only
-		if "GET" != strings.ToUpper(ctx.Request.Method) {
+		if "GET" != strings.ToUpper(string(ctx.Method())) {
 			return BAD_HANDSHAKE_METHOD, false
 		}
 		if s.Opts.AllowRequest == nil {
@@ -192,11 +186,11 @@ func (s *server) handleRequest(ctx *types.HttpContext) {
 			return
 		}
 
-		if sid := ctx.Request.URL.Query().Get("sid"); sid != "" {
+		if sid := string(ctx.QueryArgs().Peek("sid")); sid != "" {
 			utils.Log.Debug("setting new request for existing client")
 			s.clients[sid].Transport.OnRequest(ctx)
 		} else {
-			s.handshake(ctx.Request.URL.Query().Get("transport"), ctx)
+			s.handshake(string(ctx.QueryArgs().Peek("transport")), ctx)
 		}
 	}
 
@@ -217,7 +211,7 @@ func (s *server) generateId(ctx *types.HttpContext) (string, error) {
 
 func (s *server) handshake(transportName string, ctx *types.HttpContext) {
 	protocol := 3 // 3rd revision by default
-	if ctx.Request.URL.Query().Get("EIO") == "4" {
+	if string(ctx.QueryArgs().Peek("EIO")) == "4" {
 		protocol := 4
 	}
 
@@ -250,7 +244,7 @@ func (s *server) handshake(transportName string, ctx *types.HttpContext) {
 		transport.SetPerMessageDeflate(s.opts.PerMessageDeflate)
 	}
 
-	if _, ok := ctx.Request.URL.Query()["b64"]; ok {
+	if ctx.QueryArgs().Has("b64") {
 		transport.SetSupportsBinary(false)
 	} else {
 		transport.SetSupportsBinary(true)
@@ -285,15 +279,13 @@ func (s *server) handleUpgrade(ctx *types.HttpContext) {
 	}
 
 	// delegate to ws
-	conn, err := s.ws.Upgrade(ctx.Response, ctx.Request, ctx.Request.Header)
+	conn, err := s.ws.Upgrade(ctx.RequestCtx, func(*websocket.Conn) {
+		conn.SetReadLimit(*s.Opts.MaxHttpBufferSize)
+		s.onWebSocket(ctx, &types.WebSocketConn{EventEmitter: events.New(), Conn: conn})
+	})
 	if err != nil {
 		utils.Log.Debug("websocket error before upgrade")
-		// log.Println(err)
-		return
 	}
-	conn.EnableWriteCompression(s.Opts.PerMessageDeflate != nil)
-	conn.SetReadLimit(*s.Opts.MaxHttpBufferSize)
-	s.onWebSocket(ctx, &types.WebSocketConn{EventEmitter: events.New(), Conn: conn})
 }
 
 func (s *server) onWebSocket(ctx *types.HttpContext, socket *types.WebSocketConn) {
@@ -310,7 +302,7 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket *types.WebSocketConn
 
 	// socket.On("error", onUpgradeError)
 
-	transportName := ctx.Request.URL.Query().Get("transport")
+	transportName := string(ctx.QueryArgs().Peek("transport"))
 
 	if transport, ok := transports.Transports[transportName]; ok && !transport.HandlesUpgrades {
 		utils.Log.Debug("transport doesnt handle upgraded requests")
@@ -319,7 +311,7 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket *types.WebSocketConn
 	}
 
 	// get client id
-	id := ctx.Request.URL.Query().Get("sid")
+	id := string(ctx.QueryArgs().Peek("sid"))
 
 	// keep a reference to the ws.Socket
 	ctx.Websocket = socket
@@ -344,7 +336,7 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket *types.WebSocketConn
 
 				transport := transports.Transports[transportName].New(ctx)
 
-				if _, ok := ctx.Request.URL.Query()["b64"]; ok {
+				if ctx.QueryArgs().Has("b64") {
 					transport.SetSupportsBinary(false)
 				} else {
 					transport.SetSupportsBinary(true)
@@ -388,21 +380,23 @@ func (s *server) attach(server *HttpServer, options *types.Config) {
 	// normalize path
 	path += "/"
 
-	server.RegisterOnShutdown(func() {
+	server.On("close", func() {
 		s.close()
 	})
-	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// s.init()
-		if !websocket.IsWebSocketUpgrade(r) {
-			if strings.HasPrefix(utils.CleanPath(r.URL.Path), path) {
+	server.On("listening", func() {
+		s.init()
+	})
+	server.Handler = func(ctx *fasthttp.RequestCtx) {
+		if !websocket.FastHTTPIsWebSocketUpgrade(ctx) {
+			if strings.HasPrefix(utils.CleanPath(string(ctx.Path())), path) {
 				utils.Log.Debug(`intercepting request for path "%s"`, path)
-				s.handleRequest(&types.HttpContext{Request: r, Response: w, Context: r.Context()})
+				s.handleRequest(&types.HttpContext{RequestCtx: ctx})
 			} else {
 				server.DefaultHandler.ServeHTTP(w, r)
 			}
 		} else {
 			if s.Opts.Transports.Has("websocket") {
-				if strings.HasPrefix(utils.CleanPath(r.URL.Path), path) {
+				if strings.HasPrefix(utils.CleanPath(string(ctx.Path())), path) {
 					s.handleUpgrade(&types.HttpContext{Request: r, Response: w, Context: r.Context()})
 				} else if options.DestroyUpgrade {
 					// default node behavior is to disconnect when no handlers
@@ -415,46 +409,7 @@ func (s *server) attach(server *HttpServer, options *types.Config) {
 				}
 			}
 		}
-	})
-
-	// cache and clean up listeners
-	//   const listeners = server.Listeners("request").slice(0);
-	//   server.removeAllListeners("request");
-	//   server.on("close", self.close.bind(self));
-	//   server.on("listening", self.init.bind(self));
-
-	//   // add request handler
-	//   server.on("request", function(req, res) {
-	//     if (check(req)) {
-	//       debug('intercepting request for path "%s"', path);
-	//       self.handleRequest(req, res);
-	//     } else {
-	//       let i = 0;
-	//       const l = listeners.length;
-	//       for (; i < l; i++) {
-	//         listeners[i].call(server, req, res);
-	//       }
-	//     }
-	//   });
-
-	//   if (~self.opts.transports.indexOf("websocket")) {
-	//     server.on("upgrade", function(req, socket, head) {
-	//       if (check(req)) {
-	//         self.handleUpgrade(req, socket, head);
-	//       } else if (false !== options.destroyUpgrade) {
-	//         // default node behavior is to disconnect when no handlers
-	//         // but by adding a handler, we prevent that
-	//         // and if no eio thing handles the upgrade
-	//         // then the socket needs to die!
-	//         setTimeout(function() {
-	//           if (socket.writable && socket.bytesWritten <= 0) {
-	//             return socket.end();
-	//           }
-	//         }, destroyUpgradeTimeout);
-	//       }
-	//     });
-	//   }
-	// }
+	}
 }
 
 /**
@@ -471,25 +426,25 @@ func (this server) sendErrorMessage(ctx *types.HttpContext, code int) {
 	}
 
 	if _, isForbidden := errorMessages[code]; !isForbidden {
-		ctx.Response.WriteHeader(403)
+		ctx.SetStatusCode(403)
 		for key, value := range headers {
-			ctx.Response.Header().Set(key, value)
+			ctx.Response.Header.Set(key, value)
 		}
 		message = errorMessages[FORBIDDEN]
 		if code != 0 {
 			message = strconv.Itoa(code)
 		}
-		json.NewEncoder(ctx.Response).Encode(&types.ErrorMessage{
+		json.NewEncoder(ctx).Encode(&types.ErrorMessage{
 			Code:    FORBIDDEN,
 			Message: message,
 		})
 		return
 	}
-	ctx.Response.WriteHeader(400)
+	ctx.SetStatusCode(400)
 	for key, value := range headers {
-		ctx.Response.Header().Set(key, value)
+		ctx.Response.Header.Set(key, value)
 	}
-	json.NewEncoder(ctx.Response).Encode(&types.ErrorMessage{
+	json.NewEncoder(ctx).Encode(&types.ErrorMessage{
 		Code:    code,
 		Message: errorMessages[code],
 	})
@@ -505,6 +460,6 @@ func (this server) abortConnection(ctx *types.HttpContext, code int) {
 	if !ok {
 		message = strconv.Itoa(code)
 	}
-	ctx.Response.WriteHeader(400)
-	io.WriteString(ctx.Response, message)
+	ctx.SetStatusCode(400)
+	ctx.SetBodyString(message)
 }

@@ -76,7 +76,7 @@ var validHdrChars = [...]bool{
 	true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, // ... 255
 }
 
-func CheckInvalidHeaderChar(val string) bool {
+func CheckInvalidHeaderChar(val []byte) bool {
 	length := len(val)
 	if length < 1 {
 		return false

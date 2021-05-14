@@ -38,7 +38,7 @@ func (c *cors) isOriginAllowed(origin string, allowedOrigin interface{}) bool {
 }
 
 func (c *cors) configureOrigin() *cors {
-	requestOrigin := c.ctx.Request.Header.Get("Origin")
+	requestOrigin := string(c.ctx.Request.Header.Peek("Origin"))
 	if o, ok := c.options.Origin.(string); ok {
 		if o == "*" {
 			// allow any origin
@@ -104,7 +104,7 @@ func (c *cors) configureAllowedHeaders() *cors {
 
 	switch h := allowedHeaders.(type) {
 	case nil:
-		head := c.ctx.Request.Header.Get("Access-Control-Request-Headers") // .c.headers wasn't specified, so reflect the request c.headers
+		head := string(c.ctx.Request.Header.Peek("Access-Control-Request-Headers")) // .c.headers wasn't specified, so reflect the request c.headers
 		if head != "" {
 			c.headers = append(c.headers, &types.Kv{
 				Key:   "Access-Control-Request-Headers",
@@ -161,7 +161,7 @@ func (c *cors) configureMaxAge() *cors {
 
 func (c *cors) applyHeaders() *cors {
 	for _, header := range c.headers {
-		c.ctx.Response.Header().Set(header.Key, header.Value)
+		c.ctx.Response.Header.Set(header.Key, header.Value)
 	}
 	return c
 }
@@ -172,7 +172,7 @@ func _cors(options *types.Cors, ctx *types.HttpContext, next types.Fn) {
 		ctx:     ctx,
 		headers: []*types.Kv{},
 	}
-	method := strings.ToUpper(c.ctx.Request.Method)
+	method := strings.ToUpper(string(c.ctx.Method()))
 
 	if method == "OPTIONS" {
 		// preflight
@@ -182,9 +182,9 @@ func _cors(options *types.Cors, ctx *types.HttpContext, next types.Fn) {
 		} else {
 			// Safari (and potentially other browsers) need content-length 0,
 			//   for 204 or they just hang waiting for a body
-			ctx.Response.WriteHeader(options.OptionsSuccessStatus)
-			ctx.Response.Header().Set("Content-Length", "0")
-			ctx.Response.Write(nil)
+			ctx.SetStatusCode(options.OptionsSuccessStatus)
+			ctx.Response.Header.Set("Content-Length", "0")
+			ctx.Write(nil)
 		}
 	} else {
 		// actual response

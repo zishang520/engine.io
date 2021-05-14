@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"net"
 	"strings"
 )
 
@@ -13,6 +14,35 @@ func Contains(haystack string, needles []string) string {
 	}
 
 	return ""
+}
+
+func StripHostPort(h string) string {
+	if strings.IndexByte(h, ':') == -1 {
+		return h
+	}
+	host, _, err := net.SplitHostPort(h)
+	if err != nil {
+		return h
+	}
+	return host
+}
+
+func CleanPath(p string) string {
+	if p == "" {
+		return "/"
+	}
+	if p[0] != '/' {
+		p = "/" + p
+	}
+	np := path.Clean(p)
+	if p[len(p)-1] == '/' && np != "/" {
+		if len(p) == len(np)+1 && strings.HasPrefix(p, np) {
+			np = p
+		} else {
+			np += "/"
+		}
+	}
+	return np
 }
 
 /**

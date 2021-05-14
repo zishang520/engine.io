@@ -8,7 +8,7 @@ import (
 )
 
 type socket struct {
-	events.EventEmmiter
+	events.EventEmitter
 
 	id                  string
 	server              interface{}
@@ -36,7 +36,9 @@ type socket struct {
  * @api private
  */
 func NewSocket(id string, server *server, transport types.Transport, ctx *types.HttpContext, protocol int) types.Socket {
-	s := &socket{}
+	s := &socket{
+		EventEmitter: events.New(),
+	}
 	s.id = id
 	s.server = server
 	s.upgrading = false
@@ -205,7 +207,7 @@ func (s *socket) setTransport(transport Transport) {
 	})
 }
 
-func (s *socket) maybeUpgrade(transport) {
+func (s *socket) maybeUpgrade(transport Transport) {
 	utils.Log.Debug(`might upgrade socket transport from "%s" to "%s"`, s.transport.name, transport.name)
 
 	s.upgrading = true

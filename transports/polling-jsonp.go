@@ -55,7 +55,10 @@ func (j *jsonp) OnData(data io.Reader) {
 	j.polling.OnData(regexp.MustCompile(rDoubleSlashes).ReplaceAllString(_data, "\\n"))
 }
 
-func (j *jsonp) DoWrite(data interface{}, options *packet.Option, callback types.Fn) {
+func (j *jsonp) DoWrite(data io.Reader, options *packet.Option, callback types.Fn) {
+	if c, ok := data.(io.Closer); ok {
+		defer c.Close()
+	}
 	// we must output valid javascript, not valid json
 	// see: http://timelessrepo.com/json-isnt-a-javascript-subset
 	// const js = JSON.stringify(data)
@@ -63,9 +66,9 @@ func (j *jsonp) DoWrite(data interface{}, options *packet.Option, callback types
 	//   .replace(/\u2029/g, "\\u2029");
 
 	// prepare response
-	_data := types.NewStringBufferString(j.head)
-	json.NewEncoder(_data).Encode(data) // 有问题
-	_data.WriteString(j.foot)
+	res := types.NewStringBufferString(j.head)
+	json.NewEncoder(res).Encode(data) // 有问题
+	res.WriteString(j.foot)
 
-	j.polling.DoWrite(_data, options, callback)
+	j.polling.DoWrite(res, options, callback)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/zishang520/engine.io/utils"
 	"math"
 	"net/http"
+	"strconv"
 )
 
 /**
@@ -36,7 +37,7 @@ var errorMessages map[int]string = map[int]string{
 }
 
 type server struct {
-	events.EventEmmiter
+	events.EventEmitter
 
 	clients      map[string]Socket
 	clientsCount uint64
@@ -46,7 +47,9 @@ type server struct {
 }
 
 func NewServer(opts *types.Config) *server {
-	s := &Server{}
+	s := &Server{
+		EventEmitter: events.New(),
+	}
 
 	s.clients = map[string]Socket{}
 	s.clientsCount = 0
@@ -154,19 +157,6 @@ func (s *server) verify(ctx *types.HttpContext, upgrade bool) (int, bool) {
 }
 
 /**
- * Prepares a request by processing the query string.
- *
- * @api private
- */
-
-func (s *server) prepare(ctx *types.HttpContext) {
-	// try to leverage pre-existing `req._query` (e.g: from connect)
-	// if (!req._query) {
-	//   req._query = ~req.url.indexOf("?") ? qs.parse(parse(req.url).query) : {};
-	// }
-}
-
-/**
  * Closes all clients.
  *
  * @api public
@@ -193,15 +183,8 @@ func (s *server) close() {
  * @api public
  */
 
-func (s *server) handleRequest(req *http.Request, res http.ResponseWriter) {
+func (s *server) handleRequest(ctx *types.HttpContext) {
 	utils.Log.Debug(`handling "%s" http request "%s"`, req.Method, req.RequestURI)
-	s.prepare(req)
-
-	ctx := &types.HttpContext{
-		Request:  req,
-		Response: res,
-		Context:  r.Context(),
-	}
 
 	callback := func(err int, success bool) {
 		if !success {
@@ -287,38 +270,45 @@ func (s *server) handshake(transportName string, ctx *types.HttpContext) {
 	atomic.AddUint64(&s.clientsCount, 1)
 
 	socket.Once("close", func() {
-		delete(s.clients[id])
+		delete(s.clients, id)
 		atomic.AddUint64(&s.clientsCount, 1&math.MaxUint32)
 	})
 
 	s.Emit("connection", socket)
 }
 
-func (s *server) handleUpgrade(ctx *types.HttpContext, socket Socket, upgradeHead interface{}) {
-	s.prepare(ctx)
-
+func (s *server) handleUpgrade(ctx *types.HttpContext) {
 	code, success := s.verify(ctx, true)
 	if !success {
-		s.abortConnection(socket, code)
+		s.abortConnection(ctx, code)
 		return
 	}
 
-	//   const head = Buffer.from(upgradeHead); // eslint-disable-line node/no-deprecated-api
-	//   upgradeHead = null;
-
-	//   // delegate to ws
-	//   s.ws.handleUpgrade(req, socket, head, function(conn) {
-	//     s.onWebSocket(req, conn);
-	//   });
+	// delegate to ws
+	conn, err := s.ws.Upgrade(ctx.Response, ctx.Request, ctx.Request.Header)
+	if err != nil {
+		utils.Log.Debug("websocket error before upgrade")
+		// log.Println(err)
+		return
+	}
+	conn.EnableWriteCompression(s.Opts.PerMessageDeflate != nil)
+	conn.SetReadLimit(*s.Opts.MaxHttpBufferSize)
+	s.onWebSocket(ctx, &types.WebSocketConn{EventEmitter: events.New(), Conn: conn})
 }
 
-func (s *server) onWebSocket(ctx *types.HttpContext, socket Socket) {
-	onUpgradeError := func() {
-		utils.Log.Debug("websocket error before upgrade")
-		// socket.close() not needed
-	}
+func (s *server) onWebSocket(ctx *types.HttpContext, socket *types.WebSocketConn) {
+	// onUpgradeError := func() {
+	// 	utils.Log.Debug("websocket error before upgrade")
+	// 	// socket.close() not needed
+	// }
 
-	socket.On("error", onUpgradeError)
+	defer func() {
+		if recover() != nil {
+			utils.Log.Debug("websocket error before upgrade")
+		}
+	}()
+
+	// socket.On("error", onUpgradeError)
 
 	transportName := ctx.Request.URL.Query().Get("transport")
 
@@ -350,7 +340,7 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket Socket) {
 				utils.Log.Debug("upgrading existing transport")
 
 				// transport error handling takes over
-				socket.RemoveListener("error", onUpgradeError)
+				// socket.RemoveListener("error", onUpgradeError)
 
 				transport := transports.Transports[transportName].New(ctx)
 
@@ -360,13 +350,13 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket Socket) {
 					transport.SetSupportsBinary(true)
 				}
 
-				transport.SetPerMessageDeflate(s.opts.PerMessageDeflate)
+				transport.SetPerMessageDeflate(s.Opts.PerMessageDeflate)
 				client.maybeUpgrade(transport)
 			}
 		}
 	} else {
 		// transport error handling takes over
-		socket.RemoveListener("error", onUpgradeError)
+		// socket.RemoveListener("error", onUpgradeError)
 
 		s.handshake(transportName, ctx)
 	}
@@ -404,37 +394,30 @@ func (s *server) attach(server *HttpServer, options *types.Config) {
 	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// s.init()
 		if !websocket.IsWebSocketUpgrade(r) {
-			if strings.HasPrefix(cleanPath(r.URL.Path), path) {
+			if strings.HasPrefix(utils.CleanPath(r.URL.Path), path) {
 				utils.Log.Debug(`intercepting request for path "%s"`, path)
-				s.handleRequest(r, w)
+				s.handleRequest(&types.HttpContext{Request: r, Response: w, Context: r.Context()})
 			} else {
 				server.DefaultHandler.ServeHTTP(w, r)
 			}
 		} else {
 			if s.Opts.Transports.Has("websocket") {
-				if strings.HasPrefix(cleanPath(r.URL.Path), path) {
-					conn, err := s.ws.Upgrade(w, r, r.Header)
-					if err != nil {
-						log.Println(err)
-						return
-					}
+				if strings.HasPrefix(utils.CleanPath(r.URL.Path), path) {
+					s.handleUpgrade(&types.HttpContext{Request: r, Response: w, Context: r.Context()})
 				} else if options.DestroyUpgrade {
 					// default node behavior is to disconnect when no handlers
 					// but by adding a handler, we prevent that
 					// and if no eio thing handles the upgrade
 					// then the socket needs to die!
 					utils.SetTimeOut(func() {
-						// r.Context()
-						// if socket.writable && socket.bytesWritten <= 0 {
-						// 	return socket.end()
-						// }
+						w.Write(nil)
 					}, destroyUpgradeTimeout)
 				}
 			}
 		}
 	})
 
-	//   // cache and clean up listeners
+	// cache and clean up listeners
 	//   const listeners = server.Listeners("request").slice(0);
 	//   server.removeAllListeners("request");
 	//   server.on("close", self.close.bind(self));
@@ -492,9 +475,13 @@ func (this server) sendErrorMessage(ctx *types.HttpContext, code int) {
 		for key, value := range headers {
 			ctx.Response.Header().Set(key, value)
 		}
+		message = errorMessages[FORBIDDEN]
+		if code != 0 {
+			message = strconv.Itoa(code)
+		}
 		json.NewEncoder(ctx.Response).Encode(&types.ErrorMessage{
 			Code:    FORBIDDEN,
-			Message: errorMessages[FORBIDDEN],
+			Message: message,
 		})
 		return
 	}
@@ -508,25 +495,16 @@ func (this server) sendErrorMessage(ctx *types.HttpContext, code int) {
 	})
 }
 
-func (this server) abortConnection(socket Socket, code int) {
-	socket.On("error", func() {
-		utils.Log.Debug("ignoring error from closed connection")
-	})
-	if socket.Writable() {
-		//   const message = Server.errorMessages.hasOwnProperty(code)
-		//     ? Server.errorMessages[code]
-		//     : String(code || "");
-		//   const length = Buffer.byteLength(message);
-		//   socket.write(
-		//     "HTTP/1.1 400 Bad Request\r\n" +
-		//       "Connection: close\r\n" +
-		//       "Content-type: text/html\r\n" +
-		//       "Content-Length: " +
-		//       length +
-		//       "\r\n" +
-		//       "\r\n" +
-		//       message
-		//   );
+func (this server) abortConnection(ctx *types.HttpContext, code int) {
+	defer func() {
+		if recover() != nil {
+			utils.Log.Debug("ignoring error from closed connection")
+		}
+	}()
+	message, ok := errorMessages[code]
+	if !ok {
+		message = strconv.Itoa(code)
 	}
-	socket.Destroy()
+	ctx.Response.WriteHeader(400)
+	io.WriteString(ctx.Response, message)
 }

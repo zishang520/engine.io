@@ -11,7 +11,7 @@ import (
 )
 
 type transport struct {
-	events.EventEmmiter
+	events.EventEmitter
 
 	ReadyState string      //"open";
 	Discarded  bool        // false;
@@ -24,10 +24,11 @@ type transport struct {
 
 func NewTransport(ctx *types.HttpContext) *transport {
 	t := &transport{
-		ReadyState: "open",
-		Discarded:  false,
-		ctx:        ctx,
-		_doClose:   types.Noop,
+		EventEmitter: events.New(),
+		ReadyState:   "open",
+		Discarded:    false,
+		ctx:          ctx,
+		_doClose:     types.Noop,
 	}
 
 	if ctx.Request.URL.Query().Get("EIO") == "4" {

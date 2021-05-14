@@ -30,7 +30,7 @@ type Config struct {
 	PingTimeout           *time.Duration     `json:"pingTimeout,omitempty"`
 	PingInterval          *time.Duration     `json:"pingInterval,omitempty"`
 	UpgradeTimeout        *time.Duration     `json:"upgradeTimeout,omitempty"`
-	MaxHttpBufferSize     *int               `json:"maxHttpBufferSize,omitempty"`
+	MaxHttpBufferSize     *int64             `json:"maxHttpBufferSize,omitempty"`
 	Transports            *Set               `json:"transports,omitempty"`
 	AllowUpgrades         *bool              `json:"allowUpgrades,omitempty"`
 	AllowRequest          *AllowRequest      `json:"allowRequest,omitempty"`

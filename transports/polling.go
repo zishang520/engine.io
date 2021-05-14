@@ -145,7 +145,7 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 	for key, value := range p.Headers(p.ctx, headers) {
 		ctx.Response.Header().Set(key, value)
 	}
-	ctx.Response.WriteString("OK")
+	io.WriteString(ctx.Response, "OK")
 	p.dataCtx = nil
 }
 

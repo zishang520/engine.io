@@ -2,14 +2,13 @@ package types
 
 import (
 	"context"
-	"github.com/gorilla/websocket"
 	"net/http"
 )
 
 type HttpContext struct {
 	Request   *http.Request
 	Response  http.ResponseWriter
-	Websocket *websocket.Conn
+	Websocket *WebSocketConn
 
 	Context context.Context
 

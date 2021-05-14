@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/gorilla/websocket"
+	"github.com/fasthttp/websocket"
 	"github.com/zishang520/engine.io/events"
 	"io"
 )

@@ -2,7 +2,7 @@ package engineio
 
 import (
 	"encoding/json"
-	"github.com/gorilla/websocket"
+	"github.com/fasthttp/websocket"
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/transports"

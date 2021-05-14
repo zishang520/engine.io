@@ -21,7 +21,7 @@ func NewJSONP(ctx *types.HttpContext) *jsonp {
 	j := &jsonp{
 		polling: NewPolling(ctx),
 
-		head: "___eio[" + regexp.MustCompile(`[^0-9]`).ReplaceAllString(ctx.Request.URL.Query().Get("j"), "") + "](",
+		head: "___eio[" + regexp.MustCompile(`[^0-9]`).ReplaceAllString(string(ctx.QueryArgs().Peek("j")), "") + "](",
 		foot: ");",
 	}
 	return j

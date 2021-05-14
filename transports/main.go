@@ -6,36 +6,34 @@ import (
 
 type Func func(*types.HttpContext) types.Transport
 
-type T struct {
+type _ts struct {
 	New             Func
 	HandlesUpgrades bool
 	UpgradesTo      func() *types.Set
 }
 
-var (
-	Transports map[string]*T = map[string]*T{
+var Transports map[string]*_ts = map[string]*_ts{
 
-		"polling": &T{
-			New: func(ctx *types.HttpContext) types.Transport {
-				if _, has := ctx.Request.URL.Query()["j"]; has {
-					return NewJSONP(ctx)
-				}
-				return NewPolling(ctx)
-			},
-			HandlesUpgrades: false,
-			UpgradesTo: func() *types.Set {
-				return &types.Set{}
-			},
+	"polling": &_ts{
+		New: func(ctx *types.HttpContext) types.Transport {
+			if ctx.QueryArgs().Has("j") {
+				return NewJSONP(ctx)
+			}
+			return NewPolling(ctx)
 		},
+		HandlesUpgrades: false,
+		UpgradesTo: func() *types.Set {
+			return &types.Set{}
+		},
+	},
 
-		"websocket": &T{
-			New: func(ctx *types.HttpContext) types.Transport {
-				return NewWebSocket(ctx)
-			},
-			HandlesUpgrades: true,
-			UpgradesTo: func() *types.Set {
-				return &types.Set{"websocket": types.NULL}
-			},
+	"websocket": &_ts{
+		New: func(ctx *types.HttpContext) types.Transport {
+			return NewWebSocket(ctx)
 		},
-	}
-)
+		HandlesUpgrades: true,
+		UpgradesTo: func() *types.Set {
+			return &types.Set{"websocket": types.NULL}
+		},
+	},
+}

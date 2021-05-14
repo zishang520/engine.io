@@ -55,15 +55,15 @@ func (p *polling) UpgradesTo() *types.Set {
 }
 
 func (p *polling) OnRequest(ctx *types.HttpContext) {
-	method := strings.ToUpper(ctx.Request.Method)
+	method := strings.ToUpper(string(ctx.Method()))
 
 	if "GET" == method {
 		p.OnPollRequest(ctx)
 	} else if "POST" == method {
 		p.OnDataRequest(ctx)
 	} else {
-		ctx.Response.WriteHeader(500)
-		ctx.response.Write(nil)
+		ctx.SetStatusCode(500)
+		ctx.Write(nil)
 	}
 }
 
@@ -72,8 +72,8 @@ func (p *polling) OnPollRequest(ctx *types.HttpContext) {
 		utils.Log.Debug("request overlap")
 		// assert: p.res, '.req and .res should be (un)set together'
 		p.OnError("overlap from client")
-		ctx.Response.WriteHeader(500)
-		ctx.response.Write(nil)
+		ctx.SetStatusCode(500)
+		ctx.Write(nil)
 		return
 	}
 
@@ -91,7 +91,7 @@ func (p *polling) OnPollRequest(ctx *types.HttpContext) {
 	}
 	go func() {
 		select {
-		case <-p.ctx.Request.(http.CloseNotifier).CloseNotify():
+		case <-p.ctx.Done():
 			p.OnError("poll connection closed prematurely")
 		case <-removeListener:
 		}
@@ -115,12 +115,12 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 	if p.dataCtx != nil {
 		// assert: p.dataRes, '.dataReq and .dataRes should be (un)set together'
 		p.OnError("data request overlap from client")
-		ctx.Response.WriteHeader(500)
-		ctx.response.Write(nil)
+		ctx.SetStatusCode(500)
+		ctx.Write(nil)
 		return
 	}
 
-	isBinary := "application/octet-stream" == ctx.Request.Header.Get("Content-Type")
+	isBinary := "application/octet-stream" == string(ctx.Request.Header.Peek("Content-Type"))
 
 	if isBinary && this.Protocol == 4 {
 		p.OnError("invalid content")
@@ -131,7 +131,7 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 
 	go func() {
 		select {
-		case <-p.ctx.Request.(http.CloseNotifier).CloseNotify():
+		case <-p.ctx.Done():
 			p.OnError("data request connection closed prematurely")
 		}
 	}()
@@ -141,11 +141,11 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 		"Content-Type":   "text/html",
 		"Content-Length": "2",
 	}
-	ctx.Response.WriteHeader(200)
+	ctx.SetStatusCode(200)
 	for key, value := range p.Headers(p.ctx, headers) {
 		ctx.Response.Header.Set(key, value)
 	}
-	io.WriteString(ctx.Response, "OK")
+	ctx.SetBodyString("OK")
 	p.dataCtx = nil
 }
 
@@ -236,12 +236,12 @@ func (p *polling) DoWrite(data io.Reader, options *packet.Option, callback types
 		if c, ok := data.(io.Closer); ok {
 			defer c.Close()
 		}
-		ctx.Response.WriteHeader(200)
+		ctx.SetStatusCode(200)
 		headers["Content-Length"] = length
 		for key, value := range p.Headers(p.ctx, headers) {
 			ctx.Response.Header.Set(key, value)
 		}
-		io.Copy(ctx.Response, data)
+		io.Copy(ctx, data)
 		callback()
 	}
 
@@ -255,7 +255,7 @@ func (p *polling) DoWrite(data io.Reader, options *packet.Option, callback types
 		return
 	}
 
-	encoding := utils.Contains(ctx.Request.Header.Get("Accept-Encoding"), []string{"gzip", "deflate"})
+	encoding := utils.Contains(string(ctx.Request.Header.Peek("Accept-Encoding")), []string{"gzip", "deflate"})
 	if encoding != "" {
 		respond(_data, strconv.Itoa(_data.Size()))
 		return
@@ -337,7 +337,7 @@ func (p *polling) Headers(ctx *types.HttpContext, headers ...map[string]string) 
 
 	// prevent XSS warnings on IE
 	// https://github.com/socketio/socket.io/pull/1333
-	ua := ctx.Request.UserAgent()
+	ua := string(ctx.UserAgent())
 	if (len(ua) > 0) && ((strings.Index(ua, ";MSIE") > -1) || (strings.Index(ua, "Trident/") > -1)) {
 		headers[0]["X-XSS-Protection"] = "0"
 	}

@@ -35,6 +35,7 @@ func NewPolling(ctx *types.HttpContext) *polling {
 		httpCompression: &types.HttpCompression{Threshold: 1024},
 		writable:        false,
 	}
+	p.DoClose(p.doClose)
 	return p
 }
 
@@ -294,7 +295,7 @@ func (p *polling) Compress(data io.Reader, encoding string) *bufio.Reader {
 	return buf, nil
 }
 
-func (p *polling) DoClose(fn types.Fn) {
+func (p *polling) doClose(fn types.Fn) {
 	utils.Log.Debug("closing")
 
 	var closeTimeoutTimer *utils.Timer = nil

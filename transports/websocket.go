@@ -11,20 +11,49 @@ type websocket struct {
 	supportsBinary    bool
 	writable          bool
 	perMessageDeflate *types.PerMessageDeflate
+	socket            *types.WebSocketConn
 }
 
 func NewWebSocket(ctx *types.HttpContext) *websocket {
 
 	s := &websocket{}
-	//  s.socket = req.websocket;
-	// s.socket.on("message", s.onData.bind(s));
-	// s.socket.once("close", s.onClose.bind(s));
-	// s.socket.on("error", s.onError.bind(s));
-	// s.socket.on("headers", headers => {
-	//   s.emit("headers", headers);
-	// });
+	s.socket = ctx.Websocket
+	// s.socket.On("message", s.onData.bind(s))
+	go func() {
+		for {
+			mt, message, err := s.socket.NextReader()
+			if err != nil {
+				// log.Println("read:", err)
+				break
+			}
+			switch mt {
+			case websocket.BinaryMessage:
+				read := types.NewBytesBuffer(nil)
+				read.ReadFrom(message)
+				s.OnData(read)
+			case websocket.TextMessage:
+				read := types.NewStringBuffer(nil)
+				read.ReadFrom(message)
+				s.OnData(read)
+			case websocket.CloseMessage:
+				s.OnClose()
+			}
+			// log.Printf("recv: %s", message)
+			// err = c.WriteMessage(mt, message)
+			// if err != nil {
+			// 	log.Println("write:", err)
+			// 	break
+			// }
+		}
+	}()
+	// s.socket.Once("close", s.OnClose.bind(s))
+	s.socket.On("error", s.onError.bind(s))
+	s.socket.On("headers", func(headers ...interface{}) {
+		s.Emit("headers", headers...)
+	})
 	s.writable = true
 	s.perMessageDeflate = nil
+	s.DoClose(s.doClose)
 	return s
 }
 
@@ -66,7 +95,7 @@ func (w *websocket) Send(packets []*packet.Packet) {
 		w.Emit("drain")
 	}
 
-	send := func(data *types.StringBuffer, packet *packet.Packet) {
+	send := func(data io.Reader, packet *packet.Packet) {
 		utils.Log.Debug(`writing "%s"`, data)
 
 		// always creates a new object since ws modifies it
@@ -79,17 +108,22 @@ func (w *websocket) Send(packets []*packet.Packet) {
 				opts.compress = false
 			}
 		}
-
 		w.writable = false
+		w.socket.EnableWriteCompression(opts.compress)
+		var mt int
+		w.socket.WriteMessage()
+		// err = c.WriteMessage(mt, message)
+		// if err != nil {
+		// 	log.Println("write:", err)
+		// 	break
+		// }
 		w.socket.Send(data, opts, onEnd)
 	}
 
 }
 
-func (w *websocket) DoClose(fn ...types.Fn) {
+func (w *websocket) doClose(fn types.Fn) {
 	utils.Log.Debug(`closing`)
-	// w.socket.Close()
-	if len(fn) > 0 {
-		fn[0]()
-	}
+	w.socket.Close()
+	fn()
 }

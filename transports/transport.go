@@ -1,6 +1,7 @@
 package engineio
 
 import (
+	"bytes"
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/packet"
@@ -31,7 +32,7 @@ func NewTransport(ctx *types.HttpContext) *transport {
 		_doClose:     types.Noop,
 	}
 
-	if ctx.Request.URL.Query().Get("EIO") == "4" {
+	if bytes.Equal(ctx.QueryArgs().Peek("EIO"), []byte("4")) {
 		t.Protocol = 4
 		t.Parser = paser.PaserV4
 	} else {
@@ -51,7 +52,7 @@ func (t *transport) OnRequest(ctx *types.HttpContext) {
 	t.ctx = ctx
 }
 
-func (t *transport) DoClose(fn types.Fn) {
+func (t *transport) DoClose(func(types.Fn)) {
 	t._doClose = fn
 }
 

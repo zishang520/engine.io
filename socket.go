@@ -396,12 +396,12 @@ func (s *socket) setupSendCallback() {
  * @api public
  */
 
-func (s *socket) Send(data interface{}, options interface{}, callback interface{}) *socket {
+func (s *socket) Send(data io.Reader, options *packet.Option, callback func(...interface{})) *socket {
 	s.sendPacket(`message`, data, options, callback)
 	return s
 }
 
-func (s *socket) Write(data interface{}, options interface{}, callback interface{}) *socket {
+func (s *socket) Write(data io.Reader, options *packet.Option, callback func(...interface{})) *socket {
 	return s.Send(`message`, data, options, callback)
 }
 
@@ -414,7 +414,7 @@ func (s *socket) Write(data interface{}, options interface{}, callback interface
  * @api private
  */
 
-func (s *socket) sendPacket(packet_type packet.Type, data io.Reader, options *packet.Option, callback interface{}) {
+func (s *socket) sendPacket(packet_type packet.Type, data io.Reader, options *packet.Option, callback func(...interface{})) {
 	if "closing" != s.readyState && "closed" != s.readyState {
 		utils.Log.Debug(`sending packet "%s" (%s)`, packet_type, data)
 

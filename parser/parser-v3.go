@@ -76,56 +76,44 @@ func (p parserv3) DecodePacket(data io.Reader, utf8decode ...bool) (*packet.Pack
 		defer c.Close()
 	}
 
-	msgType := []byte{0xFF}
-	if _, err := data.Read(msgType); err != nil {
+	msgType, err := data.ReadByte()
+	if err != nil {
 		return ERROR_PACKET, err
 	}
 
-	switch v := data.(type) {
-	case *types.StringBuffer:
-		if msgType[0] == 'b' {
-			if _, err := v.Read(msgType); err != nil {
+	if v, ok := data.(*types.StringBuffer); ok {
+		if msgType == 'b' {
+			if msgType, err = data.ReadByte(); err != nil {
 				return ERROR_PACKET, err
 			}
-			packetType, ok := PACKET_TYPES_REVERSE[msgType[0]]
+			packetType, ok := PACKET_TYPES_REVERSE[msgType]
 			if !ok {
-				return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
+				return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType))
 			}
 			decode := types.NewBytesBuffer(nil)
 			decode.ReadFrom(base64.NewDecoder(base64.StdEncoding, v))
-			return &packet.Packet{
-				Type: packetType,
-				Data: decode,
-			}, nil
+			return &packet.Packet{Type: packetType, Data: decode}, nil
 		}
-		packetType, ok := PACKET_TYPES_REVERSE[msgType[0]]
+		packetType, ok := PACKET_TYPES_REVERSE[msgType]
 		if !ok {
-			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]))
+			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType))
 		}
-		stringBuffer := types.NewStringBuffer(nil)
+		decode := types.NewStringBuffer(nil)
 		if utf8decode[0] {
-			stringBuffer.ReadFrom(utils.NewUtf8Decoder(v))
+			decode.ReadFrom(utils.NewUtf8Decoder(v))
 		} else {
-			stringBuffer.ReadFrom(v)
+			decode.ReadFrom(v)
 		}
-		return &packet.Packet{
-			Type: packetType,
-			Data: stringBuffer,
-		}, nil
-	default:
-		packetType, ok := PACKET_TYPES_REVERSE[msgType[0]+'0']
-		if !ok {
-			return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType[0]+'0'))
-		}
-		decode := types.NewBytesBuffer(nil)
-		io.Copy(decode, v)
-		return &packet.Packet{
-			Type: packetType,
-			Data: decode,
-		}, nil
+		return &packet.Packet{Type: packetType, Data: decode}, nil
 	}
 
-	return ERROR_PACKET, errors.New(`parser error`)
+	packetType, ok := PACKET_TYPES_REVERSE[msgType+'0']
+	if !ok {
+		return ERROR_PACKET, errors.New(fmt.Sprintf(`Parsing error, unknown data type [%c]`, msgType+'0'))
+	}
+	decode := types.NewBytesBuffer(nil)
+	io.Copy(decode, data)
+	return &packet.Packet{Type: packetType, Data: decode}, nil
 }
 
 func (p parserv3) hasBinary(packets []*packet.Packet) bool {

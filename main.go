@@ -25,7 +25,7 @@ func test() {
 }
 
 func main() {
-	buf, err := parser.ParserV4.EncodePayload([]*packet.Packet{
+	buf, err := parser.ParserV3.EncodePayload([]*packet.Packet{
 		&packet.Packet{
 			Type: "ping",
 			Data: types.NewBytesBuffer([]byte(`😀😁😀😁😀你好呀, 2, 3, 4, 5,😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁😀😁wn5iB`)),
@@ -81,11 +81,11 @@ func main() {
 	})
 	fmt.Println(err)
 	fmt.Println(buf.String())
-	x := parser.ParserV4.DecodePayload(buf)
+	x := parser.ParserV3.DecodePayload(buf)
 	fmt.Println(x)
-	bufs, errs := parser.ParserV4.EncodePayload(x)
+	bufs, errs := parser.ParserV3.EncodePayload(x)
 	fmt.Println(errs)
-	fmt.Println(parser.ParserV4.Protocol())
+	fmt.Println(parser.ParserV3.Protocol())
 	fmt.Println(bufs.String())
 	fmt.Println(utils.Base64Id.GenerateId(nil))
 	fmt.Println(utils.Base64Id.GenerateId(nil))

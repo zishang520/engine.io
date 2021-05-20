@@ -1,8 +1,7 @@
 package types
 
 import (
-	"context"
-	"net/http"
+	"github.com/valyala/fasthttp"
 )
 
 type HttpContext struct {

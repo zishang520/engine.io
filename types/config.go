@@ -57,7 +57,7 @@ func _config() *Config {
 	PingTimeout := time.Duration(20000 * time.Millisecond)
 	PingInterval := time.Duration(25000 * time.Millisecond)
 	UpgradeTimeout := time.Duration(10000 * time.Millisecond)
-	MaxHttpBufferSize := int(1e6)
+	MaxHttpBufferSize := int64(1e6)
 	AllowUpgrades := true
 	AllowEIO3 := false
 	return &Config{

@@ -11,19 +11,17 @@ if /i "%args%"=="update" goto %args%
 if /i "%args%"=="install" goto %args%
 if /i "%args%"=="all" goto %args%
 if /i "%args%"=="run" goto %args%
+if /i "%args%"=="init" goto %args%
 
 goto DEFAULT_CASE
 :update
     if not exist vendor (
-        mkdir vendor
+        CALL go mod vendor
     )
     CALL go mod tidy
     GOTO END_CASE
 :install
-    if not exist vendor (
-        mkdir vendor
-    )
-    CALL go mod download
+    CALL go mod vendor
     GOTO END_CASE
 :all
     echo ========================
@@ -32,7 +30,9 @@ goto DEFAULT_CASE
 
     GOTO END_CASE
 :run
-    CALL go build -o bin\main.exe main.go && CALL %~dp0\bin\main.exe
+    CALL go run main.go
+    GOTO END_CASE
+:init
     GOTO END_CASE
 :DEFAULT_CASE
     CALL go mod tidy

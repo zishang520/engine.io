@@ -23,7 +23,7 @@ func (parserv3) Protocol() int {
 	return 3
 }
 
-func (p parserv3) EncodePacket(packet *packet.Packet, supportsBinary bool, utf8encode ...bool) (*types.StringBuffer, error) {
+func (p parserv3) EncodePacket(packet *packet.Packet, supportsBinary bool, utf8encode ...bool) (types.PacketBuffer, error) {
 	utf8encode = append(utf8encode, false)
 	encode := types.NewStringBuffer(nil)
 
@@ -145,7 +145,7 @@ func (p parserv3) hasBinary(packets []*packet.Packet) bool {
 	return false
 }
 
-func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary ...bool) (*types.StringBuffer, error) {
+func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary ...bool) (types.PacketBuffer, error) {
 	supportsBinary = append(supportsBinary, false)
 	if supportsBinary[0] && p.hasBinary(packets) {
 		return p.EncodePayloadAsBinary(packets)
@@ -169,7 +169,7 @@ func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary ...bool
 	return enPayload, nil
 }
 
-func (p parserv3) encodeOneBinaryPacket(packet *packet.Packet) (*types.StringBuffer, error) {
+func (p parserv3) encodeOneBinaryPacket(packet *packet.Packet) (types.PacketBuffer, error) {
 	binarypacket := types.NewStringBuffer(nil)
 
 	buf, err := p.EncodePacket(packet, true, true)
@@ -198,7 +198,7 @@ func (p parserv3) encodeOneBinaryPacket(packet *packet.Packet) (*types.StringBuf
 	return binarypacket, nil
 }
 
-func (p parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (*types.StringBuffer, error) {
+func (p parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (types.PacketBuffer, error) {
 	enPayload := types.NewStringBuffer(nil)
 
 	if len(packets) == 0 {

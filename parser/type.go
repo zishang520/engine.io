@@ -8,9 +8,9 @@ import (
 
 type Paser interface {
 	Protocol() int
-	EncodePacket(*packet.Packet, bool, ...bool) (*types.StringBuffer, error)
+	EncodePacket(*packet.Packet, bool, ...bool) (types.PacketBuffer, error)
 	DecodePacket(io.Reader, ...bool) (*packet.Packet, error)
-	EncodePayload([]*packet.Packet, ...bool) (*types.StringBuffer, error)
+	EncodePayload([]*packet.Packet, ...bool) (types.PacketBuffer, error)
 	DecodePayload(io.Reader) []*packet.Packet
 }
 

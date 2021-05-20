@@ -114,23 +114,27 @@ func (p parserv4) EncodePayload(packets []*packet.Packet, _ ...bool) (types.Pack
 	return enPayload, nil
 }
 
-func (p parserv4) DecodePayload(data io.Reader) []*packet.Packet {
-	packets := []*packet.Packet{}
-
+func (p parserv4) DecodePayload(data io.Reader) (packets []*packet.Packet) {
 	if c, ok := data.(io.Closer); ok {
 		defer c.Close()
 	}
 
-	_data := bufio.NewReader(data)
-	for {
-		buf, err := _data.ReadBytes(SEPARATOR)
-		if packet, err := p.DecodePacket(types.NewStringBuffer(bytes.TrimSuffix(buf, []byte{SEPARATOR}))); err == nil {
-			packets = append(packets, packet)
-		} else {
-			break
+	scanner := bufio.NewScanner(data)
+	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
 		}
-		if err == io.EOF {
-			break
+		if i := bytes.IndexByte(data, SEPARATOR); i >= 0 {
+			return i + 1, data[0:i], nil
+		}
+		if atEOF {
+			return len(data), data, nil
+		}
+		return 0, nil, nil
+	})
+	for scanner.Scan() {
+		if packet, err := p.DecodePacket(types.NewStringBuffer(scanner.Bytes())); err == nil {
+			packets = append(packets, packet)
 		}
 	}
 

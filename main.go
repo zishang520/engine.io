@@ -99,6 +99,11 @@ func main() {
 	test()
 	test()
 	t := time.Duration(0)
+	data := &types.Set{
+		"VA": types.NULL,
+	}
+	utils.Log.Debug("%v", data)
+	utils.Log.Debug("%v", data.Has("VA"))
 	ops := types.InitConfig
 	utils.Log.Debug("%v", ops.Cookie)
 	utils.Log.Debug("%v", ops.PerMessageDeflate)

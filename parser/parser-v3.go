@@ -25,7 +25,6 @@ func (parserv3) Protocol() int {
 
 func (p parserv3) EncodePacket(packet *packet.Packet, supportsBinary bool, utf8encode ...bool) (types.PacketBuffer, error) {
 	utf8encode = append(utf8encode, false)
-	encode := types.NewStringBuffer(nil)
 
 	if c, ok := packet.Data.(io.Closer); ok {
 		defer c.Close()
@@ -33,26 +32,31 @@ func (p parserv3) EncodePacket(packet *packet.Packet, supportsBinary bool, utf8e
 
 	switch v := packet.Data.(type) {
 	case *types.StringBuffer:
+		encode := types.NewStringBuffer(nil)
 		encode.WriteByte(PACKET_TYPES[packet.Type])
 		if utf8encode[0] {
 			v.WriteTo(utils.NewUtf8Encoder(encode))
 		} else {
 			v.WriteTo(encode)
 		}
+		return encode, nil
 	case io.Reader:
 		if !supportsBinary {
+			encode := types.NewStringBuffer(nil)
 			encode.Write([]byte{'b', PACKET_TYPES[packet.Type]})
 			b64 := base64.NewEncoder(base64.StdEncoding, encode)
 			defer b64.Close()
 
 			io.Copy(b64, v)
-		} else {
-			encode.WriteByte(PACKET_TYPES[packet.Type] - '0')
-			io.Copy(encode, v)
+			return encode, nil
 		}
-	default:
-		encode.WriteByte(PACKET_TYPES[packet.Type])
+		encode := types.NewBytesBuffer(nil)
+		encode.WriteByte(PACKET_TYPES[packet.Type] - '0')
+		io.Copy(encode, v)
+		return encode, nil
 	}
+	encode := types.NewStringBuffer(nil)
+	encode.WriteByte(PACKET_TYPES[packet.Type])
 	return encode, nil
 }
 

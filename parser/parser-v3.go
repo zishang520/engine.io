@@ -217,6 +217,7 @@ func (p parserv3) DecodePayload(data io.Reader) (packets []*packet.Packet) {
 	}
 
 	if v, ok := data.(*types.StringBuffer); ok {
+		PACKETLEN := 0
 		for v.Len() > 0 {
 			length, err := v.ReadString(':')
 			if err != nil {
@@ -231,9 +232,9 @@ func (p parserv3) DecodePayload(data io.Reader) (packets []*packet.Packet) {
 				return packets
 			}
 
-			_PACKETLEN := int(packetLen)
+			PACKETLEN = int(packetLen)
 			msg := types.NewStringBuffer(nil)
-			for i := 0; i < _PACKETLEN; {
+			for i := 0; i < PACKETLEN; {
 				r, _, e := v.ReadRune()
 				if e != nil {
 					return packets
@@ -260,6 +261,7 @@ func (p parserv3) DecodePayloadAsBinary(data io.Reader) (packets []*packet.Packe
 	bufferTail := types.NewBytesBuffer(nil)
 	bufferTail.ReadFrom(data)
 
+	PACKETLEN := 0
 	for bufferTail.Len() > 0 {
 		startByte, err := bufferTail.ReadByte()
 		if err != nil {
@@ -283,7 +285,7 @@ func (p parserv3) DecodePayloadAsBinary(data io.Reader) (packets []*packet.Packe
 		if err != nil {
 			return packets
 		}
-		PACKETLEN := int(packetLen)
+		PACKETLEN = int(packetLen)
 		if isString {
 			data := types.NewStringBuffer(nil)
 			buf := []byte{}

@@ -139,6 +139,7 @@ func (p parserv3) hasBinary(packets []*packet.Packet) bool {
 
 func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary ...bool) (types.PacketBuffer, error) {
 	supportsBinary = append(supportsBinary, false)
+
 	if supportsBinary[0] && p.hasBinary(packets) {
 		return p.EncodePayloadAsBinary(packets)
 	}
@@ -162,14 +163,14 @@ func (p parserv3) EncodePayload(packets []*packet.Packet, supportsBinary ...bool
 }
 
 func (p parserv3) encodeOneBinaryPacket(packet *packet.Packet) (types.PacketBuffer, error) {
-	binarypacket := types.NewStringBuffer(nil)
+	binarypacket := types.NewBytesBuffer(nil)
 
 	buf, err := p.EncodePacket(packet, true, true)
 	if err != nil {
 		return binarypacket, err
 	}
-	switch packet.Data.(type) {
-	case *types.StringBuffer:
+
+	if _, ok := buf.(*types.StringBuffer); ok {
 		encodingLength := fmt.Sprintf(`%d`, utils.Utf16Count(buf.Bytes())) // JS length
 		binarypacket.WriteByte(0)
 		for i := 0; i < len(encodingLength); i++ {
@@ -177,21 +178,23 @@ func (p parserv3) encodeOneBinaryPacket(packet *packet.Packet) (types.PacketBuff
 		}
 		binarypacket.WriteByte(0xFF)
 		buf.WriteTo(utils.NewUtf8Encoder(binarypacket))
-	default:
-		encodingLength := fmt.Sprintf(`%d`, buf.Len())
-		binarypacket.WriteByte(1) // is binary (true binary = 1)
-		for i := 0; i < len(encodingLength); i++ {
-			binarypacket.WriteByte(encodingLength[i] - '0')
-		}
-		binarypacket.WriteByte(0xFF)
-		binarypacket.ReadFrom(buf)
+
+		return binarypacket, nil
 	}
+
+	encodingLength := fmt.Sprintf(`%d`, buf.Len())
+	binarypacket.WriteByte(1) // is binary (true binary = 1)
+	for i := 0; i < len(encodingLength); i++ {
+		binarypacket.WriteByte(encodingLength[i] - '0')
+	}
+	binarypacket.WriteByte(0xFF)
+	binarypacket.ReadFrom(buf)
 
 	return binarypacket, nil
 }
 
 func (p parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (types.PacketBuffer, error) {
-	enPayload := types.NewStringBuffer(nil)
+	enPayload := types.NewBytesBuffer(nil)
 
 	if len(packets) == 0 {
 		return enPayload, nil
@@ -208,13 +211,12 @@ func (p parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (types.PacketB
 	return enPayload, nil
 }
 
-func (p parserv3) DecodePayload(data io.Reader) []*packet.Packet {
-	packets := []*packet.Packet{}
+func (p parserv3) DecodePayload(data io.Reader) (packets []*packet.Packet) {
 	if c, ok := data.(io.Closer); ok {
 		defer c.Close()
 	}
-	switch v := data.(type) {
-	case *types.StringBuffer:
+
+	if v, ok := data.(*types.StringBuffer); ok {
 		for v.Len() > 0 {
 			length, err := v.ReadString(':')
 			if err != nil {
@@ -249,17 +251,13 @@ func (p parserv3) DecodePayload(data io.Reader) []*packet.Packet {
 				packets = append(packets, packet)
 			}
 		}
-	default:
-		return p.DecodePayloadAsBinary(data)
+		return packets
 	}
-
-	return packets
+	return p.DecodePayloadAsBinary(data)
 }
 
-func (p parserv3) DecodePayloadAsBinary(data io.Reader) []*packet.Packet {
-	packets := []*packet.Packet{}
-
-	bufferTail := types.NewBuffer(nil)
+func (p parserv3) DecodePayloadAsBinary(data io.Reader) (packets []*packet.Packet) {
+	bufferTail := types.NewBytesBuffer(nil)
 	bufferTail.ReadFrom(data)
 
 	for bufferTail.Len() > 0 {

@@ -26,7 +26,7 @@ type PacketBuffer interface {
 	ReadString(byte) (string, error)
 }
 
-// 字符buffer
+// 字节buffer
 type BytesBuffer struct {
 	*bytes.Buffer
 }

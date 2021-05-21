@@ -43,7 +43,7 @@ func (j *jsonp) _OnData(_ io.Reader) {
 		return
 	}
 	r := regexp.MustCompile(rSlashes)
-	_data := r.ReplaceAllStringFunc(u.Get("d"), func(m string) string {
+	_data := r.ReplaceAllStringFunc(string(j.dataCtx.QueryArgs().Peek("d")), func(m string) string {
 		if parts := r.FindStringSubmatch(m); parts[1] != "" {
 			return parts[0]
 		}

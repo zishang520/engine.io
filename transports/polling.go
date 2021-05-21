@@ -25,6 +25,9 @@ type polling struct {
 	writable       bool
 	shouldClose    types.Fn
 	supportsBinary bool
+
+	OnData  func(io.Reader)
+	DoWrite func(io.Reader, *packet.Option, types.Fn)
 }
 
 func NewPolling(ctx *types.HttpContext) *polling {
@@ -35,6 +38,8 @@ func NewPolling(ctx *types.HttpContext) *polling {
 		httpCompression: &types.HttpCompression{Threshold: 1024},
 		writable:        false,
 	}
+	p.OnData = p._OnData
+	p.DoWrite = p._DoWrite
 	p.DoClose(p.doClose)
 	return p
 }
@@ -136,6 +141,7 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 			p.OnError("data request connection closed prematurely")
 		}
 	}()
+	p.OnData(ctx.RequestBodyStream())
 	// text/html is required instead of text/plain to avoid an
 	// unwanted download dialog on certain user-agents (GH-43)
 	headers := map[string]string{
@@ -150,7 +156,7 @@ func (p *polling) OnDataRequest(ctx *types.HttpContext) {
 	p.dataCtx = nil
 }
 
-func (p *polling) OnData(data io.Reader) {
+func (p *polling) _OnData(data io.Reader) {
 	utils.Log.Debug(`received "%s"`, data)
 
 	for packet := range p.Parser.DecodePayload(data) {
@@ -215,7 +221,7 @@ func (p *polling) Write(data io.Reader, options *packet.Option) {
 	})
 }
 
-func (p *polling) DoWrite(data io.Reader, options *packet.Option, callback types.Fn) {
+func (p *polling) _DoWrite(data io.Reader, options *packet.Option, callback types.Fn) {
 	if c, ok := data.(io.Closer); ok {
 		defer c.Close()
 	}

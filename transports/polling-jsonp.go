@@ -24,6 +24,8 @@ func NewJSONP(ctx *types.HttpContext) *jsonp {
 		head: "___eio[" + regexp.MustCompile(`[^0-9]`).ReplaceAllString(string(ctx.QueryArgs().Peek("j")), "") + "](",
 		foot: ");",
 	}
+	j.OnData = j._OnData
+	j.DoWrite = j._DoWrite
 	return j
 }
 
@@ -33,14 +35,11 @@ func NewJSONP(ctx *types.HttpContext) *jsonp {
  *
  * @api public
  */
-func (j *jsonp) OnData(data io.Reader) {
+func (j *jsonp) _OnData(_ io.Reader) {
 	// we leverage the qs module so that we get built-in DoS protection
 	// and the fast alternative to decodeURIComponent
-	u, err := url.ParseQuery(data)
-	if err != nil {
-		return
-	}
-	if _, ok := u["d"]; !ok {
+
+	if !j.dataCtx.QueryArgs().Has("d") {
 		return
 	}
 	r := regexp.MustCompile(rSlashes)
@@ -52,10 +51,10 @@ func (j *jsonp) OnData(data io.Reader) {
 	})
 	// client will send already escaped newlines as \\\\n and newlines as \\n
 	// \\n must be replaced with \n and \\\\n with \\n
-	j.polling.OnData(regexp.MustCompile(rDoubleSlashes).ReplaceAllString(_data, "\\n"))
+	j.polling._OnData(types.NewStringBufferString(regexp.MustCompile(rDoubleSlashes).ReplaceAllString(_data, "\\n")))
 }
 
-func (j *jsonp) DoWrite(data io.Reader, options *packet.Option, callback types.Fn) {
+func (j *jsonp) _DoWrite(data io.Reader, options *packet.Option, callback types.Fn) {
 	if c, ok := data.(io.Closer); ok {
 		defer c.Close()
 	}
@@ -70,5 +69,5 @@ func (j *jsonp) DoWrite(data io.Reader, options *packet.Option, callback types.F
 	json.NewEncoder(res).Encode(data) // 有问题
 	res.WriteString(j.foot)
 
-	j.polling.DoWrite(res, options, callback)
+	j.polling._DoWrite(res, options, callback)
 }

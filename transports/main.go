@@ -6,15 +6,14 @@ import (
 
 type Func func(*types.HttpContext) types.Transport
 
-type _ts struct {
+type _local struct {
 	New             Func
 	HandlesUpgrades bool
 	UpgradesTo      func() *types.Set
 }
 
-var Transports map[string]*_ts = map[string]*_ts{
-
-	"polling": &_ts{
+var Transports map[string]*_local = map[string]*_local{
+	"polling": &_local{
 		New: func(ctx *types.HttpContext) types.Transport {
 			if ctx.QueryArgs().Has("j") {
 				return NewJSONP(ctx)
@@ -27,7 +26,7 @@ var Transports map[string]*_ts = map[string]*_ts{
 		},
 	},
 
-	"websocket": &_ts{
+	"websocket": &_local{
 		New: func(ctx *types.HttpContext) types.Transport {
 			return NewWebSocket(ctx)
 		},

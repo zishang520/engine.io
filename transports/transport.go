@@ -19,8 +19,8 @@ type transport struct {
 	Protocol   int         // 3
 	Parser     paser.Paser // paser.PaserV3;
 
-	ctx      *types.HttpContext
-	_doClose types.Fn
+	ctx     *types.HttpContext
+	DoClose types.Fn
 }
 
 func NewTransport(ctx *types.HttpContext) *transport {
@@ -29,7 +29,7 @@ func NewTransport(ctx *types.HttpContext) *transport {
 		ReadyState:   "open",
 		Discarded:    false,
 		ctx:          ctx,
-		_doClose:     types.Noop,
+		DoClose:      types.Noop,
 	}
 
 	if bytes.Equal(ctx.QueryArgs().Peek("EIO"), []byte("4")) {
@@ -52,8 +52,8 @@ func (t *transport) OnRequest(ctx *types.HttpContext) {
 	t.ctx = ctx
 }
 
-func (t *transport) DoClose(func(types.Fn)) {
-	t._doClose = fn
+func (t *transport) _DoClose(func(types.Fn)) {
+	t.DoClose = fn
 }
 
 func (t *transport) Close(fn ...types.Fn) {
@@ -62,7 +62,7 @@ func (t *transport) Close(fn ...types.Fn) {
 		return
 	}
 	t.ReadyState = "closing"
-	t._doClose(fn[0])
+	t.DoClose(fn[0])
 }
 
 func (t *transport) OnError(msg string, desc ...string) {

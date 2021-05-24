@@ -40,7 +40,7 @@ func NewPolling(ctx *types.HttpContext) *polling {
 	}
 	p.OnData = p._OnData
 	p.DoWrite = p._DoWrite
-	p.DoClose(p.doClose)
+	p._DoClose(p.doClose)
 	return p
 }
 
@@ -326,7 +326,7 @@ func (p *polling) doClose(fn types.Fn) {
 			},
 		})
 		onClose()
-	} else if p.discarded {
+	} else if p.Discarded {
 		utils.Log.Debug("transport discarded - closing right away")
 		onClose()
 	} else {

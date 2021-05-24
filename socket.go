@@ -312,7 +312,7 @@ func (s *socket) clearTransport() {
 	}
 
 	// silence further transport errors and prevent uncaught exceptions
-	s.transport.on("error", func() {
+	s.transport.On("error", func() {
 		utils.Log.Debug("error triggered by discarded transport")
 	})
 

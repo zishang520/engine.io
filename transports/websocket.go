@@ -47,7 +47,7 @@ func NewWebSocket(ctx *types.HttpContext) *websocket {
 	})
 	s.writable = true
 	s.perMessageDeflate = nil
-	s.DoClose(s.doClose)
+	s._DoClose(s.doClose)
 	return s
 }
 
@@ -110,7 +110,6 @@ func (w *websocket) Send(packets []*packet.Packet) {
 		}
 		send(buf, packet)
 	}
-
 }
 
 func (w *websocket) doClose(fn types.Fn) {

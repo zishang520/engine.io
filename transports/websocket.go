@@ -55,16 +55,8 @@ func (w *websocket) Name() string {
 	return "websocket"
 }
 
-func (w *websocket) HandlesUpgrades() bool {
-	return true
-}
-
 func (w *websocket) SupportsFraming() bool {
 	return true
-}
-
-func (p *polling) UpgradesTo() *types.Set {
-	return &types.Set{}
 }
 
 func (w *websocket) OnData(data io.Reader) {

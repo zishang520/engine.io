@@ -14,7 +14,7 @@ type HttpServer struct {
 	DefaultHandler fasthttp.RequestHandler
 }
 
-func createServer(defaultHandler fasthttp.RequestHandler) *HttpServer {
+func CreateServer(defaultHandler fasthttp.RequestHandler) *HttpServer {
 	return &HttpServer{
 		EventEmitter:   events.New(),
 		Server:         &fasthttp.Server{Handler: defaultHandler},
@@ -38,7 +38,7 @@ func New(server interface{}, arguments ...interface{}) types.Server {
 }
 
 func Listen(addr string, options *types.Config, fn types.Fn) types.Server {
-	server := createServer(func(ctx *fasthttp.RequestCtx) {
+	server := CreateServer(func(ctx *fasthttp.RequestCtx) {
 		ctx.Error("Not Implemented", 501)
 	})
 
@@ -58,6 +58,6 @@ func Listen(addr string, options *types.Config, fn types.Fn) types.Server {
 
 func Attach(server *HttpServer, options *types.Config) types.Server {
 	engine := NewServer(options)
-	engine.attach(server, options)
+	engine.Attach(server, options)
 	return engine
 }

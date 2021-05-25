@@ -363,7 +363,7 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket *types.WebSocketConn
  */
 
 // func (s *Kernel) ServeHTTP(response http.ResponseWriter, request *http.Request) {
-func (s *server) attach(server *HttpServer, options *types.Config) {
+func (s *server) Attach(server *HttpServer, options *types.Config) {
 	if options == nil {
 		options = s.Opts
 	}

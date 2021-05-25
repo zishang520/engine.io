@@ -9,12 +9,11 @@ import (
 type Transport interface {
 	events.EventEmitter
 
-	Discard()
-	OnRequest(*HttpContext)
-	DoClose(Fn)
-	Close(...Fn)
-	OnError(string, ...string)
-	OnPacket(*packet.Packet)
-	OnData(io.Reader)
-	OnClose()
+	// Discard()
+	// OnRequest(*HttpContext)
+	// DoClose(Fn)
+	// OnError(string, ...string)
+	// OnPacket(*packet.Packet)
+	// OnData(io.Reader)
+	// OnClose()
 }

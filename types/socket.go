@@ -6,4 +6,11 @@ import (
 
 type Socket interface {
 	events.EventEmitter
+
+	ID() string
+	Server() Server
+	Request()
+	Upgraded()
+	ReadyState()
+	Transport()
 }

@@ -19,7 +19,7 @@ type socket struct {
 	packetsFn           []func(...interface{})
 	sentCallbackFn      []interface{}
 	cleanupFn           []types.Fn
-	request             interface{}
+	request             *types.HttpContext
 	protocol            int
 	remoteAddress       string
 	checkIntervalTimer  *utils.Timer
@@ -48,15 +48,15 @@ func NewSocket(id string, server *server, transport types.Transport, ctx *types.
 	s.packetsFn = []func(...interface{}){}
 	s.sentCallbackFn = []interface{}{}
 	s.cleanupFn = []types.Fn{}
-	s.request = req
+	s.request = ctx
 	s.protocol = protocol
 
 	// Cache IP since it might not be in the req later
-	// if req.websocket && req.websocket._socket {
-	// 	s.remoteAddress = req.websocket._socket.remoteAddress
-	// } else {
-	// 	s.remoteAddress = req.connection.remoteAddress
-	// }
+	if ctx.Websocket != nil && ctx.Websocket.Conn != nil {
+		s.remoteAddress = ctx.Websocket.Conn.RemoteAddr().String()
+	} else {
+		s.remoteAddress = ctx.RemoteAddr().String()
+	}
 
 	s.checkIntervalTimer = nil
 	s.upgradeTimeoutTimer = nil

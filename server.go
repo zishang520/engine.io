@@ -11,6 +11,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 )
 
 /**
@@ -150,13 +151,7 @@ func (s *server) verify(ctx *types.HttpContext, upgrade bool) (int, bool) {
 	return OK_REQUEST, true
 }
 
-/**
- * Closes all clients.
- *
- * @api public
- */
-
-func (s *server) close() {
+func (s *server) Close() {
 	utils.Log.Debug("closing all open clients")
 	for _, client := range s.clients {
 		client.Close()
@@ -169,15 +164,7 @@ func (s *server) close() {
 	return s
 }
 
-/**
- * Handles an Engine.IO HTTP request.
- *
- * @param {http.IncomingMessage} request
- * @param {http.ServerResponse|http.OutgoingMessage} response
- * @api public
- */
-
-func (s *server) handleRequest(ctx *types.HttpContext) {
+func (s *server) HandleRequest(ctx *types.HttpContext) {
 	utils.Log.Debug(`handling "%s" http request "%s"`, req.Method, req.RequestURI)
 
 	callback := func(err int, success bool) {
@@ -205,7 +192,7 @@ func (s *server) handleRequest(ctx *types.HttpContext) {
 	}
 }
 
-func (s *server) generateId(ctx *types.HttpContext) (string, error) {
+func (s *server) GenerateId(ctx *types.HttpContext) (string, error) {
 	return utils.Base64Id.GenerateId(ctx)
 }
 
@@ -221,7 +208,7 @@ func (s *server) handshake(transportName string, ctx *types.HttpContext) {
 		return
 	}
 
-	id, err := s.generateId(req)
+	id, err := s.GenerateId(req)
 	if err != nil {
 		utils.Log.Debug("error while generating an id")
 		s.sendErrorMessage(ctx, BAD_REQUEST)
@@ -271,7 +258,7 @@ func (s *server) handshake(transportName string, ctx *types.HttpContext) {
 	s.Emit("connection", socket)
 }
 
-func (s *server) handleUpgrade(ctx *types.HttpContext) {
+func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 	code, success := s.verify(ctx, true)
 	if !success {
 		s.abortConnection(ctx, code)
@@ -289,18 +276,11 @@ func (s *server) handleUpgrade(ctx *types.HttpContext) {
 }
 
 func (s *server) onWebSocket(ctx *types.HttpContext, socket *types.WebSocketConn) {
-	// onUpgradeError := func() {
-	// 	utils.Log.Debug("websocket error before upgrade")
-	// 	// socket.close() not needed
-	// }
-
 	defer func() {
 		if recover() != nil {
 			utils.Log.Debug("websocket error before upgrade")
 		}
 	}()
-
-	// socket.On("error", onUpgradeError)
 
 	transportName := string(ctx.QueryArgs().Peek("transport"))
 
@@ -331,9 +311,6 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket *types.WebSocketConn
 			} else {
 				utils.Log.Debug("upgrading existing transport")
 
-				// transport error handling takes over
-				// socket.RemoveListener("error", onUpgradeError)
-
 				transport := transports.Transports[transportName].New(ctx)
 
 				if ctx.QueryArgs().Has("b64") {
@@ -347,9 +324,6 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket *types.WebSocketConn
 			}
 		}
 	} else {
-		// transport error handling takes over
-		// socket.RemoveListener("error", onUpgradeError)
-
 		s.handshake(transportName, ctx)
 	}
 }
@@ -361,8 +335,6 @@ func (s *server) onWebSocket(ctx *types.HttpContext, socket *types.WebSocketConn
  * @param {Object} options
  * @api public
  */
-
-// func (s *Kernel) ServeHTTP(response http.ResponseWriter, request *http.Request) {
 func (s *server) Attach(server *HttpServer, options *types.Config) {
 	if options == nil {
 		options = s.Opts
@@ -390,14 +362,14 @@ func (s *server) Attach(server *HttpServer, options *types.Config) {
 		if !websocket.FastHTTPIsWebSocketUpgrade(ctx) {
 			if strings.HasPrefix(utils.CleanPath(string(ctx.Path())), path) {
 				utils.Log.Debug(`intercepting request for path "%s"`, path)
-				s.handleRequest(&types.HttpContext{RequestCtx: ctx})
+				s.HandleRequest(&types.HttpContext{RequestCtx: ctx})
 			} else {
 				server.DefaultHandler.ServeHTTP(w, r)
 			}
 		} else {
 			if s.Opts.Transports.Has("websocket") {
 				if strings.HasPrefix(utils.CleanPath(string(ctx.Path())), path) {
-					s.handleUpgrade(&types.HttpContext{Request: r, Response: w, Context: r.Context()})
+					s.HandleUpgrade(&types.HttpContext{Request: r, Response: w, Context: r.Context()})
 				} else if options.DestroyUpgrade {
 					// default node behavior is to disconnect when no handlers
 					// but by adding a handler, we prevent that
@@ -411,14 +383,6 @@ func (s *server) Attach(server *HttpServer, options *types.Config) {
 		}
 	}
 }
-
-/**
- * Closes the connection
- *
- * @param {net.Socket} socket
- * @param {code} error code
- * @api private
- */
 
 func (this server) sendErrorMessage(ctx *types.HttpContext, code int) {
 	headers := map[string]string{

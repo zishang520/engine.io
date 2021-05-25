@@ -11,14 +11,14 @@ type socket struct {
 	events.EventEmitter
 
 	id                  string
-	server              interface{}
+	server              *server
 	upgrading           bool
 	upgraded            bool
 	readyState          string
 	writeBuffer         []*packet.Packet
-	packetsFn           []interface{}
+	packetsFn           []func(...interface{})
 	sentCallbackFn      []interface{}
-	cleanupFn           []interface{}
+	cleanupFn           []types.Fn
 	request             interface{}
 	protocol            int
 	remoteAddress       string
@@ -45,9 +45,9 @@ func NewSocket(id string, server *server, transport types.Transport, ctx *types.
 	s.upgraded = false
 	s.readyState = "opening"
 	s.writeBuffer = []*packet.Packet{}
-	s.packetsFn = []interface{}{}
+	s.packetsFn = []func(...interface{}){}
 	s.sentCallbackFn = []interface{}{}
-	s.cleanupFn = []interface{}{}
+	s.cleanupFn = []types.Fn{}
 	s.request = req
 	s.protocol = protocol
 
@@ -348,7 +348,7 @@ func (s *socket) OnClose(reason string, description ...string) {
 		defer func() {
 			s.writeBuffer = []*packet.Packet{}
 		}()
-		s.packetsFn = []interface{}{}
+		s.packetsFn = []func(...interface{}){}
 		s.sentCallbackFn = []interface{}{}
 		s.clearTransport()
 		s.Emit("close", reason, description[0])
@@ -456,7 +456,7 @@ func (s *socket) flush() {
 		} else {
 			s.sentCallbackFn = append(s.sentCallbackFn, s.packetsFn...)
 		}
-		s.packetsFn = []interface{}{}
+		s.packetsFn = []func(...interface{}){}
 		s.transport.Send(wbuf)
 		s.Emit("drain")
 		s.server.Emit("drain", s)
@@ -469,8 +469,7 @@ func (s *socket) flush() {
  * @api private
  */
 
-func (s *socket) getAvailableUpgrades() []string {
-	availableUpgrades := []string{}
+func (s *socket) getAvailableUpgrades() (availableUpgrades []string) {
 	for _, upg := range s.server.upgrades(s.transport.Name()) {
 		if s.server.Opts.Transports.Has(upg) {
 			availableUpgrades = append(availableUpgrades, upg)
@@ -487,7 +486,7 @@ func (s *socket) getAvailableUpgrades() []string {
  * @api public
  */
 
-func (s *socket) Close(discard) {
+func (s *socket) Close(discard bool) {
 	if "open" != s.readyState {
 		return
 	}
@@ -509,7 +508,7 @@ func (s *socket) Close(discard) {
  * @api private
  */
 
-func (s *socket) closeTransport(discard) {
+func (s *socket) closeTransport(discard bool) {
 	if discard {
 		s.transport.Discard()
 	}

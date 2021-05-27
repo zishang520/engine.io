@@ -396,12 +396,12 @@ func (s *socket) setupSendCallback() {
  * @api public
  */
 
-func (s *socket) Send(data io.Reader, options *packet.Option, callback func(...interface{})) *socket {
+func (s *socket) Send(data io.Reader, options *packet.Option, callback func(...interface{})) types.Socket {
 	s.sendPacket(`message`, data, options, callback)
 	return s
 }
 
-func (s *socket) Write(data io.Reader, options *packet.Option, callback func(...interface{})) *socket {
+func (s *socket) Write(data io.Reader, options *packet.Option, callback func(...interface{})) types.Socket {
 	return s.Send(`message`, data, options, callback)
 }
 

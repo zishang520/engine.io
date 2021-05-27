@@ -13,4 +13,6 @@ type Socket interface {
 	Upgraded() bool
 	ReadyState() bool
 	Transport() Transport
+	Send(io.Reader, *packet.Option, func(...interface{})) Socket
+	Close(bool)
 }

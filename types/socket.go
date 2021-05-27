@@ -9,8 +9,8 @@ type Socket interface {
 
 	ID() string
 	Server() Server
-	Request()
-	Upgraded()
-	ReadyState()
-	Transport()
+	Request() *HttpContext
+	Upgraded() bool
+	ReadyState() bool
+	Transport() Transport
 }

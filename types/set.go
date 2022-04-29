@@ -60,6 +60,13 @@ func (s *Set) Has(key string) bool {
 	return exists
 }
 
+func (s *Set) Len() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return len(s.cache)
+}
+
 func (s *Set) All() map[string]Void {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

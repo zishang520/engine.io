@@ -17,11 +17,29 @@ func NewSet(keys ...string) *Set {
 }
 
 func (s *Set) Add(keys ...string) bool {
+	if len(keys) == 0 {
+		return false
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for _, key := range keys {
 		s.cache[key] = NULL
+	}
+	return true
+}
+
+func (s *Set) Delete(keys ...string) bool {
+	if len(keys) == 0 {
+		return false
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, key := range keys {
+		delete(s.cache, key)
 	}
 	return true
 }

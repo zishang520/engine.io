@@ -71,11 +71,11 @@ func (c *HttpContext) close() {
 
 	if !c.isDone {
 		close(c.done)
+		c.isDone = true
 	}
-	c.isDone = true
 }
 
-func (c *HttpContext) Done() chan struct{} {
+func (c *HttpContext) Done() <-chan struct{} {
 	return c.done
 }
 

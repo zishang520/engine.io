@@ -73,6 +73,8 @@ func (s *server) HandleRequest(ctx *types.HttpContext) {
 	} else {
 		callback(s.Verify(ctx, false))
 	}
+
+	<-ctx.Done()
 }
 
 func (s *server) HandleUpgrade(ctx *types.HttpContext) {
@@ -214,7 +216,6 @@ func (s *server) Attach(server *types.HttpServer, opts interface{}) {
 			if strings.HasPrefix(utils.CleanPath(r.URL.Path), path) {
 				utils.Log().Debug(`intercepting request for path "%s"`, path)
 				s.HandleRequest(ctx)
-				<-ctx.Done()
 			} else {
 				server.DefaultHandler.ServeHTTP(ctx.Response(), ctx.Request())
 			}

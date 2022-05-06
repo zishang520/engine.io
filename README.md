@@ -1,5 +1,5 @@
 
-# Engine.IO: the realtime engine by golang
+# Engine.IO: the realtime engine for golang
 
 `Engine.IO` is the implementation of transport-based
 cross-browser/cross-device bi-directional communication layer for

@@ -1,6 +1,8 @@
 
 # Engine.IO: the realtime engine for golang
 
+[![GoDoc](https://pkg.go.dev/badge/github.com/zishang520/engine.io?utm_source=godoc)](https://pkg.go.dev/github.com/zishang520/engine.io)
+
 `Engine.IO` is the implementation of transport-based
 cross-browser/cross-device bi-directional communication layer for
 [Socket.IO for golang](http://github.com/zishang520/socket.io).

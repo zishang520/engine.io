@@ -3,7 +3,7 @@
 
 `Engine.IO` is the implementation of transport-based
 cross-browser/cross-device bi-directional communication layer for
-[Socket.IO by golang](http://github.com/zishang520/socket.io).
+[Socket.IO for golang](http://github.com/zishang520/socket.io).
 
 ## How to use
 

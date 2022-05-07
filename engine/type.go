@@ -29,7 +29,7 @@ type Server interface {
 type Socket interface {
 	events.EventEmitter
 
-	ID() string
+	Id() string
 	Server() Server
 	Request() *types.HttpContext
 	Upgraded() bool

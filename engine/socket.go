@@ -50,7 +50,7 @@ func (s *socket) Upgrading() bool {
 	return s.upgrading
 }
 
-func (s *socket) ID() string {
+func (s *socket) Id() string {
 	return s.id
 }
 

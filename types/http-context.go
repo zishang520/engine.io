@@ -41,6 +41,9 @@ type HttpContext struct {
 func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
 	c := &HttpContext{}
 	c.EventEmitter = events.New()
+	c.ctx = r.Context()
+	c.done = make(chan struct{})
+
 	c.request = r
 	c.response = w
 
@@ -48,8 +51,6 @@ func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
 	c.query = utils.NewParameterBag(r.URL.Query())
 
 	c.isHostValid = true
-	c.ctx = r.Context()
-	c.done = make(chan struct{})
 
 	gone := w.(http.CloseNotifier).CloseNotify()
 	go func() {

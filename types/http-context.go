@@ -34,7 +34,6 @@ type HttpContext struct {
 	isDone bool
 	done   chan struct{}
 
-	// mu guards hijackedv
 	mu sync.RWMutex
 }
 

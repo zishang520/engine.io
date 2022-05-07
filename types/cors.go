@@ -24,8 +24,7 @@ type cors struct {
 	ctx     *HttpContext
 	headers []*Kv
 	varys   []string
-	// mu guards hijackedv
-	mu sync.RWMutex
+	mu      sync.RWMutex
 }
 
 func (c *cors) isOriginAllowed(origin string, allowedOrigin interface{}) bool {

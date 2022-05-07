@@ -6,70 +6,68 @@ import (
 )
 
 type Timer struct {
-	t       chan struct{}
-	timer   *time.Timer
-	sleep   time.Duration
-	isClose bool
+	t     chan struct{}
+	timer *time.Timer
+	sleep time.Duration
+	fn    func()
 
-	// mu guards hijackedv
 	mu sync.Mutex
 }
 
 func (t *Timer) Refresh() *Timer {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if !t.timer.Stop() {
+		go t.fn()
+	}
+
 	t.timer.Reset(t.sleep)
 	return t
 }
 
 func SetTimeOut(fn func(), sleep time.Duration) *Timer {
 	timeout := &Timer{
-		t:       make(chan struct{}),
-		timer:   time.NewTimer(sleep),
-		sleep:   sleep,
-		isClose: false,
+		t:     make(chan struct{}),
+		timer: time.NewTimer(sleep),
+		sleep: sleep,
 	}
-	go func() {
+	timeout.fn = func() {
 		select {
 		case <-timeout.timer.C:
 			go fn()
 		case <-timeout.t:
-			timeout.timer.Stop()
 			return
 		}
-	}()
+	}
+	go timeout.fn()
 	return timeout
 }
 
 func ClearTimeout(timeout *Timer) {
-	if timeout != nil {
-		timeout.mu.Lock()
-		defer timeout.mu.Unlock()
-
-		if !timeout.isClose {
-			close(timeout.t)
-			timeout.isClose = true
-		}
+	if timeout != nil && timeout.timer.Stop() {
+		timeout.t <- struct{}{}
 	}
 }
 
 func SetInterval(fn func(), sleep time.Duration) *Timer {
 	timeout := &Timer{
-		t:       make(chan struct{}),
-		timer:   time.NewTimer(sleep),
-		sleep:   sleep,
-		isClose: false,
+		t:     make(chan struct{}),
+		timer: time.NewTimer(sleep),
+		sleep: sleep,
 	}
-	go func() {
+	timeout.fn = func() {
 		for {
 			select {
 			case <-timeout.timer.C:
 				timeout.timer.Reset(timeout.sleep)
 				go fn()
 			case <-timeout.t:
-				timeout.timer.Stop()
 				return
 			}
 		}
-	}()
+	}
+	go timeout.fn()
 	return timeout
 }
 

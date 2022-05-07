@@ -42,7 +42,6 @@ type server struct {
 
 	httpServer *types.HttpServer
 
-	// mu guards hijackedv
 	MU sync.RWMutex
 }
 

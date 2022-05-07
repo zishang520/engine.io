@@ -7,7 +7,6 @@ import (
 type ParameterBag struct {
 	parameters map[string][]string
 
-	// mu guards hijackedv
 	mu sync.RWMutex
 }
 

@@ -184,7 +184,7 @@ func (s *socket) onPacket(data *packet.Packet) {
 			return
 		}
 		utils.Log().Debug("got pong")
-		s.schedulePing()
+		s.pingIntervalTimer.Refresh()
 		s.Emit("heartbeat")
 		break
 
@@ -205,7 +205,6 @@ func (s *socket) onError(err interface{}) {
 }
 
 func (s *socket) schedulePing() {
-	utils.ClearTimeout(s.pingIntervalTimer)
 	s.pingIntervalTimer = utils.SetTimeOut(func() {
 		utils.Log().Debug("writing ping packet - expecting pong within %dms", int64(s.server.Opts().PingTimeout()/time.Millisecond))
 		s.sendPacket(packet.PING, nil, nil, nil)

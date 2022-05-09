@@ -119,7 +119,7 @@ func (c *HttpContext) Context() context.Context {
 
 func (c *HttpContext) GetPathInfo() string {
 	if c.pathInfo == "" {
-		c.pathInfo = c.Request().URL.Path
+		c.pathInfo = c.request.URL.Path
 	}
 
 	return c.pathInfo
@@ -154,7 +154,7 @@ func (c *HttpContext) GetMethod() string {
 		return c.method
 	}
 
-	c.method = strings.ToUpper(c.Request().Method)
+	c.method = strings.ToUpper(c.request.Method)
 	return c.method
 }
 
@@ -166,7 +166,7 @@ func (c *HttpContext) Path() string {
 }
 
 func (c *HttpContext) GetHost() (string, error) {
-	host := c.Request().Host
+	host := c.request.Host
 	// trim and remove port number from host
 	// host is lowercase as per RFC 952/2181
 	host = regexp.MustCompile(`:\d+$`).ReplaceAllString(strings.TrimSpace(host), "")
@@ -190,5 +190,5 @@ func (c *HttpContext) UserAgent() string {
 }
 
 func (c *HttpContext) Secure() bool {
-	return c.Request().TLS != nil
+	return c.request.TLS != nil
 }

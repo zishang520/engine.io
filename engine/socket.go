@@ -508,7 +508,7 @@ func (s *socket) flush() {
 }
 
 func (s *socket) getAvailableUpgrades() (availableUpgrades []string) {
-	for upg := range s.server.Upgrades(s.transport.Name()).All() {
+	for _, upg := range s.server.Upgrades(s.transport.Name()).keys() {
 		if s.server.Opts().Transports().Has(upg) {
 			availableUpgrades = append(availableUpgrades, upg)
 		}

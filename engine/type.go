@@ -32,6 +32,7 @@ type Socket interface {
 	Id() string
 	Server() Server
 	Request() *types.HttpContext
+	RemoteAddress() string
 	Upgraded() bool
 	Upgrading() bool
 	MaybeUpgrade(transports.Transport)

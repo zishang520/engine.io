@@ -54,6 +54,10 @@ func (s *socket) Id() string {
 	return s.id
 }
 
+func (s *socket) RemoteAddress() string {
+	return s.remoteAddress
+}
+
 func (s *socket) Request() *types.HttpContext {
 	return s.request
 }
@@ -508,7 +512,7 @@ func (s *socket) flush() {
 }
 
 func (s *socket) getAvailableUpgrades() (availableUpgrades []string) {
-	for _, upg := range s.server.Upgrades(s.transport.Name()).keys() {
+	for _, upg := range s.server.Upgrades(s.transport.Name()).Keys() {
 		if s.server.Opts().Transports().Has(upg) {
 			availableUpgrades = append(availableUpgrades, upg)
 		}

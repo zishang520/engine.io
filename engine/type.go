@@ -39,5 +39,6 @@ type Socket interface {
 	SetReadyState(string)
 	Transport() transports.Transport
 	Send(io.Reader, *packet.Options, func(transports.Transport)) Socket
+	Write(io.Reader, *packet.Options, func(transports.Transport)) Socket
 	Close(bool)
 }

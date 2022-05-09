@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"sync"
 	"time"
 )
 
@@ -10,19 +9,15 @@ type Timer struct {
 	timer *time.Timer
 	sleep time.Duration
 	fn    func()
-
-	mu sync.Mutex
 }
 
 func (t *Timer) Refresh() *Timer {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	defer t.timer.Reset(t.sleep)
 
 	if !t.timer.Stop() {
 		go t.fn()
 	}
 
-	t.timer.Reset(t.sleep)
 	return t
 }
 

@@ -144,7 +144,7 @@ func (e *emmiter) Emit(evt EventName, data ...interface{}) {
 		defer e.mu.RUnlock() // RUnlock
 		return               // has no listeners to emit/speak yet
 	}
-	listeners := e.evtListeners[evt]
+	listeners := append([]*listener{}, e.evtListeners[evt]...)
 	e.mu.RUnlock()
 
 	if len(listeners) > 0 {
@@ -182,7 +182,7 @@ func (e *emmiter) ListenerCount(evt EventName) int {
 		return 0
 	}
 
-	evtListeners := e.evtListeners[evt]
+	evtListeners := append([]*listener{}, e.evtListeners[evt]...)
 	e.mu.RUnlock()
 
 	return len(evtListeners)

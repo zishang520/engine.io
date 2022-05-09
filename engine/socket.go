@@ -469,7 +469,7 @@ func (s *socket) sendPacket(packetType packet.Type, data io.Reader, options *pac
 
 func (s *socket) flush() {
 	s.muwriteBuffer.RLock()
-	wbuf := s.writeBuffer
+	wbuf := append([]*packet.Packet{}, s.writeBuffer...)
 	s.muwriteBuffer.RUnlock()
 
 	if "closed" != s.ReadyState() && s.transport.Writable() && len(wbuf) > 0 {
@@ -525,10 +525,10 @@ func (s *socket) Close(discard bool) {
 	s.SetReadyState("closing")
 
 	s.muwriteBuffer.RLock()
-	l := len(s.writeBuffer)
+	writeBufferLength := len(s.writeBuffer)
 	s.muwriteBuffer.RUnlock()
 
-	if l > 0 {
+	if writeBufferLength > 0 {
 		s.Once("drain", func(...interface{}) {
 			s.closeTransport(discard)
 		})

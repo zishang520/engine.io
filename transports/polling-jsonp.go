@@ -9,9 +9,9 @@ import (
 	"regexp"
 )
 
-const (
-	rDoubleSlashes string = `\\\\n`
-	rSlashes       string = `(\\)?\\n`
+var (
+	rDoubleSlashes = regexp.MustCompile(`\\\\n`)
+	rSlashes       = regexp.MustCompile(`(\\)?\\n`)
 )
 
 type jsonp struct {
@@ -42,16 +42,15 @@ func (j *jsonp) New(ctx *types.HttpContext) *jsonp {
 func (j *jsonp) JSONPOnData(data types.BufferInterface) {
 	if data, err := url.ParseQuery(data.String()); err == nil {
 		if data.Has("d") {
-			r := regexp.MustCompile(rSlashes)
-			_data := r.ReplaceAllStringFunc(data.Get("d"), func(m string) string {
-				if parts := r.FindStringSubmatch(m); parts[1] != "" {
+			_data := rSlashes.ReplaceAllStringFunc(data.Get("d"), func(m string) string {
+				if parts := rSlashes.FindStringSubmatch(m); parts[1] != "" {
 					return parts[0]
 				}
 				return "\n"
 			})
 			// client will send already escaped newlines as \\\\n and newlines as \\n
 			// \\n must be replaced with \n and \\\\n with \\n
-			j.PollingOnData(types.NewStringBufferString(regexp.MustCompile(rDoubleSlashes).ReplaceAllString(_data, "\\n")))
+			j.PollingOnData(types.NewStringBufferString(rDoubleSlashes.ReplaceAllString(_data, "\\n")))
 		}
 	} else {
 		utils.Log().Debug(`jsonp OnData error "%v"`, err)

@@ -182,10 +182,10 @@ func (e *emmiter) ListenerCount(evt EventName) int {
 		return 0
 	}
 
-	evtListeners := append([]*listener{}, e.evtListeners[evt]...)
+	evtlen := len(e.evtListeners[evt])
 	e.mu.RUnlock()
 
-	return len(evtListeners)
+	return evtlen
 }
 
 func (e *emmiter) Listeners(evt EventName) (listeners []Listener) {

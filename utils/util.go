@@ -18,12 +18,13 @@ func Contains(haystack string, needles []string) string {
 }
 
 func StripHostPort(h string) string {
-	if strings.IndexByte(h, ':') == -1 {
+	// If no port on host, return unchanged
+	if !strings.Contains(h, ":") {
 		return h
 	}
 	host, _, err := net.SplitHostPort(h)
 	if err != nil {
-		return h
+		return h // on error, return unchanged
 	}
 	return host
 }
@@ -36,7 +37,10 @@ func CleanPath(p string) string {
 		p = "/" + p
 	}
 	np := path.Clean(p)
+	// path.Clean removes trailing slash except for root;
+	// put the trailing slash back if necessary.
 	if pl := len(p); p[pl-1] == '/' && np != "/" {
+		// Fast path for common case of p being the string we want:
 		if pl == len(np)+1 && strings.HasPrefix(p, np) {
 			np = p
 		} else {

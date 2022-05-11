@@ -204,21 +204,17 @@ func (s *server) Attach(server *types.HttpServer, opts interface{}) {
 	// normalize path
 	path += "/"
 
-	server.RegisterOnShutdown(func() {
+	server.On("close", func(...interface{}) {
 		s.Close()
 	})
 	server.On("listening", func(...interface{}) {
 		s.Init()
 	})
-	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		ctx := types.NewHttpContext(w, r)
 		if !websocket.IsWebSocketUpgrade(r) {
-			if strings.HasPrefix(utils.CleanPath(r.URL.Path), path) {
-				utils.Log().Debug(`intercepting request for path "%s"`, path)
-				s.HandleRequest(ctx)
-			} else {
-				server.DefaultHandler.ServeHTTP(ctx.Response(), ctx.Request())
-			}
+			utils.Log().Debug(`intercepting request for path "%s"`, path)
+			s.HandleRequest(ctx)
 		} else if s.opts.Transports().Has("websocket") {
 			if strings.HasPrefix(utils.CleanPath(r.URL.Path), path) {
 				s.HandleUpgrade(ctx)
@@ -235,7 +231,7 @@ func (s *server) Attach(server *types.HttpServer, opts interface{}) {
 				<-ctx.Done()
 			}
 		} else {
-			server.DefaultHandler.ServeHTTP(ctx.Response(), ctx.Request())
+			server.NotFound.ServeHTTP(ctx.Response(), ctx.Request())
 		}
 	})
 }

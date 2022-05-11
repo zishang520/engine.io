@@ -7,26 +7,33 @@ import (
 
 type HttpServer struct {
 	events.EventEmitter
-	*http.Server
-	DefaultHandler http.Handler
+	*ServeMux
 }
 
 func CreateServer(defaultHandler http.Handler) *HttpServer {
 	if defaultHandler == nil {
 		defaultHandler = http.NotFoundHandler()
 	}
-	return &HttpServer{
-		EventEmitter:   events.New(),
-		Server:         &http.Server{},
-		DefaultHandler: defaultHandler,
+	s := &HttpServer{
+		EventEmitter: events.New(),
+		ServeMux:     NewServeMux(),
 	}
+	s.NotFound = defaultHandler
+	return s
+}
+
+func (s *HttpServer) server(addr string) *http.Server {
+	server := &http.Server{Addr: addr, Handler: s}
+	server.RegisterOnShutdown(func() {
+		s.Emit("close")
+	})
+	return server
 }
 
 func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
-	s.Addr = addr
 
 	go func() {
-		if err := s.ListenAndServe(); err != nil {
+		if err := s.server(addr).ListenAndServe(); err != nil {
 			panic(err)
 		}
 	}()
@@ -40,10 +47,9 @@ func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
 }
 
 func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn Callable) *HttpServer {
-	s.Addr = addr
 
 	go func() {
-		if err := s.ListenAndServeTLS(certFile, keyFile); err != nil {
+		if err := s.server(addr).ListenAndServeTLS(certFile, keyFile); err != nil {
 			panic(err)
 		}
 	}()

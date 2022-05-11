@@ -12,4 +12,5 @@ require (
 	github.com/gookit/color v1.5.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/imdario/mergo v0.3.12
+	github.com/julienschmidt/httprouter v1.3.0
 )

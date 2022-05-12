@@ -65,10 +65,7 @@ func (mux *ServeMux) match(path string) (h http.Handler, pattern string) {
 // If there is no registered handler that applies to the request,
 // Handler returns a ``page not found'' handler and an empty pattern.
 func (mux *ServeMux) Handler(r *http.Request) (h http.Handler, pattern string) {
-	path := strings.TrimRight(utils.CleanPath(r.URL.Path), "/")
-	if path == "" {
-		path = "/"
-	}
+	path := utils.CleanPath(strings.TrimRight(r.URL.Path, "/"))
 
 	// CONNECT requests are not canonicalized.
 	if r.Method == "CONNECT" {

@@ -12,7 +12,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 )
 
 // Initialize websocket server
@@ -189,20 +188,12 @@ func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 func (s *server) Attach(server *types.HttpServer, opts interface{}) {
 	options, _ := opts.(*config.AttachOptions)
 	path := "/engine.io"
-	destroyUpgradeTimeout := 1000 * time.Millisecond
 
 	if options != nil {
 		if options.Path != nil {
 			path = strings.TrimRight(options.Path(), "/")
 		}
-
-		if options.DestroyUpgradeTimeout != nil {
-			destroyUpgradeTimeout = options.DestroyUpgradeTimeout()
-		}
 	}
-
-	// normalize path
-	path += "/"
 
 	server.On("close", func(...interface{}) {
 		s.Close()
@@ -211,27 +202,13 @@ func (s *server) Attach(server *types.HttpServer, opts interface{}) {
 		s.Init()
 	})
 	server.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		ctx := types.NewHttpContext(w, r)
 		if !websocket.IsWebSocketUpgrade(r) {
 			utils.Log().Debug(`intercepting request for path "%s"`, path)
-			s.HandleRequest(ctx)
+			s.HandleRequest(types.NewHttpContext(w, r))
 		} else if s.opts.Transports().Has("websocket") {
-			if strings.HasPrefix(utils.CleanPath(r.URL.Path), path) {
-				s.HandleUpgrade(ctx)
-			} else if options.DestroyUpgrade() {
-				// default node behavior is to disconnect when no handlers
-				// but by adding a handler, we prevent that
-				// and if no eio thing handles the upgrade
-				// then the socket needs to die!
-				utils.SetTimeOut(func() {
-					if !ctx.IsDone() {
-						ctx.Write(nil)
-					}
-				}, destroyUpgradeTimeout)
-				<-ctx.Done()
-			}
+			s.HandleUpgrade(types.NewHttpContext(w, r))
 		} else {
-			server.NotFound.ServeHTTP(ctx.Response(), ctx.Request())
+			server.DefaultHandler.ServeHTTP(w, r)
 		}
 	})
 }

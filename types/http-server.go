@@ -11,14 +11,10 @@ type HttpServer struct {
 }
 
 func CreateServer(defaultHandler http.Handler) *HttpServer {
-	if defaultHandler == nil {
-		defaultHandler = http.NotFoundHandler()
-	}
 	s := &HttpServer{
 		EventEmitter: events.New(),
-		ServeMux:     NewServeMux(),
+		ServeMux:     NewServeMux(defaultHandler),
 	}
-	s.NotFound = defaultHandler
 	return s
 }
 

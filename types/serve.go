@@ -25,7 +25,7 @@ type muxEntry struct {
 // NewServeMux allocates and returns a new ServeMux.
 func NewServeMux(defaultHandler http.Handler) *ServeMux {
 	if defaultHandler == nil {
-		defaultHandler = http.NotFoundHandler()
+		defaultHandler = http.DefaultServeMux
 	}
 	return &ServeMux{DefaultHandler: defaultHandler}
 }

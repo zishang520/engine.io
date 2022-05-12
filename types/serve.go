@@ -132,9 +132,10 @@ func (mux *ServeMux) Handle(pattern string, handler http.Handler) {
 		mux.m = make(map[string]muxEntry)
 	}
 	e := muxEntry{h: handler, pattern: pattern}
-	mux.m[pattern] = e
 	if pattern[len(pattern)-1] == '/' {
 		mux.es = appendSorted(mux.es, e)
+	} else {
+		mux.m[pattern] = e
 	}
 
 	if pattern[0] != '/' {

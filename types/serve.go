@@ -68,7 +68,7 @@ func (mux *ServeMux) Handler(r *http.Request) (h http.Handler, pattern string) {
 	path := utils.CleanPath(strings.TrimRight(r.URL.Path, "/"))
 
 	// CONNECT requests are not canonicalized.
-	if r.Method == "CONNECT" {
+	if r.Method == http.MethodConnect {
 		return mux.handler(r.Host, path)
 	}
 

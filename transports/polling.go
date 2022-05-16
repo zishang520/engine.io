@@ -298,7 +298,9 @@ func (p *polling) compress(data types.BufferInterface, encoding string) (types.B
 	case "br":
 		br := brotli.NewWriterLevel(buf, 1)
 		defer br.Close()
-		io.Copy(br, data)
+		if _, err := io.Copy(br, data); err != nil {
+			return nil, err
+		}
 	}
 	return buf, nil
 }

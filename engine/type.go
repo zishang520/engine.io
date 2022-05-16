@@ -30,6 +30,7 @@ type Socket interface {
 	events.EventEmitter
 
 	Id() string
+	Protocol() int
 	Server() Server
 	Request() *types.HttpContext
 	RemoteAddress() string

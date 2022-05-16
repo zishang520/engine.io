@@ -280,17 +280,21 @@ func (p *polling) compress(data types.BufferInterface, encoding string) (types.B
 	case "gzip":
 		gz, err := gzip.NewWriterLevel(buf, 1)
 		if err != nil {
-			return buf, err
+			return nil, err
 		}
 		defer gz.Close()
-		io.Copy(gz, data)
+		if _, err := io.Copy(gz, data); err != nil {
+			return nil, err
+		}
 	case "deflate":
 		fl, err := flate.NewWriter(buf, 1)
 		if err != nil {
-			return buf, err
+			return nil, err
 		}
 		defer fl.Close()
-		io.Copy(fl, data)
+		if _, err := io.Copy(fl, data); err != nil {
+			return nil, err
+		}
 	case "br":
 		br := brotli.NewWriterLevel(buf, 1)
 		defer br.Close()

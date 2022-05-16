@@ -42,6 +42,10 @@ type socket struct {
 	mucleanupFn      sync.RWMutex
 }
 
+func (s *socket) Protocol() int {
+	return s.protocol
+}
+
 func (s *socket) Upgraded() bool {
 	return s.upgraded
 }

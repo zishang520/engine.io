@@ -10,7 +10,7 @@ const Protocol = 4
 func New(server interface{}, args ...interface{}) Server {
 	switch s := server.(type) {
 	case *types.HttpServer:
-		return Attach(s, args[0])
+		return Attach(s, append(args, nil)[0])
 	case interface{}:
 		return NewServer(s)
 	}

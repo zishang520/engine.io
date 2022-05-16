@@ -39,7 +39,11 @@ func (w *websocket) New(ctx *types.HttpContext) *websocket {
 		for {
 			mt, message, err := w.socket.NextReader()
 			if err != nil {
-				w.OnError(err.Error())
+				if ws.IsUnexpectedCloseError(err) {
+					w.OnClose()
+				} else {
+					w.OnError(err.Error())
+				}
 				break
 			}
 
@@ -72,6 +76,9 @@ func (w *websocket) New(ctx *types.HttpContext) *websocket {
 			}
 		}
 	}()
+	w.socket.On("error", func(errors ...interface{}) {
+		w.OnError(errors[0].(error).Error())
+	})
 	w.socket.On("close", func(...interface{}) {
 		w.OnClose()
 	})

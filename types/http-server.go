@@ -1,9 +1,11 @@
 package types
 
 import (
+	"context"
 	"github.com/zishang520/engine.io/events"
 	"net/http"
 	"sync"
+	"time"
 )
 
 type HttpServer struct {
@@ -45,15 +47,17 @@ func (s *HttpServer) Close(fn Callable) error {
 	defer s.mu.RUnlock()
 
 	if s.servers != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		for _, server := range s.servers {
-			if err := server.Close(); err != nil {
+			if err := server.Shutdown(ctx); err != nil {
 				return err
 			}
 		}
 		if fn != nil {
 			defer fn()
 		}
-		s.Emit("close")
 	}
 	return nil
 }

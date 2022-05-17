@@ -159,7 +159,7 @@ func main() {
 
     engineServer := engine.New(serverOptions)
 
-    httpServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    httpServer.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         ctx := types.NewHttpContext(w, r)
         if !websocket.IsWebSocketUpgrade(r) {
             engineServer.HandleRequest(ctx)
@@ -192,6 +192,7 @@ func main() {
     }()
 
     <-exit
+    httpServer.Close(nil)
     os.Exit(0)
 }
 ```

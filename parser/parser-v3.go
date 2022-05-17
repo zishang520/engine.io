@@ -38,9 +38,11 @@ func (p *parserv3) EncodePacket(data *packet.Packet, supportsBinary bool, utf8en
 	switch v := data.Data.(type) {
 	case *types.StringBuffer, *strings.Reader:
 		encode := types.NewStringBuffer(nil)
+		// Sending data as a utf-8 string
 		if err := encode.WriteByte(PACKET_TYPES[data.Type]); err != nil {
 			return nil, err
 		}
+		// data fragment is optional
 		if utf8encode[0] {
 			if _, err := io.Copy(utils.NewUtf8Encoder(encode), v); err != nil {
 				return nil, err
@@ -52,7 +54,9 @@ func (p *parserv3) EncodePacket(data *packet.Packet, supportsBinary bool, utf8en
 		}
 		return encode, nil
 	case io.Reader:
+		// Encode Buffer data
 		if !supportsBinary {
+			// Encodes a packet with binary data in a base64 string
 			encode := types.NewStringBuffer(nil)
 			if _, err := encode.Write([]byte{'b', PACKET_TYPES[data.Type]}); err != nil {
 				return nil, err
@@ -97,6 +101,7 @@ func (p *parserv3) DecodePacket(data types.BufferInterface, utf8decode ...bool) 
 	switch v := data.(type) {
 	case *types.StringBuffer:
 		if msgType == 'b' {
+			// Decodes a packet encoded in a base64 string.
 			msgType, err = data.ReadByte()
 			if err != nil {
 				return ERROR_PACKET, err
@@ -157,11 +162,21 @@ func (p *parserv3) hasBinary(packets []*packet.Packet) bool {
 	return false
 }
 
+// Encodes multiple messages (payload).
+//
+//     <length>:data
+//
+// Example:
+//
+//     11:hello world2:hi
+//
+// If any contents are binary, they will be encoded as base64 strings. Base64
+// encoded strings are marked with a b before the length specifier
 func (p *parserv3) EncodePayload(packets []*packet.Packet, supportsBinary ...bool) (types.BufferInterface, error) {
 	supportsBinary = append(supportsBinary, false)
 
 	if supportsBinary[0] && p.hasBinary(packets) {
-		return p.EncodePayloadAsBinary(packets)
+		return p.encodePayloadAsBinary(packets)
 	}
 
 	enPayload := types.NewStringBuffer(nil)
@@ -234,7 +249,14 @@ func (p *parserv3) encodeOneBinaryPacket(packet *packet.Packet) (types.BufferInt
 	return binarypacket, nil
 }
 
-func (p *parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (types.BufferInterface, error) {
+// Encodes multiple messages (payload) as binary.
+//
+// <1 = binary, 0 = string><number from 0-9><number from 0-9>[...]<number
+// 255><data>
+//
+// Example:
+// 1 3 255 1 2 3, if the binary contents are interpreted as 8 bit integers
+func (p *parserv3) encodePayloadAsBinary(packets []*packet.Packet) (types.BufferInterface, error) {
 	enPayload := types.NewBytesBuffer(nil)
 
 	if len(packets) == 0 {
@@ -254,6 +276,8 @@ func (p *parserv3) EncodePayloadAsBinary(packets []*packet.Packet) (types.Buffer
 	return enPayload, nil
 }
 
+// Decodes data when a payload is maybe expected. Possible binary contents are
+// decoded from their base64 representation
 func (p *parserv3) DecodePayload(data types.BufferInterface) (packets []*packet.Packet) {
 	switch v := data.(type) {
 	case *types.StringBuffer:
@@ -296,10 +320,13 @@ func (p *parserv3) DecodePayload(data types.BufferInterface) (packets []*packet.
 		}
 		return packets
 	}
-	return p.DecodePayloadAsBinary(data)
+	return p.decodePayloadAsBinary(data)
 }
 
-func (p *parserv3) DecodePayloadAsBinary(bufferTail types.BufferInterface) (packets []*packet.Packet) {
+// Decodes data when a payload is maybe expected. Strings are decoded by
+// interpreting each byte as a key code for entries marked to start with 0. See
+// description of encodePayloadAsBinary
+func (p *parserv3) decodePayloadAsBinary(bufferTail types.BufferInterface) (packets []*packet.Packet) {
 	PACKETLEN := 0
 	for bufferTail.Len() > 0 {
 		startByte, err := bufferTail.ReadByte()

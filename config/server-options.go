@@ -11,19 +11,51 @@ import (
 type AllowRequest func(*types.HttpContext) (int, map[string]interface{})
 
 type ServerOptions struct {
-	InternalPingTimeout       *time.Duration           `json:"pingTimeout,omitempty"`
-	InternalPingInterval      *time.Duration           `json:"pingInterval,omitempty"`
-	InternalUpgradeTimeout    *time.Duration           `json:"upgradeTimeout,omitempty"`
-	InternalMaxHttpBufferSize *int64                   `json:"maxHttpBufferSize,omitempty"`
-	InternalAllowRequest      *AllowRequest            `json:"allowRequest,omitempty"`
-	InternalTransports        *types.Set               `json:"transports,omitempty"`
-	InternalAllowUpgrades     *bool                    `json:"allowUpgrades,omitempty"`
+	// how many ms without a pong packet to consider the connection closed
+	InternalPingTimeout *time.Duration `json:"pingTimeout,omitempty"`
+
+	// how many ms before sending a new ping packet
+	InternalPingInterval *time.Duration `json:"pingInterval,omitempty"`
+
+	// how many ms before an uncompleted transport upgrade is cancelled
+	InternalUpgradeTimeout *time.Duration `json:"upgradeTimeout,omitempty"`
+
+	// how many bytes or characters a message can be, before closing the session (to avoid DoS).
+	InternalMaxHttpBufferSize *int64 `json:"maxHttpBufferSize,omitempty"`
+
+	// A function that receives a given handshake or upgrade request as its first parameter,
+	// and can decide whether to continue or not. The second argument is a function that needs
+	// to be called with the decided information: fn(err, success), where success is a boolean
+	// value where false means that the request is rejected, and err is an error code.
+	InternalAllowRequest *AllowRequest `json:"allowRequest,omitempty"`
+
+	// the low-level transports that are enabled
+	InternalTransports *types.Set `json:"transports,omitempty"`
+
+	// whether to allow transport upgrades
+	InternalAllowUpgrades *bool `json:"allowUpgrades,omitempty"`
+
+	// parameters of the WebSocket permessage-deflate extension (see ws module api docs). Set to false to disable.
 	InternalPerMessageDeflate *types.PerMessageDeflate `json:"perMessageDeflate,omitempty"`
-	InternalHttpCompression   *types.HttpCompression   `json:"httpCompression,omitempty"`
-	InternalInitialPacket     io.Reader                `json:"initialPacket,omitempty"`
-	InternalCookie            *http.Cookie             `json:"cookie,omitempty"`
-	InternalCors              *types.Cors              `json:"cors,omitempty"`
-	InternalAllowEIO3         *bool                    `json:"allowEIO3,omitempty"`
+
+	// parameters of the http compression for the polling transports (see zlib api docs). Set to false to disable.
+	InternalHttpCompression *types.HttpCompression `json:"httpCompression,omitempty"`
+
+	// wsEngine is not supported
+	// wsEngine
+
+	// an optional packet which will be concatenated to the handshake packet emitted by Engine.IO.
+	InternalInitialPacket io.Reader `json:"initialPacket,omitempty"`
+
+	// configuration of the cookie that contains the client sid to send as part of handshake response headers. This cookie
+	// might be used for sticky-session. Defaults to not sending any cookie.
+	InternalCookie *http.Cookie `json:"cookie,omitempty"`
+
+	// the options that will be forwarded to the cors module
+	InternalCors *types.Cors `json:"cors,omitempty"`
+
+	// whether to enable compatibility with Socket.IO v2 clients
+	InternalAllowEIO3 *bool `json:"allowEIO3,omitempty"`
 }
 
 func DefaultServerOptions() *ServerOptions {

@@ -83,6 +83,7 @@ func (s *socket) SetReadyState(state string) {
 	s.readyState = state
 }
 
+// Client class.
 func NewSocket(id string, server Server, transport transports.Transport, ctx *types.HttpContext, protocol int) Socket {
 	s := &socket{
 		EventEmitter: events.New(),
@@ -90,6 +91,7 @@ func NewSocket(id string, server Server, transport transports.Transport, ctx *ty
 	return s.New(id, server, transport, ctx, protocol)
 }
 
+// Client class.
 func (s *socket) New(id string, server Server, transport transports.Transport, ctx *types.HttpContext, protocol int) Socket {
 	s.id = id
 
@@ -122,6 +124,8 @@ func (s *socket) New(id string, server Server, transport transports.Transport, c
 
 	return s
 }
+
+// Called upon transport considered open.
 func (s *socket) onOpen() {
 	s.SetReadyState("open")
 
@@ -207,11 +211,14 @@ func (s *socket) onPacket(data *packet.Packet) {
 	}
 }
 
+// Called upon transport error.
 func (s *socket) onError(err interface{}) {
 	utils.Log().Debug("transport error %v", err)
 	s.OnClose("transport error", err)
 }
 
+// Pings client every `this.pingInterval` and expects response
+// within `this.pingTimeout` or closes connection.
 func (s *socket) schedulePing() {
 	s.pingIntervalTimer = utils.SetTimeOut(func() {
 		utils.Log().Debug("writing ping packet - expecting pong within %dms", int64(s.server.Opts().PingTimeout()/time.Millisecond))
@@ -220,6 +227,7 @@ func (s *socket) schedulePing() {
 	}, s.server.Opts().PingInterval())
 }
 
+// Resets ping timeout.
 func (s *socket) resetPingTimeout(timeout time.Duration) {
 	utils.ClearTimeout(s.pingTimeoutTimer)
 	s.pingTimeoutTimer = utils.SetTimeOut(func() {
@@ -230,6 +238,7 @@ func (s *socket) resetPingTimeout(timeout time.Duration) {
 	}, timeout)
 }
 
+// Attaches handlers for the given transport.
 func (s *socket) setTransport(transport transports.Transport) {
 	onError := func(err ...interface{}) {
 		err = append(err, nil)
@@ -261,6 +270,7 @@ func (s *socket) setTransport(transport transports.Transport) {
 	s.mucleanupFn.Unlock()
 }
 
+// Upgrades socket to the given transport
 func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	utils.Log().Debug(`might upgrade socket transport from "%s" to "%s"`, s.transport.Name(), transport.Name())
 
@@ -353,6 +363,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	s.Once("close", onClose)
 }
 
+// Clears listeners and timers associated with current transport.
 func (s *socket) clearTransport() {
 
 	s.mucleanupFn.RLock()
@@ -372,6 +383,9 @@ func (s *socket) clearTransport() {
 	utils.ClearTimeout(s.pingTimeoutTimer)
 }
 
+// Called upon transport considered closed.
+// Possible reasons: `ping timeout`, `client error`, `parse error`,
+// `transport error`, `server close`, `transport close`
 func (s *socket) OnClose(reason string, description ...interface{}) {
 	description = append(description, nil)
 	if "closed" != s.ReadyState() {
@@ -405,6 +419,7 @@ func (s *socket) OnClose(reason string, description ...interface{}) {
 	}
 }
 
+// Setup and manage send callback
 func (s *socket) setupSendCallback() {
 	// the message was sent successfully, execute the callback
 	onDrain := func(...interface{}) {
@@ -437,15 +452,18 @@ func (s *socket) setupSendCallback() {
 	s.mucleanupFn.Unlock()
 }
 
+// Sends a message packet.
 func (s *socket) Send(data io.Reader, options *packet.Options, callback func(transports.Transport)) Socket {
 	s.sendPacket(packet.MESSAGE, data, options, callback)
 	return s
 }
 
 func (s *socket) Write(data io.Reader, options *packet.Options, callback func(transports.Transport)) Socket {
-	return s.Send(data, options, callback)
+	s.sendPacket(packet.MESSAGE, data, options, callback)
+	return s
 }
 
+// Sends a packet.
 func (s *socket) sendPacket(packetType packet.Type, data io.Reader, options *packet.Options, callback func(transports.Transport)) {
 
 	if "closing" != s.ReadyState() && "closed" != s.ReadyState() {
@@ -475,6 +493,7 @@ func (s *socket) sendPacket(packetType packet.Type, data io.Reader, options *pac
 	}
 }
 
+// Attempts to flush the packets buffer.
 func (s *socket) flush() {
 	s.muwriteBuffer.RLock()
 	wbuf := append([]*packet.Packet{}, s.writeBuffer...)
@@ -515,6 +534,7 @@ func (s *socket) flush() {
 	}
 }
 
+// Get available upgrades for this socket.
 func (s *socket) getAvailableUpgrades() (availableUpgrades []string) {
 	for _, upg := range s.server.Upgrades(s.transport.Name()).Keys() {
 		if s.server.Opts().Transports().Has(upg) {
@@ -546,6 +566,7 @@ func (s *socket) Close(discard bool) {
 	s.closeTransport(discard)
 }
 
+// Closes the underlying transport.
 func (s *socket) closeTransport(discard bool) {
 	if discard {
 		s.transport.Discard()

@@ -45,6 +45,7 @@ type server struct {
 	MU sync.RWMutex
 }
 
+// Server New.
 func NewServer(opt interface{}) *server {
 	s := &server{
 		EventEmitter: events.New(),
@@ -53,6 +54,7 @@ func NewServer(opt interface{}) *server {
 	return s.New(opt)
 }
 
+// Server New.
 func (s *server) New(opt interface{}) *server {
 	opts, _ := opt.(*config.ServerOptions)
 
@@ -112,6 +114,7 @@ func (s *server) ClientsCount() uint64 {
 	return atomic.LoadUint64(&s.clientsCount)
 }
 
+// Returns a list of available transports for upgrade given a certain transport.
 func (s *server) Upgrades(transport string) *types.Set {
 	if !s.opts.AllowUpgrades() {
 		return types.NewSet()
@@ -119,6 +122,7 @@ func (s *server) Upgrades(transport string) *types.Set {
 	return transports.Transports()[transport].UpgradesTo
 }
 
+// Verifies a request.
 func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]interface{}) {
 	// transport check
 	transport := ctx.Query().Peek("transport")
@@ -168,6 +172,7 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]i
 	return OK_REQUEST, nil
 }
 
+// Closes all clients.
 func (s *server) Close() Server {
 	utils.Log().Debug("closing all open clients")
 	s.clients.Range(func(_, client interface{}) bool {
@@ -178,10 +183,13 @@ func (s *server) Close() Server {
 	return s
 }
 
+// generate a socket id.
+// Overwrite this method to generate your custom socket id
 func (s *server) GenerateId(*types.HttpContext) (string, error) {
 	return utils.Base64Id().GenerateId()
 }
 
+// Handshakes a new client.
 func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, map[string]interface{}, transports.Transport) {
 	protocol := 3 // 3rd revision by default
 	if ctx.Query().Peek("EIO") == "4" {

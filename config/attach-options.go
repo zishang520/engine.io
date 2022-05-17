@@ -5,8 +5,13 @@ import (
 )
 
 type AttachOptions struct {
-	InternalPath                  *string        `json:"path,omitempty"`
-	InternalDestroyUpgrade        *bool          `json:"destroyUpgrade,omitempty"`
+	// name of the path to capture
+	InternalPath *string `json:"path,omitempty"`
+
+	// destroy unhandled upgrade requests
+	InternalDestroyUpgrade *bool `json:"destroyUpgrade,omitempty"`
+
+	//  milliseconds after which unhandled requests are ended
 	InternalDestroyUpgradeTimeout *time.Duration `json:"destroyUpgradeTimeout,omitempty"`
 }
 

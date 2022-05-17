@@ -34,6 +34,7 @@ func (s *server) CreateTransport(transportName string, ctx *types.HttpContext) (
 	return nil, errors.New("unsupported transportName").Err()
 }
 
+// Handles an Engine.IO HTTP request.
 func (s *server) HandleRequest(ctx *types.HttpContext) {
 	utils.Log().Debug(`handling "%s" http request "%s"`, ctx.Method(), ctx.Request().RequestURI)
 
@@ -76,6 +77,7 @@ func (s *server) HandleRequest(ctx *types.HttpContext) {
 	<-ctx.Done()
 }
 
+// Handles an Engine.IO HTTP Upgrade.
 func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 	errorCode, errorContext := s.Verify(ctx, true)
 	if errorContext != nil {
@@ -122,9 +124,9 @@ func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 	} else {
 		utils.Log().Debug("websocket error before upgrade: %s", err)
 	}
-
 }
 
+// Called upon a ws.io connection.
 func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 	onUpgradeError := func(...interface{}) {
 		utils.Log().Debug("websocket error before upgrade")
@@ -185,6 +187,7 @@ func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 	}
 }
 
+// Captures upgrade requests for a types.HttpServer.
 func (s *server) Attach(server *types.HttpServer, opts interface{}) {
 	options, _ := opts.(*config.AttachOptions)
 	path := "/engine.io"
@@ -213,6 +216,7 @@ func (s *server) Attach(server *types.HttpServer, opts interface{}) {
 	})
 }
 
+// Close the HTTP long-polling request
 func abortRequest(ctx *types.HttpContext, errorCode int, errorContext map[string]interface{}) {
 	utils.Log().Debug("abortRequest %d", errorCode)
 	statusCode := http.StatusBadRequest
@@ -232,6 +236,7 @@ func abortRequest(ctx *types.HttpContext, errorCode int, errorContext map[string
 	}
 }
 
+// Close the WebSocket connection
 func abortUpgrade(ctx *types.HttpContext, errorCode int, errorContext map[string]interface{}) {
 	utils.Log().Debug("abortUpgrade %d", errorCode)
 	message := errorMessages[errorCode]

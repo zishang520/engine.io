@@ -14,6 +14,7 @@ type websocket struct {
 	socket *types.WebSocketConn
 }
 
+// WebSocket transport
 func NewWebSocket(ctx *types.HttpContext) *websocket {
 	w := &websocket{}
 	return w.New(ctx)
@@ -22,8 +23,13 @@ func NewWebSocket(ctx *types.HttpContext) *websocket {
 func (w *websocket) New(ctx *types.HttpContext) *websocket {
 	w.transport = &transport{}
 
+	// Advertise framing support.
 	w.supportsFraming = true
+
+	// Advertise upgrade support.
 	w.handlesUpgrades = true
+
+	// Transport name
 	w.name = "websocket"
 
 	w.transport.New(ctx)
@@ -90,6 +96,7 @@ func (w *websocket) WebSocketOnData(data types.BufferInterface) {
 	w.TransportOnData(data)
 }
 
+// Writes a packet payload.
 func (w *websocket) WebSocketSend(packets []*packet.Packet) {
 	onEnd := func(err error) {
 		if err != nil {
@@ -142,6 +149,7 @@ func (w *websocket) WebSocketSend(packets []*packet.Packet) {
 	}
 }
 
+// Closes the transport.
 func (w *websocket) WebSocketDoClose(fn ...types.Callable) {
 	utils.Log().Debug(`closing`)
 	w.socket.Close()

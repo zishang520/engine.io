@@ -54,6 +54,7 @@ func (p *parserv4) EncodePacket(data *packet.Packet, supportsBinary bool, _ ...b
 		return encode, nil
 	case io.Reader:
 		if !supportsBinary {
+			// only 'message' packets can contain binary, so the type prefix is not needed
 			encode := types.NewStringBuffer(nil)
 			if err := encode.WriteByte('b'); err != nil {
 				return nil, err
@@ -65,6 +66,7 @@ func (p *parserv4) EncodePacket(data *packet.Packet, supportsBinary bool, _ ...b
 			}
 			return encode, nil
 		}
+		// plain string
 		encode := types.NewBytesBuffer(nil)
 		if _, err := io.Copy(encode, v); err != nil {
 			return nil, err

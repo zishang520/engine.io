@@ -12,6 +12,7 @@ type transports struct {
 
 var _transports map[string]*transports = map[string]*transports{
 	"polling": &transports{
+		// Polling polymorphic New.
 		New: func(ctx *types.HttpContext) Transport {
 			if ctx.Query().Has("j") {
 				return NewJSONP(ctx)

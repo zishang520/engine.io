@@ -6,6 +6,7 @@ import (
 
 type Type string
 
+// Packet types.
 const (
 	OPEN    Type = "open"
 	CLOSE   Type = "close"

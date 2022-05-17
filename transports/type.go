@@ -16,6 +16,7 @@ type Transport interface {
 	SetGttpCompression(*types.HttpCompression)
 	SetPerMessageDeflate(*types.PerMessageDeflate)
 	SetReadyState(string)
+
 	Parser() parser.Parser
 	Sid() string
 	Protocol() int
@@ -27,13 +28,31 @@ type Transport interface {
 	PerMessageDeflate() *types.PerMessageDeflate
 	ReadyState() string
 	Writable() bool
+
+	// Flags the transport as discarded.
 	Discard()
+
+	// Called with an incoming HTTP request.
 	OnRequest(*types.HttpContext)
+
+	// Closes the transport.
 	DoClose(types.Callable)
+
+	// Called with a transport error.
 	OnError(string, ...string)
+
+	// Called with parsed out a packets from the data stream.
 	OnPacket(*packet.Packet)
+
+	// Called with the encoded packet data.
 	OnData(types.BufferInterface)
+
+	// Called upon transport close.
 	OnClose()
+
+	// Writes a packet payload.
 	Send([]*packet.Packet)
+
+	// Closes the transport.
 	Close(...types.Callable)
 }

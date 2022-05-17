@@ -21,6 +21,7 @@ type jsonp struct {
 	foot string
 }
 
+// JSON-P polling transport.
 func NewJSONP(ctx *types.HttpContext) *jsonp {
 	j := &jsonp{}
 	return j.New(ctx)
@@ -57,6 +58,7 @@ func (j *jsonp) JSONPOnData(data types.BufferInterface) {
 	}
 }
 
+// Performs the write.
 func (j *jsonp) JSONPDoWrite(data types.BufferInterface, options *packet.Options, callback types.Callable) {
 	// prepare response
 	res := types.NewStringBufferString(j.head)

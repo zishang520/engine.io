@@ -35,6 +35,7 @@ var (
 		'6': packet.NOOP,
 	}
 
+	// Premade error packet.
 	ERROR_PACKET = &packet.Packet{Type: packet.ERROR, Data: types.NewStringBufferString(`parser error`)}
 )
 

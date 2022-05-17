@@ -22,6 +22,7 @@ type polling struct {
 	shouldClose types.Callable
 }
 
+// HTTP polling New.
 func NewPolling(ctx *types.HttpContext) *polling {
 	p := &polling{}
 	return p.New(ctx)
@@ -32,6 +33,8 @@ func (p *polling) New(ctx *types.HttpContext) *polling {
 	p.transport = &transport{}
 
 	p.supportsFraming = false
+
+	// Transport name
 	p.name = "polling"
 
 	p.transport.New(ctx)
@@ -47,6 +50,7 @@ func (p *polling) New(ctx *types.HttpContext) *polling {
 	return p
 }
 
+// Overrides onRequest.
 func (p *polling) OnRequest(ctx *types.HttpContext) {
 	method := ctx.Method()
 
@@ -60,6 +64,7 @@ func (p *polling) OnRequest(ctx *types.HttpContext) {
 	}
 }
 
+// The client sends a request awaiting for us to send data.
 func (p *polling) onPollRequest(ctx *types.HttpContext) {
 	if p.req != nil {
 		utils.Log().Debug("request overlap")
@@ -101,6 +106,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 	}
 }
 
+// The client sends a request with data.
 func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	if p.dataCtx != nil {
 		// assert: p.dataRes, '.dataReq and .dataRes should be (un)set together'
@@ -166,6 +172,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	cleanup()
 }
 
+// Processes the incoming data payload.
 func (p *polling) PollingOnData(data types.BufferInterface) {
 	utils.Log().Debug(`received "%s"`, data)
 
@@ -180,6 +187,7 @@ func (p *polling) PollingOnData(data types.BufferInterface) {
 	}
 }
 
+// Overrides onClose.
 func (p *polling) PollingOnClose() {
 	if p.writable {
 		// close pending poll request
@@ -192,6 +200,7 @@ func (p *polling) PollingOnClose() {
 	p.TransportOnClose()
 }
 
+// Writes a packet payload.
 func (p *polling) PollingSend(packets []*packet.Packet) {
 	p.writable = false
 
@@ -224,11 +233,13 @@ func (p *polling) PollingSend(packets []*packet.Packet) {
 	}
 }
 
+// Writes data as response to poll request.
 func (p *polling) Write(data types.BufferInterface, options *packet.Options) {
 	utils.Log().Debug(`writing "%s"`, data)
 	p.DoWrite(data, options, func() { p.req.Cleanup() })
 }
 
+// Performs the write.
 func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Options, callback types.Callable) {
 	contentType := "application/octet-stream"
 	// explicit UTF-8 is required for pages not served under utf
@@ -273,6 +284,7 @@ func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Opt
 	}
 }
 
+// Compresses data.
 func (p *polling) compress(data types.BufferInterface, encoding string) (types.BufferInterface, error) {
 	utils.Log().Debug("compressing")
 	buf := types.NewBytesBuffer(nil)
@@ -305,6 +317,7 @@ func (p *polling) compress(data types.BufferInterface, encoding string) (types.B
 	return buf, nil
 }
 
+// Closes the transport.
 func (p *polling) PollingDoClose(fn ...types.Callable) {
 	utils.Log().Debug("closing")
 
@@ -345,6 +358,7 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 	}
 }
 
+// Returns headers for a response.
 func (p *polling) Headers(ctx *types.HttpContext, headers ...map[string]string) map[string]string {
 	headers = append(headers, map[string]string{})
 

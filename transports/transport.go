@@ -46,6 +46,7 @@ func NewTransport(ctx *types.HttpContext) *transport {
 	return t.New(ctx)
 }
 
+// Transport New.
 func (t *transport) New(ctx *types.HttpContext) *transport {
 	t.EventEmitter = events.New()
 	t.onData = t.TransportOnData
@@ -157,15 +158,18 @@ func (t *transport) SupportsFraming() bool {
 	return t.supportsFraming
 }
 
+// Flags the transport as discarded.
 func (t *transport) Discard() {
 	t.discarded = true
 }
 
+// Called with an incoming HTTP request.
 func (t *transport) OnRequest(req *types.HttpContext) {
 	utils.Log().Debug("setting request")
 	t.req = req
 }
 
+// Closes the transport.
 func (t *transport) Close(fn ...types.Callable) {
 	fn = append(fn, types.Noop)
 	if "closed" == t.ReadyState() || "closing" == t.ReadyState() {
@@ -175,6 +179,7 @@ func (t *transport) Close(fn ...types.Callable) {
 	t.DoClose(fn[0])
 }
 
+// Called with a transport error.
 func (t *transport) OnError(msg string, desc ...string) {
 	desc = append(desc, "")
 	if t.ListenerCount("error") > 0 {
@@ -187,15 +192,18 @@ func (t *transport) OnError(msg string, desc ...string) {
 	}
 }
 
+// Called with parsed out a packets from the data stream.
 func (t *transport) OnPacket(packet *packet.Packet) {
 	t.Emit("packet", packet)
 }
 
+// Called with the encoded packet data.
 func (t *transport) TransportOnData(data types.BufferInterface) {
 	p, _ := t.parser.DecodePacket(data)
 	t.OnPacket(p)
 }
 
+// Called upon transport close.
 func (t *transport) TransportOnClose() {
 	t.SetReadyState("closed")
 	t.Emit("close")

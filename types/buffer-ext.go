@@ -66,6 +66,12 @@ type BytesBuffer struct {
 	*Buffer
 }
 
+func NewBytesBufferReader(r io.Reader) (BufferInterface, error) {
+	b := NewBytesBuffer(nil)
+	_, err := b.ReadFrom(r)
+	return b, err
+}
+
 func NewBytesBuffer(buf []byte) BufferInterface {
 	return &BytesBuffer{NewBuffer(buf)}
 }
@@ -77,6 +83,12 @@ func NewBytesBufferString(s string) BufferInterface {
 // string buffer
 type StringBuffer struct {
 	*Buffer
+}
+
+func NewStringBufferReader(r io.Reader) (BufferInterface, error) {
+	b := NewStringBuffer(nil)
+	_, err := b.ReadFrom(r)
+	return b, err
 }
 
 func NewStringBuffer(buf []byte) BufferInterface {

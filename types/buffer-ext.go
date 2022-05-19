@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -83,6 +84,15 @@ func NewBytesBufferString(s string) BufferInterface {
 // string buffer
 type StringBuffer struct {
 	*Buffer
+}
+
+// MarshalJSON returns sb as the JSON encoding of m.
+func (sb *StringBuffer) MarshalJSON() ([]byte, error) {
+	if sb == nil || sb.Buffer == nil {
+		return []byte(`""`), nil
+	}
+
+	return json.Marshal(sb.String())
 }
 
 func NewStringBufferReader(r io.Reader) (BufferInterface, error) {

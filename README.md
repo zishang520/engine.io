@@ -160,11 +160,12 @@ func main() {
     engineServer := engine.New(serverOptions)
 
     httpServer.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        ctx := types.NewHttpContext(w, r)
         if !websocket.IsWebSocketUpgrade(r) {
-            engineServer.HandleRequest(ctx)
+            engineServer.HandleRequest(types.NewHttpContext(w, r))
+        } else if engineServer.Opts().Transports().Has("websocket") {
+            engineServer.HandleUpgrade(types.NewHttpContext(w, r))
         } else {
-            engineServer.HandleUpgrade(ctx)
+            httpServer.DefaultHandler.ServeHTTP(w, r)
         }
     })
 

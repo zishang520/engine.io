@@ -78,7 +78,6 @@ func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
 	return s
 }
 
-// Listen 与 ListenTLS
 func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn Callable) *HttpServer {
 
 	go func() {

@@ -21,7 +21,7 @@ type Server interface {
 	ClientsCount() uint64
 
 	// Returns a list of available transports for upgrade given a certain transport.
-	Upgrades(string) *types.Set
+	Upgrades(string) *types.Set[string]
 
 	// Closes all clients.
 	Close() Server

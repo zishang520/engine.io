@@ -187,10 +187,10 @@ func (c *cors) configureMaxAge() *cors {
 	return c
 }
 
-func parseVary(vary string) *Set {
+func parseVary(vary string) *Set[string] {
 	end := 0
 	start := 0
-	list := NewSet()
+	list := NewSet[string]()
 
 	// gather tokens
 	for i, l := 0, len(vary); i < l; i++ {

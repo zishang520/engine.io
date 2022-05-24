@@ -7,7 +7,7 @@ import (
 type transports struct {
 	New             func(*types.HttpContext) Transport
 	HandlesUpgrades bool
-	UpgradesTo      *types.Set
+	UpgradesTo      *types.Set[string]
 }
 
 var _transports map[string]*transports = map[string]*transports{
@@ -28,7 +28,7 @@ var _transports map[string]*transports = map[string]*transports{
 			return NewWebSocket(ctx)
 		},
 		HandlesUpgrades: true,
-		UpgradesTo:      types.NewSet(),
+		UpgradesTo:      types.NewSet[string](),
 	},
 }
 

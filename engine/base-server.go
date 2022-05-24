@@ -115,9 +115,9 @@ func (s *server) ClientsCount() uint64 {
 }
 
 // Returns a list of available transports for upgrade given a certain transport.
-func (s *server) Upgrades(transport string) *types.Set {
+func (s *server) Upgrades(transport string) *types.Set[string] {
 	if !s.opts.AllowUpgrades() {
-		return types.NewSet()
+		return types.NewSet[string]()
 	}
 	return transports.Transports()[transport].UpgradesTo
 }

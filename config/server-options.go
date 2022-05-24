@@ -30,7 +30,7 @@ type ServerOptions struct {
 	InternalAllowRequest *AllowRequest `json:"allowRequest,omitempty"`
 
 	// the low-level transports that are enabled
-	InternalTransports *types.Set `json:"transports,omitempty"`
+	InternalTransports *types.Set[string] `json:"transports,omitempty"`
 
 	// whether to allow transport upgrades
 	InternalAllowUpgrades *bool `json:"allowUpgrades,omitempty"`
@@ -150,10 +150,10 @@ func (s *ServerOptions) AllowRequest() (allowRequest AllowRequest) {
 
 // the low-level transports that are enabled
 // @default ["polling", "websocket"]
-func (s *ServerOptions) SetTransports(transports *types.Set) {
+func (s *ServerOptions) SetTransports(transports *types.Set[string]) {
 	s.InternalTransports = transports
 }
-func (s *ServerOptions) Transports() *types.Set {
+func (s *ServerOptions) Transports() *types.Set[string] {
 	if s.InternalTransports == nil {
 		return types.NewSet("polling", "websocket")
 	}

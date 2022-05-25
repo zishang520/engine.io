@@ -10,6 +10,35 @@ import (
 
 type AllowRequest func(*types.HttpContext) (int, map[string]interface{})
 
+type ServerOptionsInterface interface {
+	SetPingTimeout(time.Duration)
+	PingTimeout() time.Duration
+	SetPingInterval(time.Duration)
+	PingInterval() time.Duration
+	SetUpgradeTimeout(time.Duration)
+	UpgradeTimeout() time.Duration
+	SetMaxHttpBufferSize(int64)
+	MaxHttpBufferSize() int64
+	SetAllowRequest(AllowRequest)
+	AllowRequest() AllowRequest
+	SetTransports(*types.Set[string])
+	Transports() *types.Set[string]
+	SetAllowUpgrades(bool)
+	AllowUpgrades() bool
+	SetPerMessageDeflate(*types.PerMessageDeflate)
+	PerMessageDeflate() *types.PerMessageDeflate
+	SetHttpCompression(*types.HttpCompression)
+	HttpCompression() *types.HttpCompression
+	SetInitialPacket(io.Reader)
+	InitialPacket() io.Reader
+	SetCookie(*http.Cookie)
+	Cookie() *http.Cookie
+	SetCors(*types.Cors)
+	Cors() *types.Cors
+	SetAllowEIO3(bool)
+	AllowEIO3() bool
+}
+
 type ServerOptions struct {
 	// how many ms without a pong packet to consider the connection closed
 	InternalPingTimeout *time.Duration `json:"pingTimeout,omitempty"`
@@ -74,7 +103,7 @@ func DefaultServerOptions() *ServerOptions {
 	return s
 }
 
-func (s *ServerOptions) Assign(data *ServerOptions) (*ServerOptions, error) {
+func (s *ServerOptions) Assign(data ServerOptionsInterface) (ServerOptionsInterface, error) {
 	if data == nil {
 		return s, nil
 	}
@@ -141,9 +170,9 @@ func (s *ServerOptions) MaxHttpBufferSize() int64 {
 func (s *ServerOptions) SetAllowRequest(allowRequest AllowRequest) {
 	s.InternalAllowRequest = &allowRequest
 }
-func (s *ServerOptions) AllowRequest() (allowRequest AllowRequest) {
+func (s *ServerOptions) AllowRequest() AllowRequest {
 	if s.InternalAllowRequest == nil {
-		return allowRequest
+		return nil
 	}
 	return *s.InternalAllowRequest
 }

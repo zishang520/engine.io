@@ -4,6 +4,15 @@ import (
 	"time"
 )
 
+type AttachOptionsInterface interface {
+	SetPath(string)
+	Path() string
+	SetDestroyUpgrade(bool)
+	DestroyUpgrade() bool
+	SetDestroyUpgradeTimeout(time.Duration)
+	DestroyUpgradeTimeout() time.Duration
+}
+
 type AttachOptions struct {
 	// name of the path to capture
 	InternalPath *string `json:"path,omitempty"`

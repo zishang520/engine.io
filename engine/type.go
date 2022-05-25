@@ -16,7 +16,7 @@ type Server interface {
 	SetHttpServer(*types.HttpServer)
 
 	HttpServer() *types.HttpServer
-	Opts() *config.ServerOptions
+	Opts() config.ServerOptionsInterface
 	Clients() *sync.Map
 	ClientsCount() uint64
 

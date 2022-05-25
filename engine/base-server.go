@@ -38,7 +38,7 @@ type server struct {
 	clients        *sync.Map
 	clientsCount   uint64
 	corsMiddleware func(*types.HttpContext, types.Callable)
-	opts           *config.ServerOptions
+	opts           config.ServerOptionsInterface
 
 	httpServer *types.HttpServer
 
@@ -56,7 +56,7 @@ func NewServer(opt interface{}) *server {
 
 // Server New.
 func (s *server) New(opt interface{}) *server {
-	opts, _ := opt.(*config.ServerOptions)
+	opts, _ := opt.(config.ServerOptionsInterface)
 
 	s.clients = &sync.Map{}
 	atomic.StoreUint64(&s.clientsCount, 0)
@@ -102,7 +102,7 @@ func (s *server) HttpServer() *types.HttpServer {
 	return s.httpServer
 }
 
-func (s *server) Opts() *config.ServerOptions {
+func (s *server) Opts() config.ServerOptionsInterface {
 	return s.opts
 }
 

@@ -61,11 +61,7 @@ func (s *server) New(opt interface{}) *server {
 	s.clients = &sync.Map{}
 	atomic.StoreUint64(&s.clientsCount, 0)
 
-	var err error
-	s.opts, err = config.DefaultServerOptions().Assign(opts)
-	if err != nil {
-		panic(err)
-	}
+	s.opts = config.DefaultServerOptions().Assign(opts)
 
 	if opts != nil {
 		if cookie := opts.Cookie(); cookie != nil {

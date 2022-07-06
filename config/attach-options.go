@@ -31,9 +31,9 @@ type AttachOptions struct {
 
 func DefaultAttachOptions() *AttachOptions {
 	a := &AttachOptions{}
-	a.SetPath("/engine.io")
-	a.SetDestroyUpgradeTimeout(time.Duration(1000 * time.Millisecond))
-	a.SetDestroyUpgrade(true)
+	// a.SetPath("/engine.io")
+	// a.SetDestroyUpgradeTimeout(time.Duration(1000 * time.Millisecond))
+	// a.SetDestroyUpgrade(true)
 	return a
 }
 

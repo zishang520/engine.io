@@ -113,17 +113,17 @@ type ServerOptions struct {
 
 func DefaultServerOptions() *ServerOptions {
 	s := &ServerOptions{}
-	s.SetPingTimeout(time.Duration(20000 * time.Millisecond))
-	s.SetPingInterval(time.Duration(25000 * time.Millisecond))
-	s.SetUpgradeTimeout(time.Duration(10000 * time.Millisecond))
-	s.SetMaxHttpBufferSize(int64(1e6))
-	s.SetTransports(types.NewSet("polling", "websocket"))
-	s.SetAllowUpgrades(true)
-	s.SetHttpCompression(&types.HttpCompression{
-		Threshold: 1024,
-	})
-	s.SetCors(nil)
-	s.SetAllowEIO3(false)
+	// s.SetPingTimeout(time.Duration(20000 * time.Millisecond))
+	// s.SetPingInterval(time.Duration(25000 * time.Millisecond))
+	// s.SetUpgradeTimeout(time.Duration(10000 * time.Millisecond))
+	// s.SetMaxHttpBufferSize(int64(1e6))
+	// s.SetTransports(types.NewSet("polling", "websocket"))
+	// s.SetAllowUpgrades(true)
+	// s.SetHttpCompression(&types.HttpCompression{
+	// 	Threshold: 1024,
+	// })
+	// s.SetCors(nil)
+	// s.SetAllowEIO3(false)
 	return s
 }
 

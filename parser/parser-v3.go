@@ -193,7 +193,7 @@ func (p *parserv3) EncodePayload(packets []*packet.Packet, supportsBinary ...boo
 		if err != nil {
 			return nil, err
 		}
-		if _, err := enPayload.WriteString(fmt.Sprintf(`%d:%s`, utils.Utf16Count(buf.Bytes()), buf.String())); err != nil {
+		if _, err := enPayload.WriteString(strconv.FormatInt(int64(utils.Utf16Count(buf.Bytes())), 10) + ":" + buf.String()); err != nil {
 			return nil, err
 		}
 	}
@@ -210,7 +210,7 @@ func (p *parserv3) encodeOneBinaryPacket(packet *packet.Packet) (types.BufferInt
 	}
 
 	if _, ok := buf.(*types.StringBuffer); ok {
-		encodingLength := fmt.Sprintf(`%d`, utils.Utf16Count(buf.Bytes())) // JS length
+		encodingLength := strconv.FormatInt(int64(utils.Utf16Count(buf.Bytes())), 10) // JS length
 		if err := binarypacket.WriteByte(0); err != nil {
 			return nil, err
 		}
@@ -229,7 +229,7 @@ func (p *parserv3) encodeOneBinaryPacket(packet *packet.Packet) (types.BufferInt
 		return binarypacket, nil
 	}
 
-	encodingLength := fmt.Sprintf(`%d`, buf.Len())
+	encodingLength := strconv.FormatInt(int64(buf.Len()), 10)
 	// is binary (true binary = 1)
 	if err := binarypacket.WriteByte(1); err != nil {
 		return nil, err

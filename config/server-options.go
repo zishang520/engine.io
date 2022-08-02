@@ -65,65 +65,54 @@ type ServerOptionsInterface interface {
 
 type ServerOptions struct {
 	// how many ms without a pong packet to consider the connection closed
-	pingTimeout *time.Duration `json:"pingTimeout,omitempty"`
+	pingTimeout *time.Duration
 
 	// how many ms before sending a new ping packet
-	pingInterval *time.Duration `json:"pingInterval,omitempty"`
+	pingInterval *time.Duration
 
 	// how many ms before an uncompleted transport upgrade is cancelled
-	upgradeTimeout *time.Duration `json:"upgradeTimeout,omitempty"`
+	upgradeTimeout *time.Duration
 
 	// how many bytes or characters a message can be, before closing the session (to avoid DoS).
-	maxHttpBufferSize *int64 `json:"maxHttpBufferSize,omitempty"`
+	maxHttpBufferSize *int64
 
 	// A function that receives a given handshake or upgrade request as its first parameter,
 	// and can decide whether to continue or not. The second argument is a function that needs
 	// to be called with the decided information: fn(err, success), where success is a boolean
 	// value where false means that the request is rejected, and err is an error code.
-	allowRequest AllowRequest `json:"allowRequest,omitempty"`
+	allowRequest AllowRequest
 
 	// the low-level transports that are enabled
-	transports *types.Set[string] `json:"transports,omitempty"`
+	transports *types.Set[string]
 
 	// whether to allow transport upgrades
-	allowUpgrades *bool `json:"allowUpgrades,omitempty"`
+	allowUpgrades *bool
 
 	// parameters of the WebSocket permessage-deflate extension (see ws module api docs). Set to false to disable.
-	perMessageDeflate *types.PerMessageDeflate `json:"perMessageDeflate,omitempty"`
+	perMessageDeflate *types.PerMessageDeflate
 
 	// parameters of the http compression for the polling transports (see zlib api docs). Set to false to disable.
-	httpCompression *types.HttpCompression `json:"httpCompression,omitempty"`
+	httpCompression *types.HttpCompression
 
 	// wsEngine is not supported
 	// wsEngine
 
 	// an optional packet which will be concatenated to the handshake packet emitted by Engine.IO.
-	initialPacket io.Reader `json:"initialPacket,omitempty"`
+	initialPacket io.Reader
 
 	// configuration of the cookie that contains the client sid to send as part of handshake response headers. This cookie
 	// might be used for sticky-session. Defaults to not sending any cookie.
-	cookie *http.Cookie `json:"cookie,omitempty"`
+	cookie *http.Cookie
 
 	// the options that will be forwarded to the cors module
-	cors *types.Cors `json:"cors,omitempty"`
+	cors *types.Cors
 
 	// whether to enable compatibility with Socket.IO v2 clients
-	allowEIO3 *bool `json:"allowEIO3,omitempty"`
+	allowEIO3 *bool
 }
 
 func DefaultServerOptions() *ServerOptions {
 	s := &ServerOptions{}
-	// s.SetPingTimeout(time.Duration(20000 * time.Millisecond))
-	// s.SetPingInterval(time.Duration(25000 * time.Millisecond))
-	// s.SetUpgradeTimeout(time.Duration(10000 * time.Millisecond))
-	// s.SetMaxHttpBufferSize(int64(1e6))
-	// s.SetTransports(types.NewSet("polling", "websocket"))
-	// s.SetAllowUpgrades(true)
-	// s.SetHttpCompression(&types.HttpCompression{
-	// 	Threshold: 1024,
-	// })
-	// s.SetCors(nil)
-	// s.SetAllowEIO3(false)
 	return s
 }
 

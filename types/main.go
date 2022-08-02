@@ -10,9 +10,9 @@ type Kv struct {
 var NULL Void
 
 type HttpCompression struct {
-	Threshold int
+	Threshold int `json:"threshold,omitempty"`
 }
 
 type PerMessageDeflate struct {
-	Threshold int
+	Threshold int `json:"threshold,omitempty"`
 }

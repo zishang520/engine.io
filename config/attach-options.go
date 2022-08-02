@@ -20,20 +20,17 @@ type AttachOptionsInterface interface {
 
 type AttachOptions struct {
 	// name of the path to capture
-	path *string `json:"path,omitempty"`
+	path *string
 
 	// destroy unhandled upgrade requests
-	destroyUpgrade *bool `json:"destroyUpgrade,omitempty"`
+	destroyUpgrade *bool
 
 	//  milliseconds after which unhandled requests are ended
-	destroyUpgradeTimeout *time.Duration `json:"destroyUpgradeTimeout,omitempty"`
+	destroyUpgradeTimeout *time.Duration
 }
 
 func DefaultAttachOptions() *AttachOptions {
 	a := &AttachOptions{}
-	// a.SetPath("/engine.io")
-	// a.SetDestroyUpgradeTimeout(time.Duration(1000 * time.Millisecond))
-	// a.SetDestroyUpgrade(true)
 	return a
 }
 

@@ -60,6 +60,7 @@ func main() {
             switch s {
             case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
                 close(exit)
+                return
             }
         }
     }()
@@ -118,6 +119,7 @@ func main() {
             switch s {
             case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
                 close(exit)
+                return
             }
         }
     }()
@@ -188,6 +190,7 @@ func main() {
             switch s {
             case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
                 close(exit)
+                return
             }
         }
     }()

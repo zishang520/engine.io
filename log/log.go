@@ -19,11 +19,16 @@ type Log struct {
 	namespaceRegexp *regexp.Regexp
 }
 
-func NewLog() *Log {
+func NewLog(prefix string) *Log {
 	l := &Log{
 		Logger: _log.New(os.Stderr, "", 0),
 		DEBUG:  false,
 	}
+
+	if prefix != "" {
+		l.SetPrefix(prefix)
+	}
+
 	if debug := os.Getenv("DEBUG"); debug != "" {
 		l.namespaceRegexp = regexp.MustCompile(strings.ReplaceAll(regexp.QuoteMeta(strings.TrimSpace(debug)), `\*`, `.*`))
 	}

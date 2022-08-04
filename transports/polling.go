@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"github.com/andybalholm/brotli"
 	"github.com/zishang520/engine.io/events"
+	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/types"
 	"github.com/zishang520/engine.io/utils"
@@ -14,6 +15,8 @@ import (
 	"strings"
 	"time"
 )
+
+var polling_log = log.NewLog("engine:polling")
 
 type polling struct {
 	*transport
@@ -67,7 +70,7 @@ func (p *polling) OnRequest(ctx *types.HttpContext) {
 // The client sends a request awaiting for us to send data.
 func (p *polling) onPollRequest(ctx *types.HttpContext) {
 	if p.req != nil {
-		utils.Log().Debug("request overlap")
+		polling_log.Debug("request overlap")
 		// assert: p.res, '.req and .res should be (un)set together'
 		p.OnError("overlap from client")
 		ctx.SetStatusCode(http.StatusInternalServerError)
@@ -75,7 +78,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 		return
 	}
 
-	utils.Log().Debug("setting request")
+	polling_log.Debug("setting request")
 
 	p.req = ctx
 
@@ -97,7 +100,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 
 	// if we're still writable but had a pending close, trigger an empty send
 	if p.writable && p.shouldClose != nil {
-		utils.Log().Debug("triggering empty send to append close packet")
+		polling_log.Debug("triggering empty send to append close packet")
 		p.Send([]*packet.Packet{
 			&packet.Packet{
 				Type: packet.NOOP,
@@ -174,11 +177,11 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 
 // Processes the incoming data payload.
 func (p *polling) PollingOnData(data types.BufferInterface) {
-	utils.Log().Debug(`received "%s"`, data)
+	polling_log.Debug(`received "%s"`, data)
 
 	for _, packetData := range p.parser.DecodePayload(data) {
 		if packet.CLOSE == packetData.Type {
-			utils.Log().Debug("got xhr close packet")
+			polling_log.Debug("got xhr close packet")
 			p.OnClose()
 			return
 		}
@@ -205,7 +208,7 @@ func (p *polling) PollingSend(packets []*packet.Packet) {
 	p.writable = false
 
 	if p.shouldClose != nil {
-		utils.Log().Debug("appending close packet to payload")
+		polling_log.Debug("appending close packet to payload")
 		packets = append(packets, &packet.Packet{
 			Type: packet.CLOSE,
 		})
@@ -235,7 +238,7 @@ func (p *polling) PollingSend(packets []*packet.Packet) {
 
 // Writes data as response to poll request.
 func (p *polling) Write(data types.BufferInterface, options *packet.Options) {
-	utils.Log().Debug(`writing "%s"`, data)
+	polling_log.Debug(`writing "%s"`, data)
 	p.DoWrite(data, options, func() { p.req.Cleanup() })
 }
 
@@ -286,7 +289,7 @@ func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Opt
 
 // Compresses data.
 func (p *polling) compress(data types.BufferInterface, encoding string) (types.BufferInterface, error) {
-	utils.Log().Debug("compressing")
+	polling_log.Debug("compressing")
 	buf := types.NewBytesBuffer(nil)
 	switch encoding {
 	case "gzip":
@@ -319,12 +322,12 @@ func (p *polling) compress(data types.BufferInterface, encoding string) (types.B
 
 // Closes the transport.
 func (p *polling) PollingDoClose(fn ...types.Callable) {
-	utils.Log().Debug("closing")
+	polling_log.Debug("closing")
 
 	var closeTimeoutTimer *utils.Timer = nil
 
 	if p.dataCtx != nil {
-		utils.Log().Debug("aborting ongoing data request")
+		polling_log.Debug("aborting ongoing data request")
 		if h, ok := p.dataCtx.Response().(http.Hijacker); ok {
 			if netConn, _, err := h.Hijack(); err == nil {
 				netConn.Close()
@@ -341,7 +344,7 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 	}
 
 	if p.writable {
-		utils.Log().Debug("transport writable - closing right away")
+		polling_log.Debug("transport writable - closing right away")
 		p.Send([]*packet.Packet{
 			&packet.Packet{
 				Type: packet.CLOSE,
@@ -349,10 +352,10 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 		})
 		onClose()
 	} else if p.discarded {
-		utils.Log().Debug("transport discarded - closing right away")
+		polling_log.Debug("transport discarded - closing right away")
 		onClose()
 	} else {
-		utils.Log().Debug("transport not writable - buffering orderly close")
+		polling_log.Debug("transport not writable - buffering orderly close")
 		p.shouldClose = onClose
 		closeTimeoutTimer = utils.SetTimeOut(onClose, p.closeTimeout*time.Millisecond)
 	}

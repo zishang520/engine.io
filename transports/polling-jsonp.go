@@ -2,12 +2,14 @@ package transports
 
 import (
 	"encoding/json"
+	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/types"
-	"github.com/zishang520/engine.io/utils"
 	"net/url"
 	"regexp"
 )
+
+var jsonp_log = log.NewLog("engine:jsonp")
 
 var (
 	rDoubleSlashes = regexp.MustCompile(`\\\\n`)
@@ -54,7 +56,7 @@ func (j *jsonp) JSONPOnData(data types.BufferInterface) {
 			j.PollingOnData(types.NewStringBufferString(rDoubleSlashes.ReplaceAllString(_data, "\\n")))
 		}
 	} else {
-		utils.Log().Debug(`jsonp OnData error "%v"`, err)
+		jsonp_log.Debug(`jsonp OnData error "%v"`, err)
 	}
 }
 
@@ -71,6 +73,6 @@ func (j *jsonp) JSONPDoWrite(data types.BufferInterface, options *packet.Options
 		res.WriteString(j.foot)
 		j.PollingDoWrite(res, options, callback)
 	} else {
-		utils.Log().Debug(`jsonp DoWrite error "%v"`, err)
+		jsonp_log.Debug(`jsonp DoWrite error "%v"`, err)
 	}
 }

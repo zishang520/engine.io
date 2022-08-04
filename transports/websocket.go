@@ -2,11 +2,13 @@ package transports
 
 import (
 	ws "github.com/gorilla/websocket"
+	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/types"
-	"github.com/zishang520/engine.io/utils"
 	"io"
 )
+
+var ws_log = log.NewLog("engine:ws")
 
 type websocket struct {
 	*transport
@@ -92,7 +94,7 @@ func (w *websocket) New(ctx *types.HttpContext) *websocket {
 }
 
 func (w *websocket) WebSocketOnData(data types.BufferInterface) {
-	utils.Log().Debug(`websocket received "%s"`, data)
+	ws_log.Debug(`websocket received "%s"`, data)
 	w.TransportOnData(data)
 }
 
@@ -110,11 +112,11 @@ func (w *websocket) WebSocketSend(packets []*packet.Packet) {
 	send := func(packet *packet.Packet) {
 		data, err := w.parser.EncodePacket(packet, w.supportsBinary)
 		if err != nil {
-			utils.Log().Debug(`Send Error "%s"`, err)
+			ws_log.Debug(`Send Error "%s"`, err)
 			return
 		}
 
-		utils.Log().Debug(`writing "%s"`, data)
+		ws_log.Debug(`writing "%s"`, data)
 
 		// always creates a new object since ws modifies it
 		compress := false
@@ -151,7 +153,7 @@ func (w *websocket) WebSocketSend(packets []*packet.Packet) {
 
 // Closes the transport.
 func (w *websocket) WebSocketDoClose(fn ...types.Callable) {
-	utils.Log().Debug(`closing`)
+	ws_log.Debug(`closing`)
 	w.socket.Close()
 	if len(fn) > 0 {
 		(fn[0])()

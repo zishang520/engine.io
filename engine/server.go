@@ -6,13 +6,15 @@ import (
 	"github.com/zishang520/engine.io/config"
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/events"
+	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/transports"
 	"github.com/zishang520/engine.io/types"
-	"github.com/zishang520/engine.io/utils"
 	"io"
 	"net/http"
 	"strings"
 )
+
+var server_log = log.NewLog("engine")
 
 // Initialize websocket server
 func (s *server) Init() {
@@ -22,7 +24,7 @@ func (s *server) Init() {
 }
 
 func (s *server) Cleanup() {
-	utils.Log().Debug(`closing webSocketServer`)
+	server_log.Debug(`closing webSocketServer`)
 	// s.ws.Close()
 	// don't delete this.ws because it can be used again if the http server starts listening again
 }
@@ -36,7 +38,7 @@ func (s *server) CreateTransport(transportName string, ctx *types.HttpContext) (
 
 // Handles an Engine.IO HTTP request.
 func (s *server) HandleRequest(ctx *types.HttpContext) {
-	utils.Log().Debug(`handling "%s" http request "%s"`, ctx.Method(), ctx.Request().RequestURI)
+	server_log.Debug(`handling "%s" http request "%s"`, ctx.Method(), ctx.Request().RequestURI)
 
 	callback := func(errorCode int, errorContext map[string]interface{}) {
 		if errorContext != nil {
@@ -53,7 +55,7 @@ func (s *server) HandleRequest(ctx *types.HttpContext) {
 		}
 
 		if sid := ctx.Query().Peek("sid"); sid != "" {
-			utils.Log().Debug("setting new request for existing client")
+			server_log.Debug("setting new request for existing client")
 			if socket, ok := s.clients.Load(sid); ok {
 				socket.(Socket).Transport().OnRequest(ctx)
 			} else {
@@ -122,14 +124,14 @@ func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 		wsc.Conn = conn
 		s.onWebSocket(ctx, wsc)
 	} else {
-		utils.Log().Debug("websocket error before upgrade: %s", err)
+		server_log.Debug("websocket error before upgrade: %s", err)
 	}
 }
 
 // Called upon a ws.io connection.
 func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 	onUpgradeError := func(...interface{}) {
-		utils.Log().Debug("websocket error before upgrade")
+		server_log.Debug("websocket error before upgrade")
 		// wsc.close() not needed
 	}
 
@@ -137,7 +139,7 @@ func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 
 	transportName := ctx.Query().Peek("transport")
 	if transport, ok := transports.Transports()[transportName]; ok && !transport.HandlesUpgrades {
-		utils.Log().Debug("transport doesnt handle upgraded requests")
+		server_log.Debug("transport doesnt handle upgraded requests")
 		wsc.Close()
 		return
 	}
@@ -152,23 +154,23 @@ func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 		client, ok := s.clients.Load(id)
 
 		if !ok {
-			utils.Log().Debug("upgrade attempt for closed client")
+			server_log.Debug("upgrade attempt for closed client")
 			wsc.Close()
 		} else if client.(Socket).Upgrading() {
-			utils.Log().Debug("transport has already been trying to upgrade")
+			server_log.Debug("transport has already been trying to upgrade")
 			wsc.Close()
 		} else if client.(Socket).Upgraded() {
-			utils.Log().Debug("transport had already been upgraded")
+			server_log.Debug("transport had already been upgraded")
 			wsc.Close()
 		} else {
-			utils.Log().Debug("upgrading existing transport")
+			server_log.Debug("upgrading existing transport")
 
 			// transport error handling takes over
 			wsc.RemoveListener("error", onUpgradeError)
 
 			transport, err := s.CreateTransport(transportName, ctx)
 			if err != nil {
-				utils.Log().Debug("upgrading not existing transport")
+				server_log.Debug("upgrading not existing transport")
 				wsc.Close()
 			} else {
 				if ctx.Query().Has("b64") {
@@ -206,7 +208,7 @@ func (s *server) Attach(server *types.HttpServer, opts interface{}) {
 	})
 	server.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		if !websocket.IsWebSocketUpgrade(r) {
-			utils.Log().Debug(`intercepting request for path "%s"`, path)
+			server_log.Debug(`intercepting request for path "%s"`, path)
 			s.HandleRequest(types.NewHttpContext(w, r))
 		} else if s.opts.Transports().Has("websocket") {
 			s.HandleUpgrade(types.NewHttpContext(w, r))
@@ -218,7 +220,7 @@ func (s *server) Attach(server *types.HttpServer, opts interface{}) {
 
 // Close the HTTP long-polling request
 func abortRequest(ctx *types.HttpContext, errorCode int, errorContext map[string]interface{}) {
-	utils.Log().Debug("abortRequest %d", errorCode)
+	server_log.Debug("abortRequest %d", errorCode)
 	statusCode := http.StatusBadRequest
 	if errorCode == FORBIDDEN {
 		statusCode = http.StatusForbidden
@@ -238,7 +240,7 @@ func abortRequest(ctx *types.HttpContext, errorCode int, errorContext map[string
 
 // Close the WebSocket connection
 func abortUpgrade(ctx *types.HttpContext, errorCode int, errorContext map[string]interface{}) {
-	utils.Log().Debug("abortUpgrade %d", errorCode)
+	server_log.Debug("abortUpgrade %d", errorCode)
 	message := errorMessages[errorCode]
 	if m, ok := errorContext["message"]; ok {
 		message = m.(string)

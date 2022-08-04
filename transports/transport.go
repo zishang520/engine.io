@@ -3,12 +3,14 @@ package transports
 import (
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/events"
+	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/parser"
 	"github.com/zishang520/engine.io/types"
-	"github.com/zishang520/engine.io/utils"
 	"time"
 )
+
+var transport_log = log.NewLog("engine:transport")
 
 type transport struct {
 	events.EventEmitter
@@ -138,7 +140,7 @@ func (t *transport) ReadyState() string {
 }
 
 func (t *transport) SetReadyState(state string) {
-	utils.Log().Debug(`readyState updated from %s to %s (%s)`, t._readyState, state, t.Name())
+	transport_log.Debug(`readyState updated from %s to %s (%s)`, t._readyState, state, t.Name())
 	t._readyState = state
 }
 
@@ -165,7 +167,7 @@ func (t *transport) Discard() {
 
 // Called with an incoming HTTP request.
 func (t *transport) OnRequest(req *types.HttpContext) {
-	utils.Log().Debug("setting request")
+	transport_log.Debug("setting request")
 	t.req = req
 }
 
@@ -188,7 +190,7 @@ func (t *transport) OnError(msg string, desc ...string) {
 		err.Description = desc[0]
 		t.Emit("error", err.Err())
 	} else {
-		utils.Log().Debug("ignored transport error %s (%s)", msg, desc[0])
+		transport_log.Debug("ignored transport error %s (%s)", msg, desc[0])
 	}
 }
 

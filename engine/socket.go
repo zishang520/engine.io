@@ -3,6 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"github.com/zishang520/engine.io/events"
+	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/transports"
 	"github.com/zishang520/engine.io/types"
@@ -12,6 +13,8 @@ import (
 	"sync"
 	"time"
 )
+
+var socket_log = log.NewLog("engine:socket")
 
 type socket struct {
 	events.EventEmitter
@@ -79,7 +82,7 @@ func (s *socket) ReadyState() string {
 }
 
 func (s *socket) SetReadyState(state string) {
-	utils.Log().Debug("readyState updated from %s to %s", s.readyState, state)
+	socket_log.Debug("readyState updated from %s to %s", s.readyState, state)
 	s.readyState = state
 }
 
@@ -141,7 +144,7 @@ func (s *socket) onOpen() {
 	})
 
 	if err != nil {
-		utils.Log().Debug("json.Marshal err")
+		socket_log.Debug("json.Marshal err")
 	}
 	s.sendPacket(
 		packet.OPEN,
@@ -167,12 +170,12 @@ func (s *socket) onOpen() {
 // Called upon transport packet.
 func (s *socket) onPacket(data *packet.Packet) {
 	if "open" != s.ReadyState() {
-		utils.Log().Debug("packet received with closed socket")
+		socket_log.Debug("packet received with closed socket")
 		return
 	}
 
 	// export packet event
-	utils.Log().Debug(`received packet %s`, data.Type)
+	socket_log.Debug(`received packet %s`, data.Type)
 	s.Emit("packet", data)
 
 	// Reset ping timeout on any packet, incoming data is a good sign of
@@ -185,7 +188,7 @@ func (s *socket) onPacket(data *packet.Packet) {
 			s.onError("invalid heartbeat direction")
 			return
 		}
-		utils.Log().Debug("got ping")
+		socket_log.Debug("got ping")
 		s.sendPacket(packet.PONG, nil, nil, nil)
 		s.Emit("heartbeat")
 		break
@@ -195,7 +198,7 @@ func (s *socket) onPacket(data *packet.Packet) {
 			s.onError("invalid heartbeat direction")
 			return
 		}
-		utils.Log().Debug("got pong")
+		socket_log.Debug("got pong")
 		s.pingIntervalTimer.Refresh()
 		s.Emit("heartbeat")
 		break
@@ -213,7 +216,7 @@ func (s *socket) onPacket(data *packet.Packet) {
 
 // Called upon transport error.
 func (s *socket) onError(err interface{}) {
-	utils.Log().Debug("transport error %v", err)
+	socket_log.Debug("transport error %v", err)
 	s.OnClose("transport error", err)
 }
 
@@ -221,7 +224,7 @@ func (s *socket) onError(err interface{}) {
 // within `this.pingTimeout` or closes connection.
 func (s *socket) schedulePing() {
 	s.pingIntervalTimer = utils.SetTimeOut(func() {
-		utils.Log().Debug("writing ping packet - expecting pong within %dms", int64(s.server.Opts().PingTimeout()/time.Millisecond))
+		socket_log.Debug("writing ping packet - expecting pong within %dms", int64(s.server.Opts().PingTimeout()/time.Millisecond))
 		s.sendPacket(packet.PING, nil, nil, nil)
 		s.resetPingTimeout(s.server.Opts().PingTimeout())
 	}, s.server.Opts().PingInterval())
@@ -272,7 +275,7 @@ func (s *socket) setTransport(transport transports.Transport) {
 
 // Upgrades socket to the given transport
 func (s *socket) MaybeUpgrade(transport transports.Transport) {
-	utils.Log().Debug(`might upgrade socket transport from "%s" to "%s"`, s.transport.Name(), transport.Name())
+	socket_log.Debug(`might upgrade socket transport from "%s" to "%s"`, s.transport.Name(), transport.Name())
 
 	s.upgrading = true
 
@@ -284,13 +287,13 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		sb := new(strings.Builder)
 		io.Copy(sb, data.Data)
 		if packet.PING == data.Type && "probe" == sb.String() {
-			utils.Log().Debug("got probe ping packet, sending pong")
+			socket_log.Debug("got probe ping packet, sending pong")
 			transport.Send([]*packet.Packet{&packet.Packet{Type: packet.PONG, Data: strings.NewReader("probe")}})
 			s.Emit("upgrading", transport)
 			utils.ClearInterval(s.checkIntervalTimer)
 			s.checkIntervalTimer = utils.SetInterval(check, 100*time.Millisecond)
 		} else if packet.UPGRADE == data.Type && s.ReadyState() != "closed" {
-			utils.Log().Debug("got upgrade packet - upgrading")
+			socket_log.Debug("got upgrade packet - upgrading")
 			cleanup()
 			s.transport.Discard()
 			s.upgraded = true
@@ -312,7 +315,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	// we force a polling cycle to ensure a fast upgrade
 	check = func() {
 		if "polling" == s.transport.Name() && s.transport.Writable() {
-			utils.Log().Debug("writing a noop packet to polling for fast upgrade")
+			socket_log.Debug("writing a noop packet to polling for fast upgrade")
 			s.transport.Send([]*packet.Packet{&packet.Packet{Type: packet.NOOP}})
 		}
 	}
@@ -333,7 +336,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	}
 
 	onError = func(err ...interface{}) {
-		utils.Log().Debug("client did not complete upgrade - %v", err[0])
+		socket_log.Debug("client did not complete upgrade - %v", err[0])
 		cleanup()
 		transport.Close()
 		transport = nil
@@ -349,7 +352,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 
 	// set transport upgrade timer
 	s.upgradeTimeoutTimer = utils.SetTimeOut(func() {
-		utils.Log().Debug("client did not complete upgrade - closing transport")
+		socket_log.Debug("client did not complete upgrade - closing transport")
 		cleanup()
 		if "open" == transport.ReadyState() {
 			transport.Close()
@@ -374,7 +377,7 @@ func (s *socket) clearTransport() {
 
 	// silence further transport errors and prevent uncaught exceptions
 	s.transport.On("error", func(...interface{}) {
-		utils.Log().Debug("error triggered by discarded transport")
+		socket_log.Debug("error triggered by discarded transport")
 	})
 
 	// ensure transport won't stay open
@@ -432,10 +435,10 @@ func (s *socket) setupSendCallback() {
 
 			switch fns := seqFn.(type) {
 			case func(transports.Transport):
-				utils.Log().Debug("executing send callback")
+				socket_log.Debug("executing send callback")
 				fns(s.transport)
 			case []func(transports.Transport):
-				utils.Log().Debug("executing batch send callback")
+				socket_log.Debug("executing batch send callback")
 				for _, fn := range fns {
 					fn(s.transport)
 				}
@@ -467,7 +470,7 @@ func (s *socket) Write(data io.Reader, options *packet.Options, callback func(tr
 func (s *socket) sendPacket(packetType packet.Type, data io.Reader, options *packet.Options, callback func(transports.Transport)) {
 
 	if "closing" != s.ReadyState() && "closed" != s.ReadyState() {
-		utils.Log().Debug(`sending packet "%s" (%v)`, packetType, data)
+		socket_log.Debug(`sending packet "%s" (%v)`, packetType, data)
 
 		packet := &packet.Packet{
 			Type:    packetType,
@@ -500,7 +503,7 @@ func (s *socket) flush() {
 	s.muwriteBuffer.RUnlock()
 
 	if "closed" != s.ReadyState() && s.transport.Writable() && len(wbuf) > 0 {
-		utils.Log().Debug("flushing buffer to transport")
+		socket_log.Debug("flushing buffer to transport")
 		s.Emit("flush", wbuf)
 		s.server.Emit("flush", s, wbuf)
 

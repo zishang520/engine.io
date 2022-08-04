@@ -123,7 +123,7 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]i
 	// transport check
 	transport := ctx.Query().Peek("transport")
 	if !s.opts.Transports().Has(transport) {
-		utils.Log().Debug(`unknown transport "%s"`, transport)
+		server_log.Debug(`unknown transport "%s"`, transport)
 		return UNKNOWN_TRANSPORT, map[string]interface{}{"transport": transport}
 	}
 
@@ -131,7 +131,7 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]i
 	if utils.CheckInvalidHeaderChar(ctx.Headers().Get("Origin")) {
 		origin := ctx.Headers().Get("Origin")
 		ctx.Request().Header.Del("Origin")
-		utils.Log().Debug("origin header invalid")
+		server_log.Debug("origin header invalid")
 		return BAD_REQUEST, map[string]interface{}{"name": "INVALID_ORIGIN", "origin": origin}
 	}
 
@@ -140,11 +140,11 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]i
 	if len(sid) > 0 {
 		scoket, ok := s.clients.Load(sid)
 		if !ok {
-			utils.Log().Debug(`unknown sid "%s"`, sid)
+			server_log.Debug(`unknown sid "%s"`, sid)
 			return UNKNOWN_SID, map[string]interface{}{"sid": sid}
 		}
 		if previousTransport := scoket.(Socket).Transport().Name(); !upgrade && previousTransport != transport {
-			utils.Log().Debug("bad request: unexpected transport without upgrade")
+			server_log.Debug("bad request: unexpected transport without upgrade")
 			return BAD_REQUEST, map[string]interface{}{"name": "TRANSPORT_MISMATCH", "transport": transport, "previousTransport": previousTransport}
 		}
 	} else {
@@ -154,7 +154,7 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]i
 		}
 
 		if transport == "websocket" && !upgrade {
-			utils.Log().Debug("invalid transport upgrade")
+			server_log.Debug("invalid transport upgrade")
 			return BAD_REQUEST, map[string]interface{}{"name": "TRANSPORT_HANDSHAKE_ERROR"}
 		}
 
@@ -168,7 +168,7 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]i
 
 // Closes all clients.
 func (s *server) Close() Server {
-	utils.Log().Debug("closing all open clients")
+	server_log.Debug("closing all open clients")
 	s.clients.Range(func(_, client interface{}) bool {
 		client.(Socket).Close(true)
 		return true
@@ -191,7 +191,7 @@ func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, m
 	}
 
 	if protocol == 3 && !s.opts.AllowEIO3() {
-		utils.Log().Debug("unsupported protocol version")
+		server_log.Debug("unsupported protocol version")
 		s.Emit("connection_error", &types.ErrorMessage{
 			CodeMessage: &types.CodeMessage{
 				Code:    UNSUPPORTED_PROTOCOL_VERSION,
@@ -207,7 +207,7 @@ func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, m
 
 	id, err := s.GenerateId(ctx)
 	if err != nil {
-		utils.Log().Debug("error while generating an id")
+		server_log.Debug("error while generating an id")
 		s.Emit("connection_error", &types.ErrorMessage{
 			CodeMessage: &types.CodeMessage{
 				Code:    BAD_REQUEST,
@@ -222,11 +222,11 @@ func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, m
 		return BAD_REQUEST, map[string]interface{}{"name": "ID_GENERATION_ERROR", "error": err}, nil
 	}
 
-	utils.Log().Debug(`handshaking client "%s"`, id)
+	server_log.Debug(`handshaking client "%s"`, id)
 
 	transport, err := s.CreateTransport(transportName, ctx)
 	if err != nil {
-		utils.Log().Debug(`error handshaking to transport "%s"`, transportName)
+		server_log.Debug(`error handshaking to transport "%s"`, transportName)
 		s.Emit("connection_error", &types.ErrorMessage{
 			CodeMessage: &types.CodeMessage{
 				Code:    BAD_REQUEST,

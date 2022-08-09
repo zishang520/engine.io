@@ -82,4 +82,28 @@ func TestServerOptionsDefauleValue(t *testing.T) {
 			t.Fatalf(`ServerOptions.HttpCompression().Threshold = %d, want match for %d`, httpCompression.Threshold, 1024)
 		}
 	})
+
+	t.Run("initialPacket", func(t *testing.T) {
+		if initialPacket := opts.InitialPacket(); opts.initialPacket == nil && initialPacket != nil {
+			t.Fatalf(`ServerOptions.InitialPacket() = %v, want match for nil`, initialPacket)
+		}
+	})
+
+	t.Run("cookie", func(t *testing.T) {
+		if cookie := opts.Cookie(); opts.cookie == nil && cookie != nil {
+			t.Fatalf(`ServerOptions.Cookie() = %v, want match for nil`, cookie)
+		}
+	})
+
+	t.Run("cors", func(t *testing.T) {
+		if cors := opts.Cors(); opts.cors == nil && cors != nil {
+			t.Fatalf(`ServerOptions.Cors() = %v, want match for nil`, cors)
+		}
+	})
+
+	t.Run("allowEIO3", func(t *testing.T) {
+		if allowEIO3 := opts.AllowEIO3(); opts.allowEIO3 == nil && allowEIO3 != false {
+			t.Fatalf(`ServerOptions.AllowEIO3() = %t, want match for %t`, allowEIO3, false)
+		}
+	})
 }

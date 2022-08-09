@@ -195,7 +195,7 @@ func (s *server) Attach(server *types.HttpServer, opts interface{}) {
 	path := "/engine.io"
 
 	if options != nil {
-		if options.Path != nil {
+		if options.GetRawPath() != nil {
 			path = strings.TrimRight(options.Path(), "/")
 		}
 	}

@@ -24,7 +24,7 @@ func TestLog(t *testing.T) {
 	_log.Debug("Test")
 
 	if buf.Len() > 0 {
-		t.Fatal(`_log.Debug("Test") There should be no output here, but got the output.`)
+		t.Fatal(`*Log.Debug("Test") There should be no output here, but got the output.`)
 	}
 
 	buf.Reset()

@@ -2,6 +2,10 @@ package engine
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
+	"strings"
+
 	"github.com/gorilla/websocket"
 	"github.com/zishang520/engine.io/config"
 	"github.com/zishang520/engine.io/errors"
@@ -9,9 +13,6 @@ import (
 	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/transports"
 	"github.com/zishang520/engine.io/types"
-	"io"
-	"net/http"
-	"strings"
 )
 
 var server_log = log.NewLog("engine")

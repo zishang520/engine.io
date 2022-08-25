@@ -1,14 +1,15 @@
 package engine
 
 import (
+	"net/http"
+	"sync"
+	"sync/atomic"
+
 	"github.com/zishang520/engine.io/config"
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/transports"
 	"github.com/zishang520/engine.io/types"
 	"github.com/zishang520/engine.io/utils"
-	"net/http"
-	"sync"
-	"sync/atomic"
 )
 
 // Protocol errors mappings.

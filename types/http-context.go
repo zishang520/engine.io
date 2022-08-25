@@ -3,13 +3,14 @@ package types
 import (
 	"context"
 	"fmt"
-	"github.com/zishang520/engine.io/errors"
-	"github.com/zishang520/engine.io/events"
-	"github.com/zishang520/engine.io/utils"
 	"net/http"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/zishang520/engine.io/errors"
+	"github.com/zishang520/engine.io/events"
+	"github.com/zishang520/engine.io/utils"
 )
 
 type HttpContext struct {

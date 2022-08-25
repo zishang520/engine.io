@@ -1,8 +1,9 @@
 package engine
 
 import (
-	"github.com/zishang520/engine.io/types"
 	"net/http"
+
+	"github.com/zishang520/engine.io/types"
 )
 
 const Protocol = 4

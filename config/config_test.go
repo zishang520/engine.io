@@ -2,10 +2,11 @@ package config
 
 import (
 	"bytes"
-	"github.com/zishang520/engine.io/types"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/zishang520/engine.io/types"
 )
 
 func TestAttachOptionsDefauleValue(t *testing.T) {

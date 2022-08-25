@@ -3,14 +3,15 @@ package parser
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/zishang520/engine.io/errors"
-	"github.com/zishang520/engine.io/packet"
-	"github.com/zishang520/engine.io/types"
-	"github.com/zishang520/engine.io/utils"
 	"io"
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/zishang520/engine.io/errors"
+	"github.com/zishang520/engine.io/packet"
+	"github.com/zishang520/engine.io/types"
+	"github.com/zishang520/engine.io/utils"
 )
 
 type parserv3 struct{}

@@ -2,10 +2,11 @@ package types
 
 import (
 	"context"
-	"github.com/zishang520/engine.io/events"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/zishang520/engine.io/events"
 )
 
 type HttpServer struct {

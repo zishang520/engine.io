@@ -1,12 +1,13 @@
 package log
 
 import (
-	"github.com/gookit/color"
 	_log "log"
 	"os"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/gookit/color"
 )
 
 type Log struct {

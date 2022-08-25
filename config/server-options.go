@@ -1,10 +1,11 @@
 package config
 
 import (
-	"github.com/zishang520/engine.io/types"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/zishang520/engine.io/types"
 )
 
 type AllowRequest func(*types.HttpContext) (int, map[string]interface{})

@@ -5,11 +5,12 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"io"
+	"strings"
+
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/types"
-	"io"
-	"strings"
 )
 
 type parserv4 struct{}

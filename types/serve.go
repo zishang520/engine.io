@@ -1,11 +1,12 @@
 package types
 
 import (
-	"github.com/zishang520/engine.io/utils"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/zishang520/engine.io/utils"
 )
 
 type ServeMux struct {

@@ -3,17 +3,18 @@ package transports
 import (
 	"compress/flate"
 	"compress/gzip"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/andybalholm/brotli"
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/types"
 	"github.com/zishang520/engine.io/utils"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var polling_log = log.NewLog("engine:polling")

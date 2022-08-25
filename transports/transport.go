@@ -1,13 +1,14 @@
 package transports
 
 import (
+	"time"
+
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/parser"
 	"github.com/zishang520/engine.io/types"
-	"time"
 )
 
 var transport_log = log.NewLog("engine:transport")

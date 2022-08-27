@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/zishang520/engine.io/packet"
@@ -26,9 +27,9 @@ func TestParserv3(t *testing.T) {
 		if err != nil {
 			t.Fatal("Error with EncodePacket:", err)
 		}
-
-		if b := data.Bytes(); !bytes.Equal(b, []byte{0x00, 65, 66, 67}) {
-			t.Fatalf(`EncodePacket value not as expected: %v, want match for %v`, b, []byte{0x00, 65, 66, 67})
+		check := []byte{0x00, 65, 66, 67}
+		if b := data.Bytes(); !bytes.Equal(b, check) {
+			t.Fatalf(`EncodePacket value not as expected: %v, want match for %v`, b, check)
 		}
 
 		data, err = p.EncodePacket(&packet.Packet{
@@ -40,9 +41,37 @@ func TestParserv3(t *testing.T) {
 		if err != nil {
 			t.Fatal("Error with EncodePacket:", err)
 		}
+		check1 := "b0QUJD"
+		if b := data.String(); b != check1 {
+			t.Fatalf(`EncodePacket value not as expected: %s, want match for %s`, b, check1)
+		}
 
-		if b := data.String(); b != "b0QUJD" {
-			t.Fatalf(`EncodePacket value not as expected: %s, want match for %s`, b, "b0QUJD")
+		data, err = p.EncodePacket(&packet.Packet{
+			Type:    packet.OPEN,
+			Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
+			Options: nil,
+		}, false, false)
+
+		if err != nil {
+			t.Fatal("Error with EncodePacket:", err)
+		}
+		check2 := "0test测试中文和表情字符❤️🧡💛🧓🏾💟"
+		if b := data.String(); b != check2 {
+			t.Fatalf(`EncodePacket value not as expected: %s, want match for %s`, b, check2)
+		}
+
+		data, err = p.EncodePacket(&packet.Packet{
+			Type:    packet.OPEN,
+			Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
+			Options: nil,
+		}, false, true)
+
+		if err != nil {
+			t.Fatal("Error with EncodePacket:", err)
+		}
+		check3 := []byte{48, 116, 101, 115, 116, 195, 166, 194, 181, 194, 139, 195, 168, 194, 175, 194, 149, 195, 164, 194, 184, 194, 173, 195, 166, 194, 150, 194, 135, 195, 165, 194, 146, 194, 140, 195, 168, 194, 161, 194, 168, 195, 166, 194, 131, 194, 133, 195, 165, 194, 173, 194, 151, 195, 167, 194, 172, 194, 166, 195, 162, 194, 157, 194, 164, 195, 175, 194, 184, 194, 143, 195, 176, 194, 159, 194, 167, 194, 161, 195, 176, 194, 159, 194, 146, 194, 155, 195, 176, 194, 159, 194, 167, 194, 147, 195, 176, 194, 159, 194, 143, 194, 190, 195, 176, 194, 159, 194, 146, 194, 159}
+		if b := data.Bytes(); !bytes.Equal(b, check3) {
+			t.Fatalf(`EncodePacket value not as expected: %v, want match for %v`, b, check3)
 		}
 	})
 }

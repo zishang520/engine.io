@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/zishang520/engine.io/packet"
+	"github.com/zishang520/engine.io/types"
 )
 
 func TestParserv3(t *testing.T) {
@@ -83,7 +84,15 @@ func TestParserv3(t *testing.T) {
 	})
 
 	t.Run("DecodePacket/Byte/Base64", func(t *testing.T) {
+		pack, err := p.DecodePacket(types.NewStringBufferString("b0QUJD"))
 
+		if err != nil {
+			t.Fatal("Error with DecodePacket:", err)
+		}
+
+		if pack.Type != packet.OPEN {
+			t.Fatalf(`DecodePacket *Packet.Type value not as expected: %v, want match for %v`, pack.Type, packet.OPEN)
+		}
 	})
 }
 

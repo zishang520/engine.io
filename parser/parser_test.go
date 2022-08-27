@@ -17,12 +17,12 @@ func TestParserv3(t *testing.T) {
 		}
 	})
 
-	t.Run("EncodePacketByte", func(t *testing.T) {
+	t.Run("EncodePacket/Byte", func(t *testing.T) {
 		data, err := p.EncodePacket(&packet.Packet{
 			Type:    packet.OPEN,
 			Data:    bytes.NewBuffer([]byte("ABC")),
 			Options: nil,
-		}, true, false)
+		}, true)
 
 		if err != nil {
 			t.Fatal("Error with EncodePacket:", err)
@@ -31,12 +31,14 @@ func TestParserv3(t *testing.T) {
 		if b := data.Bytes(); !bytes.Equal(b, check) {
 			t.Fatalf(`EncodePacket value not as expected: %v, want match for %v`, b, check)
 		}
+	})
 
-		data, err = p.EncodePacket(&packet.Packet{
+	t.Run("EncodePacket/Byte/Base64", func(t *testing.T) {
+		data, err := p.EncodePacket(&packet.Packet{
 			Type:    packet.OPEN,
 			Data:    bytes.NewBuffer([]byte("ABC")),
 			Options: nil,
-		}, false, false)
+		}, false)
 
 		if err != nil {
 			t.Fatal("Error with EncodePacket:", err)
@@ -46,7 +48,10 @@ func TestParserv3(t *testing.T) {
 			t.Fatalf(`EncodePacket value not as expected: %s, want match for %s`, b, check1)
 		}
 
-		data, err = p.EncodePacket(&packet.Packet{
+	})
+
+	t.Run("EncodePacket/String", func(t *testing.T) {
+		data, err := p.EncodePacket(&packet.Packet{
 			Type:    packet.OPEN,
 			Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
 			Options: nil,
@@ -59,8 +64,10 @@ func TestParserv3(t *testing.T) {
 		if b := data.String(); b != check2 {
 			t.Fatalf(`EncodePacket value not as expected: %s, want match for %s`, b, check2)
 		}
+	})
 
-		data, err = p.EncodePacket(&packet.Packet{
+	t.Run("EncodePacket/String/Utf8encode", func(t *testing.T) {
+		data, err := p.EncodePacket(&packet.Packet{
 			Type:    packet.OPEN,
 			Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
 			Options: nil,
@@ -73,6 +80,10 @@ func TestParserv3(t *testing.T) {
 		if b := data.Bytes(); !bytes.Equal(b, check3) {
 			t.Fatalf(`EncodePacket value not as expected: %v, want match for %v`, b, check3)
 		}
+	})
+
+	t.Run("DecodePacket/Byte/Base64", func(t *testing.T) {
+
 	})
 }
 

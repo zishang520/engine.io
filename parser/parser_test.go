@@ -78,7 +78,7 @@ func TestParserv3(t *testing.T) {
 		if err != nil {
 			t.Fatal("Error with EncodePacket:", err)
 		}
-		check3 := []byte{48, 116, 101, 115, 116, 195, 166, 194, 181, 194, 139, 195, 168, 194, 175, 194, 149, 195, 164, 194, 184, 194, 173, 195, 166, 194, 150, 194, 135, 195, 165, 194, 146, 194, 140, 195, 168, 194, 161, 194, 168, 195, 166, 194, 131, 194, 133, 195, 165, 194, 173, 194, 151, 195, 167, 194, 172, 194, 166, 195, 162, 194, 157, 194, 164, 195, 175, 194, 184, 194, 143, 195, 176, 194, 159, 194, 167, 194, 161, 195, 176, 194, 159, 194, 146, 194, 155, 195, 176, 194, 159, 194, 167, 194, 147, 195, 176, 194, 159, 194, 143, 194, 190, 195, 176, 194, 159, 194, 146, 194, 159}
+		check3 := []byte{PACKET_TYPES[packet.OPEN], 116, 101, 115, 116, 195, 166, 194, 181, 194, 139, 195, 168, 194, 175, 194, 149, 195, 164, 194, 184, 194, 173, 195, 166, 194, 150, 194, 135, 195, 165, 194, 146, 194, 140, 195, 168, 194, 161, 194, 168, 195, 166, 194, 131, 194, 133, 195, 165, 194, 173, 194, 151, 195, 167, 194, 172, 194, 166, 195, 162, 194, 157, 194, 164, 195, 175, 194, 184, 194, 143, 195, 176, 194, 159, 194, 167, 194, 161, 195, 176, 194, 159, 194, 146, 194, 155, 195, 176, 194, 159, 194, 167, 194, 147, 195, 176, 194, 159, 194, 143, 194, 190, 195, 176, 194, 159, 194, 146, 194, 159}
 		if b := data.Bytes(); !bytes.Equal(b, check3) {
 			t.Fatalf(`EncodePacket value not as expected: %v, want match for %v`, b, check3)
 		}
@@ -116,7 +116,7 @@ func TestParserv3(t *testing.T) {
 	})
 
 	t.Run("DecodePacket/Byte", func(t *testing.T) {
-		pack, err := p.DecodePacket(types.NewBytesBuffer([]byte{0x01, 65, 66, 67}))
+		pack, err := p.DecodePacket(types.NewBytesBuffer([]byte{PACKET_TYPES[packet.CLOSE] - '0', 65, 66, 67}))
 
 		if err != nil {
 			t.Fatal("Error with DecodePacket:", err)
@@ -143,6 +143,68 @@ func TestParserv3(t *testing.T) {
 
 		if b := buf.Bytes(); !bytes.Equal(b, check) {
 			t.Fatalf(`DecodePacket *Packet.Data value not as expected: %v, want match for %v`, b, check)
+		}
+	})
+
+	t.Run("DecodePacket/String/Utf8decode", func(t *testing.T) {
+		pack, err := p.DecodePacket(types.NewStringBuffer([]byte{PACKET_TYPES[packet.PING], 116, 101, 115, 116, 195, 166, 194, 181, 194, 139, 195, 168, 194, 175, 194, 149, 195, 164, 194, 184, 194, 173, 195, 166, 194, 150, 194, 135, 195, 165, 194, 146, 194, 140, 195, 168, 194, 161, 194, 168, 195, 166, 194, 131, 194, 133, 195, 165, 194, 173, 194, 151, 195, 167, 194, 172, 194, 166, 195, 162, 194, 157, 194, 164, 195, 175, 194, 184, 194, 143, 195, 176, 194, 159, 194, 167, 194, 161, 195, 176, 194, 159, 194, 146, 194, 155, 195, 176, 194, 159, 194, 167, 194, 147, 195, 176, 194, 159, 194, 143, 194, 190, 195, 176, 194, 159, 194, 146, 194, 159}), true)
+
+		if err != nil {
+			t.Fatal("Error with DecodePacket:", err)
+		}
+
+		if pack.Type != packet.PING {
+			t.Fatalf(`DecodePacket *Packet.Type value not as expected: %q, want match for %q`, pack.Type, packet.PING)
+		}
+
+		if pack.Data == nil {
+			t.Fatal(`DecodePacket *Packet.Data value must not be nil`)
+		}
+
+		if c, ok := pack.Data.(io.Closer); ok {
+			defer c.Close()
+		}
+
+		buf, err := types.NewBytesBufferReader(pack.Data)
+		if err != nil {
+			t.Fatal("io.Reader data read failed:", err)
+		}
+
+		check := "test测试中文和表情字符❤️🧡💛🧓🏾💟"
+
+		if b := buf.String(); b != check {
+			t.Fatalf(`DecodePacket *Packet.Data value not as expected: %s, want match for %s`, b, check)
+		}
+	})
+
+	t.Run("DecodePacket/String", func(t *testing.T) {
+		pack, err := p.DecodePacket(types.NewStringBufferString("2test测试中文和表情字符❤️🧡💛🧓🏾💟"))
+
+		if err != nil {
+			t.Fatal("Error with DecodePacket:", err)
+		}
+
+		if pack.Type != packet.PING {
+			t.Fatalf(`DecodePacket *Packet.Type value not as expected: %q, want match for %q`, pack.Type, packet.PING)
+		}
+
+		if pack.Data == nil {
+			t.Fatal(`DecodePacket *Packet.Data value must not be nil`)
+		}
+
+		if c, ok := pack.Data.(io.Closer); ok {
+			defer c.Close()
+		}
+
+		buf, err := types.NewBytesBufferReader(pack.Data)
+		if err != nil {
+			t.Fatal("io.Reader data read failed:", err)
+		}
+
+		check := "test测试中文和表情字符❤️🧡💛🧓🏾💟"
+
+		if b := buf.String(); b != check {
+			t.Fatalf(`DecodePacket *Packet.Data value not as expected: %s, want match for %s`, b, check)
 		}
 	})
 }

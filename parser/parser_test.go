@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 
@@ -84,14 +85,64 @@ func TestParserv3(t *testing.T) {
 	})
 
 	t.Run("DecodePacket/Byte/Base64", func(t *testing.T) {
-		pack, err := p.DecodePacket(types.NewStringBufferString("b0QUJD"))
+		pack, err := p.DecodePacket(types.NewStringBufferString("b1QUJD"))
 
 		if err != nil {
 			t.Fatal("Error with DecodePacket:", err)
 		}
 
-		if pack.Type != packet.OPEN {
-			t.Fatalf(`DecodePacket *Packet.Type value not as expected: %v, want match for %v`, pack.Type, packet.OPEN)
+		if pack.Type != packet.CLOSE {
+			t.Fatalf(`DecodePacket *Packet.Type value not as expected: %q, want match for %q`, pack.Type, packet.CLOSE)
+		}
+
+		if pack.Data == nil {
+			t.Fatal(`DecodePacket *Packet.Data value must not be nil`)
+		}
+
+		if c, ok := pack.Data.(io.Closer); ok {
+			defer c.Close()
+		}
+
+		buf, err := types.NewBytesBufferReader(pack.Data)
+		if err != nil {
+			t.Fatal("io.Reader data read failed:", err)
+		}
+
+		check := "ABC"
+
+		if b := buf.String(); b != check {
+			t.Fatalf(`DecodePacket *Packet.Data value not as expected: %q, want match for %q`, b, check)
+		}
+	})
+
+	t.Run("DecodePacket/Byte", func(t *testing.T) {
+		pack, err := p.DecodePacket(types.NewBytesBuffer([]byte{0x01, 65, 66, 67}))
+
+		if err != nil {
+			t.Fatal("Error with DecodePacket:", err)
+		}
+
+		if pack.Type != packet.CLOSE {
+			t.Fatalf(`DecodePacket *Packet.Type value not as expected: %q, want match for %q`, pack.Type, packet.CLOSE)
+		}
+
+		if pack.Data == nil {
+			t.Fatal(`DecodePacket *Packet.Data value must not be nil`)
+		}
+
+		if c, ok := pack.Data.(io.Closer); ok {
+			defer c.Close()
+		}
+
+		buf, err := types.NewBytesBufferReader(pack.Data)
+		if err != nil {
+			t.Fatal("io.Reader data read failed:", err)
+		}
+
+		check := []byte{65, 66, 67}
+
+		if b := buf.Bytes(); !bytes.Equal(b, check) {
+			t.Fatalf(`DecodePacket *Packet.Data value not as expected: %v, want match for %v`, b, check)
 		}
 	})
 }

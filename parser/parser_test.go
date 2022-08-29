@@ -256,6 +256,67 @@ func TestParserv3(t *testing.T) {
 			t.Fatalf(`DecodePacket *Packet.Data value not as expected: %v, want match for %v`, b, check)
 		}
 	})
+
+	t.Run("DecodePayload/Base64", func(t *testing.T) {
+		packs := p.DecodePayload(types.NewStringBufferString("6:b0QUJD26:1test测试中文和表情字符❤️🧡💛🧓🏾💟"))
+
+		if l := len(packs); l != 2 {
+			t.Fatalf(`*len(packs) = %d, want match for %d`, l, 2)
+		}
+
+		func() {
+
+			if tp := packs[0].Type; tp != packet.OPEN {
+				t.Fatalf(`DecodePayload packs[0].Type value not as expected: %q, want match for %q`, tp, packet.OPEN)
+			}
+
+			if packs[0].Data == nil {
+				t.Fatal(`DecodePacket packs[0]..Data value must not be nil`)
+			}
+
+			if c, ok := packs[0].Data.(io.Closer); ok {
+				defer c.Close()
+			}
+
+			buf, err := types.NewBytesBufferReader(packs[0].Data)
+			if err != nil {
+				t.Fatal("packs[0] io.Reader data read failed:", err)
+			}
+
+			check := []byte{65, 66, 67}
+
+			if b := buf.Bytes(); !bytes.Equal(b, check) {
+				t.Fatalf(`DecodePacket packs[0]..Data value not as expected: %v, want match for %v`, b, check)
+			}
+		}()
+
+		func() {
+
+			if tp := packs[1].Type; tp != packet.CLOSE {
+				t.Fatalf(`DecodePayload packs[1].Type value not as expected: %q, want match for %q`, tp, packet.CLOSE)
+			}
+
+			if packs[1].Data == nil {
+				t.Fatal(`DecodePacket packs[1].Data value must not be nil`)
+			}
+
+			if c, ok := packs[1].Data.(io.Closer); ok {
+				defer c.Close()
+			}
+
+			buf, err := types.NewBytesBufferReader(packs[1].Data)
+			if err != nil {
+				t.Fatal("io.Reader data read failed:", err)
+			}
+
+			check := "test测试中文和表情字符❤️🧡💛🧓🏾💟"
+
+			if b := buf.String(); b != check {
+				t.Fatalf(`DecodePacket packs[1].Data value not as expected: %s, want match for %s`, b, check)
+			}
+		}()
+	})
+
 }
 
 func TestParserv4(t *testing.T) {

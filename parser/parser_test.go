@@ -11,7 +11,25 @@ import (
 )
 
 func TestParserv3(t *testing.T) {
-	p := Parserv3()
+	p := &parserv3{}
+
+	t.Run("hasBinary", func(t *testing.T) {
+		if b := p.hasBinary([]*packet.Packet{
+			nil,
+			&packet.Packet{
+				Type:    packet.CLOSE,
+				Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
+				Options: nil,
+			},
+			&packet.Packet{
+				Type:    packet.OPEN,
+				Data:    bytes.NewBuffer([]byte("ABC")),
+				Options: nil,
+			},
+		}); b != true {
+			t.Fatalf(`hasBinary value not as expected: %t, want match for %t`, b, true)
+		}
+	})
 
 	t.Run("Protocol", func(t *testing.T) {
 		if protocol := p.Protocol(); protocol != 3 {
@@ -380,7 +398,7 @@ func TestParserv3(t *testing.T) {
 }
 
 func TestParserv4(t *testing.T) {
-	p := Parserv4()
+	p := &parserv4{}
 
 	t.Run("Protocol", func(t *testing.T) {
 		if protocol := p.Protocol(); protocol != 4 {

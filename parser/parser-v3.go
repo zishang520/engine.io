@@ -30,6 +30,10 @@ func (*parserv3) Protocol() int {
 }
 
 func (p *parserv3) EncodePacket(data *packet.Packet, supportsBinary bool, utf8encode ...bool) (types.BufferInterface, error) {
+	if data == nil {
+		return nil, errors.New("packet must not be nil").Err()
+	}
+
 	utf8encode = append(utf8encode, false)
 
 	if c, ok := data.Data.(io.Closer); ok {
@@ -151,12 +155,14 @@ func (p *parserv3) hasBinary(packets []*packet.Packet) bool {
 		return false
 	}
 	for _, packet := range packets {
-		switch packet.Data.(type) {
-		case *types.StringBuffer:
-		case *strings.Reader:
-		case nil:
-		default:
-			return true
+		if packet != nil {
+			switch packet.Data.(type) {
+			case *types.StringBuffer:
+			case *strings.Reader:
+			case nil:
+			default:
+				return true
+			}
 		}
 	}
 
@@ -203,6 +209,9 @@ func (p *parserv3) EncodePayload(packets []*packet.Packet, supportsBinary ...boo
 }
 
 func (p *parserv3) encodeOneBinaryPacket(packet *packet.Packet) (types.BufferInterface, error) {
+	if packet == nil {
+		return nil, errors.New("packet must not be nil").Err()
+	}
 	binarypacket := types.NewBytesBuffer(nil)
 
 	buf, err := p.EncodePacket(packet, true, true)

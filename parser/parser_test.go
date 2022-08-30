@@ -380,5 +380,323 @@ func TestParserv3(t *testing.T) {
 }
 
 func TestParserv4(t *testing.T) {
+	p := Parserv4()
+
+	t.Run("Protocol", func(t *testing.T) {
+		if protocol := p.Protocol(); protocol != 4 {
+			t.Fatalf(`*Parserv3.Protocol() = %d, want match for %d`, protocol, 4)
+		}
+	})
+
+	t.Run("EncodePacket/Byte", func(t *testing.T) {
+		data, err := p.EncodePacket(&packet.Packet{
+			Type:    packet.OPEN,
+			Data:    bytes.NewBuffer([]byte("ABC")),
+			Options: nil,
+		}, true)
+
+		if err != nil {
+			t.Fatal("Error with EncodePacket:", err)
+		}
+		check := []byte{65, 66, 67}
+		if b := data.Bytes(); !bytes.Equal(b, check) {
+			t.Fatalf(`EncodePacket value not as expected: %v, want match for %v`, b, check)
+		}
+	})
+
+	t.Run("EncodePacket/Byte/Base64", func(t *testing.T) {
+		data, err := p.EncodePacket(&packet.Packet{
+			Type:    packet.OPEN,
+			Data:    bytes.NewBuffer([]byte("ABC")),
+			Options: nil,
+		}, false)
+
+		if err != nil {
+			t.Fatal("Error with EncodePacket:", err)
+		}
+		check1 := "bQUJD"
+		if b := data.String(); b != check1 {
+			t.Fatalf(`EncodePacket value not as expected: %s, want match for %s`, b, check1)
+		}
+
+	})
+
+	t.Run("EncodePacket/String", func(t *testing.T) {
+		data, err := p.EncodePacket(&packet.Packet{
+			Type:    packet.OPEN,
+			Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
+			Options: nil,
+		}, false)
+
+		if err != nil {
+			t.Fatal("Error with EncodePacket:", err)
+		}
+		check2 := "0test测试中文和表情字符❤️🧡💛🧓🏾💟"
+		if b := data.String(); b != check2 {
+			t.Fatalf(`EncodePacket value not as expected: %s, want match for %s`, b, check2)
+		}
+	})
+
+	t.Run("DecodePacket/Byte/Base64", func(t *testing.T) {
+		pack, err := p.DecodePacket(types.NewStringBufferString("bQUJD"))
+
+		if err != nil {
+			t.Fatal("Error with DecodePacket:", err)
+		}
+
+		if pack.Type != packet.MESSAGE {
+			t.Fatalf(`DecodePacket *Packet.Type value not as expected: %q, want match for %q`, pack.Type, packet.MESSAGE)
+		}
+
+		if pack.Data == nil {
+			t.Fatal(`DecodePacket *Packet.Data value must not be nil`)
+		}
+
+		if c, ok := pack.Data.(io.Closer); ok {
+			defer c.Close()
+		}
+
+		buf, err := types.NewBytesBufferReader(pack.Data)
+		if err != nil {
+			t.Fatal("io.Reader data read failed:", err)
+		}
+
+		check := "ABC"
+
+		if b := buf.String(); b != check {
+			t.Fatalf(`DecodePacket *Packet.Data value not as expected: %q, want match for %q`, b, check)
+		}
+	})
+
+	t.Run("DecodePacket/Byte", func(t *testing.T) {
+		pack, err := p.DecodePacket(types.NewBytesBuffer([]byte{65, 66, 67}))
+
+		if err != nil {
+			t.Fatal("Error with DecodePacket:", err)
+		}
+
+		if pack.Type != packet.MESSAGE {
+			t.Fatalf(`DecodePacket *Packet.Type value not as expected: %q, want match for %q`, pack.Type, packet.MESSAGE)
+		}
+
+		if pack.Data == nil {
+			t.Fatal(`DecodePacket *Packet.Data value must not be nil`)
+		}
+
+		if c, ok := pack.Data.(io.Closer); ok {
+			defer c.Close()
+		}
+
+		buf, err := types.NewBytesBufferReader(pack.Data)
+		if err != nil {
+			t.Fatal("io.Reader data read failed:", err)
+		}
+
+		check := []byte{65, 66, 67}
+
+		if b := buf.Bytes(); !bytes.Equal(b, check) {
+			t.Fatalf(`DecodePacket *Packet.Data value not as expected: %v, want match for %v`, b, check)
+		}
+	})
+
+	t.Run("DecodePacket/String", func(t *testing.T) {
+		pack, err := p.DecodePacket(types.NewStringBufferString("2test测试中文和表情字符❤️🧡💛🧓🏾💟"))
+
+		if err != nil {
+			t.Fatal("Error with DecodePacket:", err)
+		}
+
+		if pack.Type != packet.PING {
+			t.Fatalf(`DecodePacket *Packet.Type value not as expected: %q, want match for %q`, pack.Type, packet.PING)
+		}
+
+		if pack.Data == nil {
+			t.Fatal(`DecodePacket *Packet.Data value must not be nil`)
+		}
+
+		if c, ok := pack.Data.(io.Closer); ok {
+			defer c.Close()
+		}
+
+		buf, err := types.NewBytesBufferReader(pack.Data)
+		if err != nil {
+			t.Fatal("io.Reader data read failed:", err)
+		}
+
+		check := "test测试中文和表情字符❤️🧡💛🧓🏾💟"
+
+		if b := buf.String(); b != check {
+			t.Fatalf(`DecodePacket *Packet.Data value not as expected: %s, want match for %s`, b, check)
+		}
+	})
+
+	t.Run("EncodePayload/Base64", func(t *testing.T) {
+		data, err := p.EncodePayload(
+			[]*packet.Packet{
+				&packet.Packet{
+					Type:    packet.OPEN,
+					Data:    bytes.NewBuffer([]byte("ABC")),
+					Options: nil,
+				},
+				&packet.Packet{
+					Type:    packet.CLOSE,
+					Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
+					Options: nil,
+				},
+			}, false)
+
+		if err != nil {
+			t.Fatal("Error with EncodePayload:", err)
+		}
+		check1 := "bQUJD\x1e1test测试中文和表情字符❤️🧡💛🧓🏾💟"
+		if b := data.String(); b != check1 {
+			t.Fatalf(`EncodePayload value not as expected: %s, want match for %s`, b, check1)
+		}
+	})
+
+	t.Run("EncodePayload", func(t *testing.T) {
+		data, err := p.EncodePayload(
+			[]*packet.Packet{
+				&packet.Packet{
+					Type:    packet.OPEN,
+					Data:    bytes.NewBuffer([]byte("ABC")),
+					Options: nil,
+				},
+				&packet.Packet{
+					Type:    packet.CLOSE,
+					Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
+					Options: nil,
+				},
+			}, true)
+
+		if err != nil {
+			t.Fatal("Error with EncodePayload:", err)
+		}
+		check := []byte{98, 81, 85, 74, 68, 30, 49, 116, 101, 115, 116, 230, 181, 139, 232, 175, 149, 228, 184, 173, 230, 150, 135, 229, 146, 140, 232, 161, 168, 230, 131, 133, 229, 173, 151, 231, 172, 166, 226, 157, 164, 239, 184, 143, 240, 159, 167, 161, 240, 159, 146, 155, 240, 159, 167, 147, 240, 159, 143, 190, 240, 159, 146, 159}
+
+		if b := data.Bytes(); !bytes.Equal(b, check) {
+			t.Fatalf(`DecodePacket *Packet.Data value not as expected: %v, want match for %v`, b, check)
+		}
+	})
+
+	t.Run("DecodePayload/Base64", func(t *testing.T) {
+		packs := p.DecodePayload(types.NewStringBufferString("bQUJD\x1e1test测试中文和表情字符❤️🧡💛🧓🏾💟"))
+
+		if l := len(packs); l != 2 {
+			t.Fatalf(`*len(packs) = %d, want match for %d`, l, 2)
+		}
+
+		func() {
+
+			if tp := packs[0].Type; tp != packet.MESSAGE {
+				t.Fatalf(`DecodePayload packs[0].Type value not as expected: %q, want match for %q`, tp, packet.MESSAGE)
+			}
+
+			if packs[0].Data == nil {
+				t.Fatal(`DecodePacket packs[0]..Data value must not be nil`)
+			}
+
+			if c, ok := packs[0].Data.(io.Closer); ok {
+				defer c.Close()
+			}
+
+			buf, err := types.NewBytesBufferReader(packs[0].Data)
+			if err != nil {
+				t.Fatal("packs[0] io.Reader data read failed:", err)
+			}
+
+			check := []byte{65, 66, 67}
+
+			if b := buf.Bytes(); !bytes.Equal(b, check) {
+				t.Fatalf(`DecodePacket packs[0]..Data value not as expected: %v, want match for %v`, b, check)
+			}
+		}()
+
+		func() {
+
+			if tp := packs[1].Type; tp != packet.CLOSE {
+				t.Fatalf(`DecodePayload packs[1].Type value not as expected: %q, want match for %q`, tp, packet.CLOSE)
+			}
+
+			if packs[1].Data == nil {
+				t.Fatal(`DecodePacket packs[1].Data value must not be nil`)
+			}
+
+			if c, ok := packs[1].Data.(io.Closer); ok {
+				defer c.Close()
+			}
+
+			buf, err := types.NewBytesBufferReader(packs[1].Data)
+			if err != nil {
+				t.Fatal("io.Reader data read failed:", err)
+			}
+
+			check := "test测试中文和表情字符❤️🧡💛🧓🏾💟"
+
+			if b := buf.String(); b != check {
+				t.Fatalf(`DecodePacket packs[1].Data value not as expected: %s, want match for %s`, b, check)
+			}
+		}()
+	})
+
+	t.Run("DecodePayload", func(t *testing.T) {
+		packs := p.DecodePayload(types.NewBytesBuffer([]byte{98, 81, 85, 74, 68, 30, 49, 116, 101, 115, 116, 230, 181, 139, 232, 175, 149, 228, 184, 173, 230, 150, 135, 229, 146, 140, 232, 161, 168, 230, 131, 133, 229, 173, 151, 231, 172, 166, 226, 157, 164, 239, 184, 143, 240, 159, 167, 161, 240, 159, 146, 155, 240, 159, 167, 147, 240, 159, 143, 190, 240, 159, 146, 159}))
+
+		if l := len(packs); l != 2 {
+			t.Fatalf(`*len(packs) = %d, want match for %d`, l, 2)
+		}
+
+		func() {
+
+			if tp := packs[0].Type; tp != packet.MESSAGE {
+				t.Fatalf(`DecodePayload packs[0].Type value not as expected: %q, want match for %q`, tp, packet.MESSAGE)
+			}
+
+			if packs[0].Data == nil {
+				t.Fatal(`DecodePacket packs[0]..Data value must not be nil`)
+			}
+
+			if c, ok := packs[0].Data.(io.Closer); ok {
+				defer c.Close()
+			}
+
+			buf, err := types.NewBytesBufferReader(packs[0].Data)
+			if err != nil {
+				t.Fatal("packs[0] io.Reader data read failed:", err)
+			}
+
+			check := []byte{65, 66, 67}
+
+			if b := buf.Bytes(); !bytes.Equal(b, check) {
+				t.Fatalf(`DecodePacket packs[0]..Data value not as expected: %v, want match for %v`, b, check)
+			}
+		}()
+
+		func() {
+
+			if tp := packs[1].Type; tp != packet.CLOSE {
+				t.Fatalf(`DecodePayload packs[1].Type value not as expected: %q, want match for %q`, tp, packet.CLOSE)
+			}
+
+			if packs[1].Data == nil {
+				t.Fatal(`DecodePacket packs[1].Data value must not be nil`)
+			}
+
+			if c, ok := packs[1].Data.(io.Closer); ok {
+				defer c.Close()
+			}
+
+			buf, err := types.NewBytesBufferReader(packs[1].Data)
+			if err != nil {
+				t.Fatal("io.Reader data read failed:", err)
+			}
+
+			check := "test测试中文和表情字符❤️🧡💛🧓🏾💟"
+
+			if b := buf.String(); b != check {
+				t.Fatalf(`DecodePacket packs[1].Data value not as expected: %s, want match for %s`, b, check)
+			}
+		}()
+	})
 
 }

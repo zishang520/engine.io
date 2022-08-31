@@ -52,13 +52,15 @@ func CleanPath(p string) string {
 
 // isLWS reports whether b is linear white space, according
 // to http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.2
-//      LWS            = [CRLF] 1*( SP | HT )
+//
+//	LWS            = [CRLF] 1*( SP | HT )
 func isLWS(b byte) bool { return b == ' ' || b == '\t' }
 
 // isCTL reports whether b is a control byte, according
 // to http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.2
-//      CTL            = <any US-ASCII control character
-//                       (octets 0 - 31) and DEL (127)>
+//
+//	CTL            = <any US-ASCII control character
+//	                 (octets 0 - 31) and DEL (127)>
 func isCTL(b byte) bool {
 	return b < ' ' || b == 0x7f // a CTL
 }
@@ -66,27 +68,28 @@ func isCTL(b byte) bool {
 // CheckInvalidHeaderChar reports whether v is an invalid "field-value" according to
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2 :
 //
-//        message-header = field-name ":" [ field-value ]
-//        field-value    = *( field-content | LWS )
-//        field-content  = <the OCTETs making up the field-value
-//                         and consisting of either *TEXT or combinations
-//                         of token, separators, and quoted-string>
+//	message-header = field-name ":" [ field-value ]
+//	field-value    = *( field-content | LWS )
+//	field-content  = <the OCTETs making up the field-value
+//	                 and consisting of either *TEXT or combinations
+//	                 of token, separators, and quoted-string>
 //
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.2 :
 //
-//        TEXT           = <any OCTET except CTLs,
-//                          but including LWS>
-//        LWS            = [CRLF] 1*( SP | HT )
-//        CTL            = <any US-ASCII control character
-//                         (octets 0 - 31) and DEL (127)>
+//	TEXT           = <any OCTET except CTLs,
+//	                  but including LWS>
+//	LWS            = [CRLF] 1*( SP | HT )
+//	CTL            = <any US-ASCII control character
+//	                 (octets 0 - 31) and DEL (127)>
 //
 // RFC 7230 says:
-//  field-value    = *( field-content / obs-fold )
-//  obj-fold       =  N/A to http2, and deprecated
-//  field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
-//  field-vchar    = VCHAR / obs-text
-//  obs-text       = %x80-FF
-//  VCHAR          = "any visible [USASCII] character"
+//
+//	field-value    = *( field-content / obs-fold )
+//	obj-fold       =  N/A to http2, and deprecated
+//	field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+//	field-vchar    = VCHAR / obs-text
+//	obs-text       = %x80-FF
+//	VCHAR          = "any visible [USASCII] character"
 //
 // http2 further says: "Similarly, HTTP/2 allows header field values
 // that are not valid. While most of the values that can be encoded

@@ -38,14 +38,14 @@ func main() {
     })
 
     engineServer := engine.Listen("127.0.0.1:4444", serverOptions, nil)
-    engineServer.On("connection", func(sockets ...interface{}) {
+    engineServer.On("connection", func(sockets ...any) {
         socket := sockets[0].(engine.Socket)
         socket.Send(strings.NewReader("utf 8 string"), nil, nil)
         socket.Send(types.NewBytesBuffer([]byte{0, 1, 2, 3, 4, 5}), nil, nil)
         socket.Send(types.NewBytesBufferString("BufferString by string"), nil, nil)
         socket.Send(types.NewStringBuffer([]byte("StringBuffer by byte")), nil, nil)
         socket.Send(types.NewStringBufferString("StringBuffer by string"), nil, nil)
-        socket.On("message", func(...interface{}) {
+        socket.On("message", func(...any) {
             // socket.Send(strings.NewReader("utf 8 string"), nil, nil)
         })
     })
@@ -100,11 +100,11 @@ func main() {
 
     engineServer := engine.Attach(http, serverOptions)
 
-    engineServer.On("connection", func(sockets ...interface{}) {
+    engineServer.On("connection", func(sockets ...any) {
         socket := sockets[0].(engine.Socket)
-        socket.On("message", func(...interface{}) {
+        socket.On("message", func(...any) {
         })
-        socket.On("close", func(...interface{}) {
+        socket.On("close", func(...any) {
             utils.Log().Println("client close.")
         })
     })
@@ -171,11 +171,11 @@ func main() {
         }
     })
 
-    engineServer.On("connection", func(sockets ...interface{}) {
+    engineServer.On("connection", func(sockets ...any) {
         socket := sockets[0].(engine.Socket)
-        socket.On("message", func(...interface{}) {
+        socket.On("message", func(...any) {
         })
-        socket.On("close", func(...interface{}) {
+        socket.On("close", func(...any) {
             utils.Log().Println("client close.")
         })
     })
@@ -257,7 +257,7 @@ These are exposed by `import github.com/zishang520/engine.io/engine"`:
       directly to the `Server` constructor.
     - **Parameters**
       - `*types.HttpServer`: optional, server to attach to.
-      - `interface{}`: optional, options object (see `*config.Server#constructor` api docs below)
+      - `any`: optional, options object (see `*config.Server#constructor` api docs below)
 
   The following are identical ways to instantiate a server and then attach it.
 
@@ -291,7 +291,7 @@ eioServer = engine.New(httpServer, c)
       to it. It returns `501 Not Implemented` for regular http requests.
     - **Parameters**
       - `string`: address to listen on.
-      - `interface{}`: optional, options object
+      - `any`: optional, options object
       - `func()`: callback for `listen`.
     - **Options**
       - All options from `engine.Server.Attach` method, documented below.
@@ -308,7 +308,7 @@ c.SetPingInterval(10000)
 
 const server = engine.Listen("127.0.0.1:3000", c);
 
-server.On('connection', func(...interface{}) {});
+server.On('connection', func(...any) {});
 ```
 
 - `Attach`
@@ -316,7 +316,7 @@ server.On('connection', func(...interface{}) {});
       a regular http.Server WebSocket-compatible.
     - **Parameters**
       - `*types.HttpServer`: server to attach to.
-      - `interface{}`: optional, options object
+      - `any`: optional, options object
     - **Options**
       - All options from `engine.Server.attach` method, documented below.
       - **Additionally** See Server `New` below for options you can pass for creating the new Server
@@ -352,7 +352,7 @@ The main server/manager. _Inherits from EventEmitter_.
         - `req` (`*types.HttpContext`): the request that was dropped
         - `code` (`int`): one of `Server.errors`
         - `message` (`string`): one of `Server.errorMessages`
-        - `context` (`map[string]interface{}`): extra info about the error
+        - `context` (`map[string]any`): extra info about the error
 
 | Code | Message |
 | ---- | ------- |

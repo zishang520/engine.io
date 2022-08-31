@@ -85,7 +85,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 
 	var onClose events.Listener
 
-	onClose = func(...interface{}) {
+	onClose = func(...any) {
 		p.OnError("poll connection closed prematurely")
 	}
 
@@ -136,7 +136,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		p.dataCtx = nil
 	}
 
-	onClose = func(...interface{}) {
+	onClose = func(...any) {
 		cleanup()
 		p.OnError("data request connection closed prematurely")
 	}

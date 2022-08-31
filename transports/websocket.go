@@ -85,10 +85,10 @@ func (w *websocket) New(ctx *types.HttpContext) *websocket {
 			}
 		}
 	}()
-	w.socket.On("error", func(errors ...interface{}) {
+	w.socket.On("error", func(errors ...any) {
 		w.OnError(errors[0].(error).Error())
 	})
-	w.socket.On("close", func(...interface{}) {
+	w.socket.On("close", func(...any) {
 		w.OnClose()
 	})
 	return w

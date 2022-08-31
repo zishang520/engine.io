@@ -34,7 +34,7 @@ type Server interface {
 	HandleUpgrade(*types.HttpContext)
 
 	// Captures upgrade requests for a types.HttpServer.
-	Attach(*types.HttpServer, interface{})
+	Attach(*types.HttpServer, any)
 
 	// generate a socket id.
 	// Overwrite this method to generate your custom socket id

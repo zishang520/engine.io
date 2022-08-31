@@ -8,6 +8,6 @@ type CodeMessage struct {
 type ErrorMessage struct {
 	*CodeMessage
 
-	Req     *HttpContext           `json:"req,omitempty"`
-	Context map[string]interface{} `json:"context,omitempty"`
+	Req     *HttpContext   `json:"req,omitempty"`
+	Context map[string]any `json:"context,omitempty"`
 }

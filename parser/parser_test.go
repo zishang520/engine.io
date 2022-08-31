@@ -112,7 +112,7 @@ func TestParserv3(t *testing.T) {
 		if err != nil {
 			t.Fatal("Error with EncodePacket:", err)
 		}
-		check := []byte{0x01, 0x04, 0XFF, 0x00, 65, 66, 67}
+		check := []byte{0x01, 0x04, 0xFF, 0x00, 65, 66, 67}
 		if b := data.Bytes(); !bytes.Equal(b, check) {
 			t.Fatalf(`encodeOneBinaryPacket value not as expected: %v, want match for %v`, b, check)
 		}

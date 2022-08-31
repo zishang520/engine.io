@@ -86,8 +86,6 @@ func (s *server) New(opt any) *server {
 		}
 	}
 
-	s.Init()
-
 	return s
 }
 
@@ -174,7 +172,7 @@ func (s *server) Close() Server {
 		client.(Socket).Close(true)
 		return true
 	})
-	s.Cleanup()
+
 	return s
 }
 

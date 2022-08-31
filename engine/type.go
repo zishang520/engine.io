@@ -2,6 +2,7 @@ package engine
 
 import (
 	"io"
+	"net/http"
 	"sync"
 
 	"github.com/zishang520/engine.io/config"
@@ -33,8 +34,11 @@ type Server interface {
 	// Handles an Engine.IO HTTP Upgrade.
 	HandleUpgrade(*types.HttpContext)
 
-	// Captures upgrade requests for a types.HttpServer.
+	// Captures upgrade requests for a *types.HttpServer.
 	Attach(*types.HttpServer, any)
+
+	// Captures upgrade requests for a http.Handler, Need to handle server shutdown disconnecting client connections.
+	ServeHTTP(http.ResponseWriter, *http.Request)
 
 	// generate a socket id.
 	// Overwrite this method to generate your custom socket id

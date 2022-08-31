@@ -17,19 +17,6 @@ import (
 
 var server_log = log.NewLog("engine")
 
-// Initialize websocket server
-func (s *server) Init() {
-	if !s.opts.Transports().Has("websocket") {
-		return
-	}
-}
-
-func (s *server) Cleanup() {
-	server_log.Debug(`closing webSocketServer`)
-	// s.ws.Close()
-	// don't delete this.ws because it can be used again if the http server starts listening again
-}
-
 func (s *server) CreateTransport(transportName string, ctx *types.HttpContext) (transports.Transport, error) {
 	if transport, ok := transports.Transports()[transportName]; ok {
 		return transport.New(ctx), nil
@@ -204,9 +191,7 @@ func (s *server) Attach(server *types.HttpServer, opts any) {
 	server.On("close", func(...any) {
 		s.Close()
 	})
-	server.On("listening", func(...any) {
-		s.Init()
-	})
+
 	server.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		if !websocket.IsWebSocketUpgrade(r) {
 			server_log.Debug(`intercepting request for path "%s"`, path)
@@ -214,9 +199,21 @@ func (s *server) Attach(server *types.HttpServer, opts any) {
 		} else if s.opts.Transports().Has("websocket") {
 			s.HandleUpgrade(types.NewHttpContext(w, r))
 		} else {
-			server.DefaultHandler.ServeHTTP(w, r)
+			http.Error(w, "Not Implemented", http.StatusNotImplemented)
 		}
 	})
+}
+
+// Captures upgrade requests for a http.Handler, Need to handle server shutdown disconnecting client connections.
+func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !websocket.IsWebSocketUpgrade(r) {
+		server_log.Debug(`intercepting request for path "%s"`, r.URL.Path)
+		s.HandleRequest(types.NewHttpContext(w, r))
+	} else if s.opts.Transports().Has("websocket") {
+		s.HandleUpgrade(types.NewHttpContext(w, r))
+	} else {
+		http.Error(w, "Not Implemented", http.StatusNotImplemented)
+	}
 }
 
 // Close the HTTP long-polling request

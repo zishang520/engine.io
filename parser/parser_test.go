@@ -102,6 +102,38 @@ func TestParserv3(t *testing.T) {
 		}
 	})
 
+	t.Run("encodeOneBinaryPacket", func(t *testing.T) {
+		data, err := p.encodeOneBinaryPacket(&packet.Packet{
+			Type:    packet.OPEN,
+			Data:    bytes.NewBuffer([]byte("ABC")),
+			Options: nil,
+		})
+
+		if err != nil {
+			t.Fatal("Error with EncodePacket:", err)
+		}
+		check := []byte{0x01, 0x04, 0XFF, 0x00, 65, 66, 67}
+		if b := data.Bytes(); !bytes.Equal(b, check) {
+			t.Fatalf(`encodeOneBinaryPacket value not as expected: %v, want match for %v`, b, check)
+		}
+	})
+
+	t.Run("encodeOneBinaryPacket/String", func(t *testing.T) {
+		data, err := p.encodeOneBinaryPacket(&packet.Packet{
+			Type:    packet.OPEN,
+			Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
+			Options: nil,
+		})
+
+		if err != nil {
+			t.Fatal("Error with EncodePacket:", err)
+		}
+		check := []byte{0x00, 0x05, 0x08, 0xFF, 48, 116, 101, 115, 116, 195, 131, 194, 166, 195, 130, 194, 181, 195, 130, 194, 139, 195, 131, 194, 168, 195, 130, 194, 175, 195, 130, 194, 149, 195, 131, 194, 164, 195, 130, 194, 184, 195, 130, 194, 173, 195, 131, 194, 166, 195, 130, 194, 150, 195, 130, 194, 135, 195, 131, 194, 165, 195, 130, 194, 146, 195, 130, 194, 140, 195, 131, 194, 168, 195, 130, 194, 161, 195, 130, 194, 168, 195, 131, 194, 166, 195, 130, 194, 131, 195, 130, 194, 133, 195, 131, 194, 165, 195, 130, 194, 173, 195, 130, 194, 151, 195, 131, 194, 167, 195, 130, 194, 172, 195, 130, 194, 166, 195, 131, 194, 162, 195, 130, 194, 157, 195, 130, 194, 164, 195, 131, 194, 175, 195, 130, 194, 184, 195, 130, 194, 143, 195, 131, 194, 176, 195, 130, 194, 159, 195, 130, 194, 167, 195, 130, 194, 161, 195, 131, 194, 176, 195, 130, 194, 159, 195, 130, 194, 146, 195, 130, 194, 155, 195, 131, 194, 176, 195, 130, 194, 159, 195, 130, 194, 167, 195, 130, 194, 147, 195, 131, 194, 176, 195, 130, 194, 159, 195, 130, 194, 143, 195, 130, 194, 190, 195, 131, 194, 176, 195, 130, 194, 159, 195, 130, 194, 146, 195, 130, 194, 159}
+		if b := data.Bytes(); !bytes.Equal(b, check) {
+			t.Fatalf(`encodeOneBinaryPacket value not as expected: %v, want match for %v`, b, check)
+		}
+	})
+
 	t.Run("DecodePacket/Byte/Base64", func(t *testing.T) {
 		pack, err := p.DecodePacket(types.NewStringBufferString("b1QUJD"))
 

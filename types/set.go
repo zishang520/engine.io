@@ -71,7 +71,13 @@ func (s *Set[T]) All() map[T]Void {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.cache
+	_tmp := map[T]Void{}
+
+	for k := range s.cache {
+		_tmp[k] = NULL
+	}
+
+	return _tmp
 }
 
 func (s *Set[T]) Keys() (list []T) {

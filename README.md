@@ -71,7 +71,7 @@ func main() {
 
 ```
 
-#### (B) Intercepting requests for a types.HttpServer
+#### (B) Intercepting requests for a `*types.HttpServer`
 
 ```go
 package main

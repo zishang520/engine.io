@@ -157,8 +157,10 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]a
 			return BAD_REQUEST, map[string]any{"name": "TRANSPORT_HANDSHAKE_ERROR"}
 		}
 
-		if allowrequest := s.opts.AllowRequest(); allowrequest != nil {
-			return allowrequest(ctx)
+		if allowRequest := s.opts.AllowRequest(); allowRequest != nil {
+			if err := allowRequest(ctx); err != nil {
+				return FORBIDDEN, map[string]any{"message": err.Error()}
+			}
 		}
 	}
 

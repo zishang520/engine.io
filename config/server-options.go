@@ -8,7 +8,7 @@ import (
 	"github.com/zishang520/engine.io/types"
 )
 
-type AllowRequest func(*types.HttpContext) (int, map[string]any)
+type AllowRequest func(*types.HttpContext) error
 
 type ServerOptionsInterface interface {
 	SetPingTimeout(time.Duration)

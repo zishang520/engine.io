@@ -304,7 +304,7 @@ These are exposed by `import "github.com/zishang520/engine.io/engine"`:
     - **Arguments**
       - `engine.Socket`: socket being flushed
 
-##### Properties
+##### Constants and types
 
 - `Protocol` _(int)_: protocol revision number
 - `Server`: Server struct
@@ -384,7 +384,7 @@ server.On('connection', func(...any) {});
       - **Additionally** See Server `New` below for options you can pass for creating the new Server
     - **Returns** `engine.Server` a new Server instance.
 
-#### Server
+#### engine.Server
 
 The main server/manager. _Inherits from events.EventEmitter_.
 
@@ -426,7 +426,7 @@ The main server/manager. _Inherits from events.EventEmitter_.
 | 4 | "Forbidden"
 | 5 | "Unsupported protocol version"
 
-##### Properties
+##### Read-only methods
 
 **Important**: if you plan to use Engine.IO in a scalable way, please
 keep in mind the properties below will only reflect the clients connected
@@ -496,6 +496,66 @@ to a single process.
 
 <hr><br>
 
+#### engine.Socket
 
+A representation of a client. _Inherits from events.EventEmitter_.
+
+##### Events
+
+- `close`
+    - Fired when the client is disconnected.
+    - **Arguments**
+      - `string`: reason for closing
+      - `any`: description (optional)
+- `message`
+    - Fired when the client sends a message.
+    - **Arguments**
+      - `io.Reader`: `*types.StringBuffer` or `*types.BytesBuffer` with binary contents
+- `error`
+    - Fired when an error occurs.
+    - **Arguments**
+      - `error`: error type
+- `flush`
+    - Called when the write buffer is being flushed.
+    - **Arguments**
+      - `[]*packet.Packet`: write buffer
+- `drain`
+    - Called when the write buffer is drained
+- `packet`
+    - Called when a socket received a packet (`message`, `ping`)
+    - **Arguments**
+      - `*packet.Packet`: packet
+- `packetCreate`
+    - Called before a socket sends a packet (`message`, `ping`)
+    - **Arguments**
+      - `*packet.Packet`: packet
+- `heartbeat`
+    - Called when `ping` or `pong` packed is received (depends of client version)
+
+##### Read-only methods
+
+- `Id()` _(string)_: unique identifier
+- `Server()` _(engine.Server)_: engine parent reference
+- `Request()` _(*types.HttpContext)_: request that originated the Socket
+- `Upgraded()` _(bool)_: whether the transport has been upgraded
+- `ReadyState()` _(string)_: opening|open|closing|closed
+- `Transport()` _(transports.Transport)_: transport reference
+
+##### Methods
+
+- `Send`:
+    - Sends a message, performing `message = toString(arguments[0])` unless
+      sending binary data, which is sent as is.
+    - **Parameters**
+      - `io.Reader`: a string or any object implementing `toString()`, with outgoing data, or a Buffer or ArrayBuffer with binary data. Also any ArrayBufferView can be sent as is.
+      - `Object`: optional, options object
+      - `Function`: optional, a callback executed when the message gets flushed out by the transport
+    - **Options**
+      - `compress` (`Boolean`): whether to compress sending data. This option might be ignored and forced to be `true` when using polling. (`true`)
+    - **Returns** `Socket` for chaining
+- `Close`
+    - Disconnects the client
+    - **Parameters**
+      - `bool`: Flags the transport as discarded. (`false`)
 
 ...

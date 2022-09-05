@@ -544,15 +544,14 @@ A representation of a client. _Inherits from events.EventEmitter_.
 ##### Methods
 
 - `Send`:
-    - Sends a message, performing `message = toString(arguments[0])` unless
-      sending binary data, which is sent as is.
+    - Sends a message.
     - **Parameters**
-      - `io.Reader`: a string or any object implementing `toString()`, with outgoing data, or a Buffer or ArrayBuffer with binary data. Also any ArrayBufferView can be sent as is.
-      - `Object`: optional, options object
-      - `Function`: optional, a callback executed when the message gets flushed out by the transport
-    - **Options**
-      - `compress` (`Boolean`): whether to compress sending data. This option might be ignored and forced to be `true` when using polling. (`true`)
-    - **Returns** `Socket` for chaining
+      - `io.Reader`: `*types.StringBuffer` and `*strings.Reader` are treated as strings, others that implement the `io.Reader` interface are treated as binary.
+      - `*packet.Options`: can be nil, Options struct.
+      - `func(transports.Transport)`: can be nil, a callback executed when the message gets flushed out by the transport
+    - **\*packet.Options**
+      - `Compress` (`bool`): whether to compress sending data. This option might be ignored and forced to be `true` when using polling. (`true`)
+    - **Returns** `engine.Socket` for chaining
 - `Close`
     - Disconnects the client
     - **Parameters**

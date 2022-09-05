@@ -52,7 +52,7 @@ func TestSet(t *testing.T) {
 		}
 	})
 
-	t.Run("All", func(t *testing.T) {
+	t.Run("Clear", func(t *testing.T) {
 		set.Clear()
 		if l := set.Len(); l != 0 {
 			t.Fatalf(`*Set.Len() = %d, want match for %d`, l, 0)

@@ -352,7 +352,7 @@ eioServer = engine.New(httpServer, c)
       to it. It returns `501 Not Implemented` for regular http requests.
     - **Parameters**
       - `string`: address to listen on.
-      - `any`: optional, options object
+      - `any`: can be nil, interface config.ServerOptionsInterface or config.AttachOptionsInterface.
       - `func()`: callback for `listen`.
     - **Options**
       - All options from `engine.Server.Attach` method, documented below.

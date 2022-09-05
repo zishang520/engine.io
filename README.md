@@ -485,8 +485,8 @@ to a single process.
       - `any`: can be nil, interface config.AttachOptionsInterface
     - **Options**
       - `SetPath(string)`: name of the path to capture (`/engine.io`).
-      - `SetDestroyUpgrade(bool)`: destroy unhandled upgrade requests (`true`)
-      - `SetDestroyUpgradeTimeout(time.Duration)`: milliseconds after which unhandled requests are ended (`1000 * time.Millisecond`)
+      - ~~`SetDestroyUpgrade(bool)`~~: destroy unhandled upgrade requests (`true`)
+      - ~~`SetDestroyUpgradeTimeout(time.Duration)`~~: milliseconds after which unhandled requests are ended (`1000 * time.Millisecond`)
 - `GenerateId`
     - Generate a socket id.
     - Overwrite this method to generate your custom socket id.

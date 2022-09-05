@@ -54,11 +54,11 @@ func main() {
     exit := make(chan struct{})
     SignalC := make(chan os.Signal)
 
-    signal.Notify(SignalC, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+    signal.Notify(SignalC, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
     go func() {
         for s := range SignalC {
             switch s {
-            case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
+            case os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
                 close(exit)
                 return
             }
@@ -112,11 +112,11 @@ func main() {
     exit := make(chan struct{})
     SignalC := make(chan os.Signal)
 
-    signal.Notify(SignalC, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+    signal.Notify(SignalC, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
     go func() {
         for s := range SignalC {
             switch s {
-            case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
+            case os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
                 close(exit)
                 return
             }
@@ -182,11 +182,11 @@ func main() {
     exit := make(chan struct{})
     SignalC := make(chan os.Signal)
 
-    signal.Notify(SignalC, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+    signal.Notify(SignalC, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
     go func() {
         for s := range SignalC {
             switch s {
-            case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
+            case os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
                 close(exit)
                 return
             }
@@ -243,11 +243,11 @@ func main() {
     exit := make(chan struct{})
     SignalC := make(chan os.Signal)
 
-    signal.Notify(SignalC, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+    signal.Notify(SignalC, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
     go func() {
         for s := range SignalC {
             switch s {
-            case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
+            case os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
                 close(exit)
                 return
             }
@@ -495,5 +495,7 @@ to a single process.
   - **Returns** A socket id for connected client.
 
 <hr><br>
+
+
 
 ...

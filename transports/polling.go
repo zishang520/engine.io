@@ -325,11 +325,14 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 
 	var closeTimeoutTimer *utils.Timer = nil
 
-	if p.dataCtx != nil {
+	if p.dataCtx != nil && !p.dataCtx.IsDone() {
 		polling_log.Debug("aborting ongoing data request")
 		if h, ok := p.dataCtx.Response().(http.Hijacker); ok {
 			if netConn, _, err := h.Hijack(); err == nil {
-				netConn.Close()
+				if netConn.Close() == nil {
+					p.dataCtx.Close()
+					p.dataCtx.Emit("close")
+				}
 			}
 		}
 	}

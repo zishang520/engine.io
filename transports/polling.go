@@ -83,11 +83,9 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 
 	p.req = ctx
 
-	var onClose events.Listener
-
-	onClose = func(...any) {
+	onClose := events.Listener(func(...any) {
 		p.OnError("poll connection closed prematurely")
-	}
+	})
 
 	ctx.Cleanup = func() {
 		ctx.RemoveListener("close", onClose)

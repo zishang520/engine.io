@@ -94,8 +94,11 @@ func (c *HttpContext) SetStatusCode(statusCode int) {
 }
 
 func (c *HttpContext) Write(wb []byte) (int, error) {
-	defer c.close()
-	return c.response.Write(wb)
+	if !c.IsDone() {
+		defer c.close()
+		return c.response.Write(wb)
+	}
+	return 0, errors.New("You cannot write data repeatedly.").Err()
 }
 
 func (c *HttpContext) Request() *http.Request {

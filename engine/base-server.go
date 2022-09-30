@@ -42,8 +42,6 @@ type server struct {
 	opts           config.ServerOptionsInterface
 
 	httpServer *types.HttpServer
-
-	MU sync.RWMutex
 }
 
 // Server New.

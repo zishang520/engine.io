@@ -28,9 +28,11 @@ type Transport interface {
 	PerMessageDeflate() *types.PerMessageDeflate
 	ReadyState() string
 	Writable() bool
+	SetWritable(bool)
 
 	// Flags the transport as discarded.
 	Discard()
+	GetDiscarded() bool
 
 	// Called with an incoming HTTP request.
 	OnRequest(*types.HttpContext)

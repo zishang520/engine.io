@@ -94,11 +94,11 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 
 	ctx.On("close", onClose)
 
-	p.writable = true
+	p.SetWritable(true)
 	p.Emit("drain")
 
 	// if we're still writable but had a pending close, trigger an empty send
-	if p.writable && p.shouldClose != nil {
+	if p.Writable() && p.shouldClose != nil {
 		polling_log.Debug("triggering empty send to append close packet")
 		p.Send([]*packet.Packet{
 			&packet.Packet{
@@ -191,7 +191,7 @@ func (p *polling) PollingOnData(data types.BufferInterface) {
 
 // Overrides onClose.
 func (p *polling) PollingOnClose() {
-	if p.writable {
+	if p.Writable() {
 		// close pending poll request
 		p.Send([]*packet.Packet{
 			&packet.Packet{
@@ -204,7 +204,7 @@ func (p *polling) PollingOnClose() {
 
 // Writes a packet payload.
 func (p *polling) PollingSend(packets []*packet.Packet) {
-	p.writable = false
+	p.SetWritable(false)
 
 	if p.shouldClose != nil {
 		polling_log.Debug("appending close packet to payload")
@@ -342,7 +342,7 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 		p.OnClose()
 	}
 
-	if p.writable {
+	if p.Writable() {
 		polling_log.Debug("transport writable - closing right away")
 		p.Send([]*packet.Packet{
 			&packet.Packet{
@@ -350,7 +350,7 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 			},
 		})
 		onClose()
-	} else if p.discarded {
+	} else if p.GetDiscarded() {
 		polling_log.Debug("transport discarded - closing right away")
 		onClose()
 	} else {

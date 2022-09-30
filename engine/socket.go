@@ -40,6 +40,9 @@ type socket struct {
 	pingTimeoutTimer    *utils.Timer
 	pingIntervalTimer   *utils.Timer
 
+	mureadyState     sync.RWMutex
+	muupgrading      sync.RWMutex
+	muupgraded       sync.RWMutex
 	muwriteBuffer    sync.RWMutex
 	mupacketsFn      sync.RWMutex
 	musentCallbackFn sync.RWMutex
@@ -51,10 +54,16 @@ func (s *socket) Protocol() int {
 }
 
 func (s *socket) Upgraded() bool {
+	s.muupgraded.RLock()
+	defer s.muupgraded.RUnlock()
+
 	return s.upgraded
 }
 
 func (s *socket) Upgrading() bool {
+	s.muupgrading.RLock()
+	defer s.muupgrading.RUnlock()
+
 	return s.upgrading
 }
 
@@ -79,11 +88,17 @@ func (s *socket) Server() Server {
 }
 
 func (s *socket) ReadyState() string {
+	s.mureadyState.RLock()
+	defer s.mureadyState.RUnlock()
+
 	return s.readyState
 }
 
 func (s *socket) SetReadyState(state string) {
 	socket_log.Debug("readyState updated from %s to %s", s.readyState, state)
+	s.mureadyState.Lock()
+	defer s.mureadyState.Unlock()
+
 	s.readyState = state
 }
 
@@ -100,8 +115,15 @@ func (s *socket) New(id string, server Server, transport transports.Transport, c
 	s.id = id
 
 	s.server = server
+
+	s.muupgrading.Lock()
 	s.upgrading = false
+	s.muupgrading.Unlock()
+
+	s.muupgraded.Lock()
 	s.upgraded = false
+	s.muupgraded.Unlock()
+
 	s.SetReadyState("opening")
 
 	s.writeBuffer = []*packet.Packet{}
@@ -278,7 +300,9 @@ func (s *socket) setTransport(transport transports.Transport) {
 func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	socket_log.Debug(`might upgrade socket transport from "%s" to "%s"`, s.transport.Name(), transport.Name())
 
+	s.muupgrading.Lock()
 	s.upgrading = true
+	s.muupgrading.Unlock()
 
 	var check, cleanup func()
 	var onPacket, onError, onTransportClose, onClose events.Listener
@@ -297,7 +321,11 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 			socket_log.Debug("got upgrade packet - upgrading")
 			cleanup()
 			s.transport.Discard()
+
+			s.muupgraded.Lock()
 			s.upgraded = true
+			s.muupgraded.Unlock()
+
 			s.clearTransport()
 			s.setTransport(transport)
 			s.Emit("upgrade", transport)
@@ -322,7 +350,9 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	}
 
 	cleanup = func() {
+		s.muupgrading.Lock()
 		s.upgrading = false
+		s.muupgrading.Unlock()
 
 		utils.ClearInterval(s.checkIntervalTimer)
 		s.checkIntervalTimer = nil
@@ -340,8 +370,8 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 
 	onError = func(err ...any) {
 		socket_log.Debug("client did not complete upgrade - %v", err[0])
-		cleanup()
 		if transport != nil {
+			cleanup()
 			transport.Close()
 			transport = nil
 		}

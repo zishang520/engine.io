@@ -1,6 +1,7 @@
 package transports
 
 import (
+	"sync"
 	"time"
 
 	"github.com/zishang520/engine.io/errors"
@@ -24,9 +25,13 @@ type transport struct {
 	protocol     int // 3
 	closeTimeout time.Duration
 
-	_readyState string        //"open";
-	discarded   bool          // false;
-	parser      parser.Parser // parser.PaserV3;
+	_readyState   string //"open";
+	mu_readyState sync.RWMutex
+
+	_discarded   bool // false;
+	mu_discarded sync.RWMutex
+
+	parser parser.Parser // parser.PaserV3;
 
 	req            *types.HttpContext
 	supportsBinary bool
@@ -35,7 +40,9 @@ type transport struct {
 	handlesUpgrades bool
 	supportsFraming bool
 	name            string
-	writable        bool
+
+	_writable   bool
+	mu_writable sync.RWMutex
 
 	send    func([]*packet.Packet)                                       // abstract
 	doClose func(...types.Callable)                                      // abstract
@@ -55,7 +62,10 @@ func (t *transport) New(ctx *types.HttpContext) *transport {
 	t.onData = t.TransportOnData
 	t.onClose = t.TransportOnClose
 
-	t.discarded = false
+	t.mu_discarded.Lock()
+	t._discarded = false
+	t.mu_discarded.Unlock()
+
 	t.SetReadyState("open")
 
 	if eio, ok := ctx.Query().Get("EIO"); ok && eio == "4" {
@@ -113,7 +123,17 @@ func (t *transport) PerMessageDeflate() *types.PerMessageDeflate {
 }
 
 func (t *transport) Writable() bool {
-	return t.writable
+	t.mu_writable.RLock()
+	defer t.mu_writable.RUnlock()
+
+	return t._writable
+}
+
+func (t *transport) SetWritable(writable bool) {
+	t.mu_writable.Lock()
+	defer t.mu_writable.Unlock()
+
+	t._writable = writable
 }
 
 func (t *transport) DoClose(fn types.Callable) {
@@ -137,11 +157,17 @@ func (t *transport) Send(packets []*packet.Packet) {
 }
 
 func (t *transport) ReadyState() string {
+	t.mu_readyState.RLock()
+	defer t.mu_readyState.RUnlock()
+
 	return t._readyState
 }
 
 func (t *transport) SetReadyState(state string) {
 	transport_log.Debug(`readyState updated from %s to %s (%s)`, t._readyState, state, t.Name())
+	t.mu_readyState.Lock()
+	defer t.mu_readyState.Unlock()
+
 	t._readyState = state
 }
 
@@ -163,7 +189,17 @@ func (t *transport) SupportsFraming() bool {
 
 // Flags the transport as discarded.
 func (t *transport) Discard() {
-	t.discarded = true
+	t.mu_discarded.Lock()
+	defer t.mu_discarded.Unlock()
+
+	t._discarded = true
+}
+
+func (t *transport) GetDiscarded() bool {
+	t.mu_discarded.RLock()
+	defer t.mu_discarded.RUnlock()
+
+	return t._discarded
 }
 
 // Called with an incoming HTTP request.

@@ -38,7 +38,7 @@ func (w *websocket) New(ctx *types.HttpContext) *websocket {
 	w.transport.New(ctx)
 
 	w.socket = ctx.Websocket
-	w.writable = true
+	w.SetWritable(true)
 	w.perMessageDeflate = nil
 
 	w.doClose = w.WebSocketDoClose
@@ -106,7 +106,7 @@ func (w *websocket) WebSocketSend(packets []*packet.Packet) {
 			w.OnError("write error", err.Error())
 			return
 		}
-		w.writable = true
+		w.SetWritable(true)
 		w.Emit("drain")
 	}
 
@@ -129,7 +129,7 @@ func (w *websocket) WebSocketSend(packets []*packet.Packet) {
 				compress = false
 			}
 		}
-		w.writable = false
+		w.SetWritable(false)
 		w.socket.EnableWriteCompression(compress)
 		mt := ws.BinaryMessage
 		if _, ok := data.(*types.StringBuffer); ok {

@@ -330,17 +330,21 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		utils.ClearTimeout(s.upgradeTimeoutTimer)
 		s.upgradeTimeoutTimer = nil
 
-		transport.RemoveListener("packet", onPacket)
-		transport.RemoveListener("close", onTransportClose)
-		transport.RemoveListener("error", onError)
+		if transport != nil {
+			transport.RemoveListener("packet", onPacket)
+			transport.RemoveListener("close", onTransportClose)
+			transport.RemoveListener("error", onError)
+		}
 		s.RemoveListener("close", onClose)
 	}
 
 	onError = func(err ...any) {
 		socket_log.Debug("client did not complete upgrade - %v", err[0])
 		cleanup()
-		transport.Close()
-		transport = nil
+		if transport != nil {
+			transport.Close()
+			transport = nil
+		}
 	}
 
 	onTransportClose = func(...any) {

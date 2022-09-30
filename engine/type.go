@@ -15,6 +15,9 @@ import (
 type Server interface {
 	events.EventEmitter
 
+	// Captures upgrade requests for a http.Handler, Need to handle server shutdown disconnecting client connections.
+	http.Handler
+
 	SetHttpServer(*types.HttpServer)
 
 	HttpServer() *types.HttpServer
@@ -36,9 +39,6 @@ type Server interface {
 
 	// Captures upgrade requests for a *types.HttpServer.
 	Attach(*types.HttpServer, any)
-
-	// Captures upgrade requests for a http.Handler, Need to handle server shutdown disconnecting client connections.
-	ServeHTTP(http.ResponseWriter, *http.Request)
 
 	// generate a socket id.
 	// Overwrite this method to generate your custom socket id

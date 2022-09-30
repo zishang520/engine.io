@@ -98,7 +98,7 @@ func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 		},
 		CheckOrigin: func(*http.Request) bool {
 			if allowRequest := s.opts.AllowRequest(); allowRequest != nil {
-				if code, err := allowRequest(ctx); code != OK_REQUEST || err != nil {
+				if err := allowRequest(ctx); err != nil {
 					return false
 				}
 			}

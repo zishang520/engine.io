@@ -2,6 +2,7 @@ package transports
 
 import (
 	"io"
+	"sync"
 
 	ws "github.com/gorilla/websocket"
 	"github.com/zishang520/engine.io/log"
@@ -15,6 +16,7 @@ type websocket struct {
 	*transport
 
 	socket *types.WebSocketConn
+	mu     sync.Mutex
 }
 
 // WebSocket transport
@@ -101,55 +103,58 @@ func (w *websocket) WebSocketOnData(data types.BufferInterface) {
 
 // Writes a packet payload.
 func (w *websocket) WebSocketSend(packets []*packet.Packet) {
-	onEnd := func(err error) {
-		if err != nil {
-			w.OnError("write error", err.Error())
-			return
-		}
-		w.SetWritable(true)
-		w.Emit("drain")
-	}
-
-	send := func(packet *packet.Packet) {
-		data, err := w.parser.EncodePacket(packet, w.supportsBinary)
-		if err != nil {
-			ws_log.Debug(`Send Error "%s"`, err)
-			return
-		}
-
-		ws_log.Debug(`writing "%s"`, data)
-
-		// always creates a new object since ws modifies it
-		compress := false
-		if packet.Options != nil {
-			compress = packet.Options.Compress
-		}
-		if w.perMessageDeflate != nil {
-			if data.Len() < w.perMessageDeflate.Threshold {
-				compress = false
-			}
-		}
-		w.SetWritable(false)
-		w.socket.EnableWriteCompression(compress)
-		mt := ws.BinaryMessage
-		if _, ok := data.(*types.StringBuffer); ok {
-			mt = ws.TextMessage
-		}
-		write, err := w.socket.NextWriter(mt)
-		if err != nil {
-			onEnd(err)
-			return
-		}
-		if _, err := io.Copy(write, data); err != nil {
-			onEnd(err)
-			return
-		}
-		onEnd(write.Close())
-	}
-
 	for _, packet := range packets {
-		send(packet)
+		w._send(packet)
 	}
+}
+
+func (w *websocket) _onEnd(err error) {
+	if err != nil {
+		w.OnError("write error", err.Error())
+		return
+	}
+	w.SetWritable(true)
+	w.Emit("drain")
+}
+
+func (w *websocket) _send(packet *packet.Packet) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	data, err := w.parser.EncodePacket(packet, w.supportsBinary)
+	if err != nil {
+		ws_log.Debug(`Send Error "%s"`, err)
+		return
+	}
+
+	ws_log.Debug(`writing "%s"`, data)
+
+	// always creates a new object since ws modifies it
+	compress := false
+	if packet.Options != nil {
+		compress = packet.Options.Compress
+	}
+	if w.perMessageDeflate != nil {
+		if data.Len() < w.perMessageDeflate.Threshold {
+			compress = false
+		}
+	}
+	w.SetWritable(false)
+	w.socket.EnableWriteCompression(compress)
+	mt := ws.BinaryMessage
+	if _, ok := data.(*types.StringBuffer); ok {
+		mt = ws.TextMessage
+	}
+	write, err := w.socket.NextWriter(mt)
+	if err != nil {
+		w._onEnd(err)
+		return
+	}
+	if _, err := io.Copy(write, data); err != nil {
+		w._onEnd(err)
+		return
+	}
+	w._onEnd(write.Close())
 }
 
 // Closes the transport.

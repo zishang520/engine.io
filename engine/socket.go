@@ -389,8 +389,10 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	s.upgradeTimeoutTimer = utils.SetTimeOut(func() {
 		socket_log.Debug("client did not complete upgrade - closing transport")
 		cleanup()
-		if "open" == transport.ReadyState() {
-			transport.Close()
+		if transport != nil {
+			if "open" == transport.ReadyState() {
+				transport.Close()
+			}
 		}
 	}, s.server.Opts().UpgradeTimeout())
 

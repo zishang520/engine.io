@@ -34,8 +34,10 @@ type HttpContext struct {
 
 	isDone bool
 	done   chan struct{}
+	mu     sync.RWMutex
 
-	mu sync.RWMutex
+	wroteHeader bool
+	mu_wh       sync.RWMutex
 }
 
 func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
@@ -80,6 +82,13 @@ func (c *HttpContext) Done() <-chan struct{} {
 	return c.done
 }
 
+func (c *HttpContext) IsWroteHeader() bool {
+	c.mu_wh.RLock()
+	defer c.mu_wh.RUnlock()
+
+	return c.wroteHeader
+}
+
 func (c *HttpContext) IsDone() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -88,8 +97,12 @@ func (c *HttpContext) IsDone() bool {
 }
 
 func (c *HttpContext) SetStatusCode(statusCode int) {
-	if !c.IsDone() {
+	if !c.IsWroteHeader() {
+		c.mu_wh.Lock()
+		defer c.mu_wh.Unlock()
+
 		c.response.WriteHeader(statusCode)
+		c.wroteHeader = true
 	}
 }
 

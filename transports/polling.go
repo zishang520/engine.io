@@ -23,7 +23,9 @@ var polling_log = log.NewLog("engine:polling")
 type polling struct {
 	*transport
 
-	dataCtx     *types.HttpContext
+	dataCtx    *types.HttpContext
+	mu_dataCtx sync.RWMutex
+
 	shouldClose types.Callable
 }
 
@@ -118,13 +120,16 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 
 // The client sends a request with data.
 func (p *polling) onDataRequest(ctx *types.HttpContext) {
+	p.mu_dataCtx.RLock()
 	if p.dataCtx != nil {
+		defer p.mu_dataCtx.RUnlock()
 		// assert: p.dataRes, '.dataReq and .dataRes should be (un)set together'
 		p.OnError("data request overlap from client")
 		ctx.SetStatusCode(http.StatusInternalServerError)
 		ctx.Write(nil)
 		return
 	}
+	p.mu_dataCtx.RUnlock()
 
 	isBinary := "application/octet-stream" == ctx.Headers().Peek("Content-Type")
 
@@ -133,13 +138,17 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		return
 	}
 
+	p.mu_dataCtx.Lock()
 	p.dataCtx = ctx
+	p.mu_dataCtx.Unlock()
 
 	var onClose events.Listener
 
 	cleanup := func() {
-		ctx.RemoveListener("close", onClose)
+		p.dataCtx.RemoveListener("close", onClose)
+		p.mu_dataCtx.Lock()
 		p.dataCtx = nil
+		p.mu_dataCtx.Unlock()
 	}
 
 	onClose = func(...any) {
@@ -147,11 +156,11 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		p.OnError("data request connection closed prematurely")
 	}
 
-	ctx.On("close", onClose)
+	p.dataCtx.On("close", onClose)
 
-	if ctx.Request().ContentLength > p.maxHttpBufferSize {
-		ctx.SetStatusCode(http.StatusRequestEntityTooLarge)
-		ctx.Write(nil)
+	if p.dataCtx.Request().ContentLength > p.maxHttpBufferSize {
+		p.dataCtx.SetStatusCode(http.StatusRequestEntityTooLarge)
+		p.dataCtx.Write(nil)
 		cleanup()
 		return
 	}
@@ -162,7 +171,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	} else {
 		packet = types.NewStringBuffer(nil)
 	}
-	if rc, ok := ctx.Request().Body.(io.ReadCloser); ok && rc != nil {
+	if rc, ok := p.dataCtx.Request().Body.(io.ReadCloser); ok && rc != nil {
 		packet.ReadFrom(rc)
 		rc.Close()
 	}
@@ -175,13 +184,13 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		"Content-Length": "2",
 	}
 	var mu sync.Mutex
-	for key, value := range p.Headers(ctx, headers) {
+	for key, value := range p.Headers(p.dataCtx, headers) {
 		mu.Lock()
-		ctx.Response().Header().Set(key, value)
+		p.dataCtx.Response().Header().Set(key, value)
 		mu.Unlock()
 	}
-	ctx.SetStatusCode(http.StatusOK)
-	io.WriteString(ctx, "ok")
+	p.dataCtx.SetStatusCode(http.StatusOK)
+	io.WriteString(p.dataCtx, "ok")
 	cleanup()
 }
 
@@ -338,19 +347,22 @@ func (p *polling) compress(data types.BufferInterface, encoding string) (types.B
 func (p *polling) PollingDoClose(fn ...types.Callable) {
 	polling_log.Debug("closing")
 
-	var closeTimeoutTimer *utils.Timer = nil
-
-	if p.dataCtx != nil && !p.dataCtx.IsWroteHeader() {
+	p.mu_dataCtx.RLock()
+	dataCtx := p.dataCtx
+	p.mu_dataCtx.RUnlock()
+	if dataCtx != nil && !dataCtx.IsWroteHeader() {
 		polling_log.Debug("aborting ongoing data request")
-		if h, ok := p.dataCtx.Response().(http.Hijacker); ok {
+		if h, ok := dataCtx.Response().(http.Hijacker); ok {
 			if netConn, _, err := h.Hijack(); err == nil {
 				if netConn.Close() == nil {
-					p.dataCtx.Close()
-					p.dataCtx.Emit("close")
+					dataCtx.Close()
+					dataCtx.Emit("close")
 				}
 			}
 		}
 	}
+
+	var closeTimeoutTimer *utils.Timer = nil
 
 	onClose := func() {
 		utils.ClearTimeout(closeTimeoutTimer)

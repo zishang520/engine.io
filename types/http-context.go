@@ -21,7 +21,7 @@ type HttpContext struct {
 	request  *http.Request
 	response http.ResponseWriter
 
-	headers *http.Header
+	headers *utils.ParameterBag
 	query   *utils.ParameterBag
 
 	method      string
@@ -49,7 +49,7 @@ func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
 	c.request = r
 	c.response = w
 
-	c.headers = &r.Header
+	c.headers = utils.NewParameterBag(r.Header)
 	c.query = utils.NewParameterBag(r.URL.Query())
 
 	c.isHostValid = true
@@ -122,7 +122,7 @@ func (c *HttpContext) Response() http.ResponseWriter {
 	return c.response
 }
 
-func (c *HttpContext) Headers() *http.Header {
+func (c *HttpContext) Headers() *utils.ParameterBag {
 	return c.headers
 }
 
@@ -203,7 +203,7 @@ func (c *HttpContext) GetHost() (string, error) {
 }
 
 func (c *HttpContext) UserAgent() string {
-	return c.headers.Get("User-Agent")
+	return c.headers.Peek("User-Agent")
 }
 
 func (c *HttpContext) Secure() bool {

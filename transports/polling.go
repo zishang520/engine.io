@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/andybalholm/brotli"
@@ -70,7 +71,9 @@ func (p *polling) OnRequest(ctx *types.HttpContext) {
 
 // The client sends a request awaiting for us to send data.
 func (p *polling) onPollRequest(ctx *types.HttpContext) {
+	p.mu_req.RLock()
 	if p.req != nil {
+		defer p.mu_req.RUnlock()
 		polling_log.Debug("request overlap")
 		// assert: p.res, '.req and .res should be (un)set together'
 		p.OnError("overlap from client")
@@ -78,10 +81,9 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 		ctx.Write(nil)
 		return
 	}
+	p.mu_req.RUnlock()
 
 	polling_log.Debug("setting request")
-
-	p.req = ctx
 
 	onClose := events.Listener(func(...any) {
 		p.OnError("poll connection closed prematurely")
@@ -89,10 +91,16 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 
 	ctx.Cleanup = func() {
 		ctx.RemoveListener("close", onClose)
+		p.mu_req.Lock()
 		p.req = nil
+		p.mu_req.Unlock()
 	}
 
 	ctx.On("close", onClose)
+
+	p.mu_req.Lock()
+	p.req = ctx
+	p.mu_req.Unlock()
 
 	p.SetWritable(true)
 	p.Emit("drain")
@@ -118,7 +126,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		return
 	}
 
-	isBinary := "application/octet-stream" == ctx.Headers().Get("Content-Type")
+	isBinary := "application/octet-stream" == ctx.Headers().Peek("Content-Type")
 
 	if isBinary && p.protocol == 4 {
 		p.OnError("invalid content")
@@ -166,8 +174,11 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		"Content-Type":   "text/html",
 		"Content-Length": "2",
 	}
+	var mu sync.Mutex
 	for key, value := range p.Headers(ctx, headers) {
+		mu.Lock()
 		ctx.Response().Header().Set(key, value)
+		mu.Unlock()
 	}
 	ctx.SetStatusCode(http.StatusOK)
 	io.WriteString(ctx, "ok")
@@ -235,11 +246,11 @@ func (p *polling) PollingSend(packets []*packet.Packet) {
 // Writes data as response to poll request.
 func (p *polling) Write(data types.BufferInterface, options *packet.Options) {
 	polling_log.Debug(`writing "%s"`, data)
-	p.DoWrite(data, options, func() { p.req.Cleanup() })
+	p.DoWrite(data, options, func(ctx *types.HttpContext) { ctx.Cleanup() })
 }
 
 // Performs the write.
-func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Options, callback types.Callable) {
+func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
 	contentType := "application/octet-stream"
 	// explicit UTF-8 is required for pages not served under utf
 	switch data.(type) {
@@ -252,13 +263,20 @@ func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Opt
 	}
 
 	respond := func(data types.BufferInterface, length string) {
+		p.mu_req.RLock()
+		ctx := p.req
+		p.mu_req.RUnlock()
+
+		var mu sync.Mutex
 		headers["Content-Length"] = length
-		for key, value := range p.Headers(p.req, headers) {
-			p.req.Response().Header().Set(key, value)
+		for key, value := range p.Headers(ctx, headers) {
+			mu.Lock()
+			ctx.Response().Header().Set(key, value)
+			mu.Unlock()
 		}
-		p.req.SetStatusCode(http.StatusOK)
-		io.Copy(p.req, data)
-		callback()
+		ctx.SetStatusCode(http.StatusOK)
+		io.Copy(ctx, data)
+		callback(ctx)
 	}
 
 	if p.httpCompression == nil || options == nil || !options.Compress {
@@ -271,7 +289,7 @@ func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Opt
 		return
 	}
 
-	encoding := utils.Contains(p.req.Headers().Get("Accept-Encoding"), []string{"gzip", "deflate", "br"})
+	encoding := utils.Contains(p.req.Headers().Peek("Accept-Encoding"), []string{"gzip", "deflate", "br"})
 	if encoding == "" {
 		respond(data, strconv.Itoa(data.Len()))
 		return

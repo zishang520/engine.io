@@ -49,7 +49,7 @@ func (c *cors) configureOrigin() *cors {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	requestOrigin := c.ctx.Headers().Get("Origin")
+	requestOrigin := c.ctx.Headers().Peek("Origin")
 	if o, ok := c.options.Origin.(string); ok {
 		if o == "*" {
 			// allow any origin
@@ -126,7 +126,7 @@ func (c *cors) configureAllowedHeaders() *cors {
 	switch h := allowedHeaders.(type) {
 	case nil:
 		// .c.headers wasn't specified, so reflect the request c.headers
-		if head := c.ctx.Headers().Get("Access-Control-Request-Headers"); head != "" {
+		if head := c.ctx.Headers().Peek("Access-Control-Request-Headers"); head != "" {
 			c.headers = append(c.headers, &Kv{
 				Key:   "Access-Control-Allow-Headers",
 				Value: head,
@@ -221,8 +221,11 @@ func (c *cors) applyHeaders() *cors {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
+	var mu sync.Mutex
 	for _, header := range c.headers {
+		mu.Lock()
 		c.ctx.Response().Header().Set(header.Key, header.Value)
+		mu.Unlock()
 	}
 	vary := c.ctx.Response().Header().Get("Vary")
 	if vary == "*" {

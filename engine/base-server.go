@@ -125,9 +125,8 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]a
 	}
 
 	// 'Origin' header check
-	if utils.CheckInvalidHeaderChar(ctx.Headers().Get("Origin")) {
-		origin := ctx.Headers().Get("Origin")
-		ctx.Request().Header.Del("Origin")
+	if origin := ctx.Headers().Peek("Origin"); utils.CheckInvalidHeaderChar(origin) {
+		ctx.Headers().Remove("Origin")
 		server_log.Debug("origin header invalid")
 		return BAD_REQUEST, map[string]any{"name": "INVALID_ORIGIN", "origin": origin}
 	}

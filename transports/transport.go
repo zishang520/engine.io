@@ -34,6 +34,7 @@ type transport struct {
 	parser parser.Parser // parser.PaserV3;
 
 	req            *types.HttpContext
+	mu_req         sync.RWMutex
 	supportsBinary bool
 
 	// abstruct
@@ -44,11 +45,11 @@ type transport struct {
 	_writable   bool
 	mu_writable sync.RWMutex
 
-	send    func([]*packet.Packet)                                       // abstract
-	doClose func(...types.Callable)                                      // abstract
-	onData  func(types.BufferInterface)                                  // abstract
-	doWrite func(types.BufferInterface, *packet.Options, types.Callable) // abstract
-	onClose types.Callable                                               // abstract
+	send    func([]*packet.Packet)                                                 // abstract
+	doClose func(...types.Callable)                                                // abstract
+	onData  func(types.BufferInterface)                                            // abstract
+	doWrite func(types.BufferInterface, *packet.Options, func(*types.HttpContext)) // abstract
+	onClose types.Callable                                                         // abstract
 }
 
 func NewTransport(ctx *types.HttpContext) *transport {
@@ -148,7 +149,7 @@ func (t *transport) OnClose() {
 	t.onClose()
 }
 
-func (t *transport) DoWrite(data types.BufferInterface, option *packet.Options, fn types.Callable) {
+func (t *transport) DoWrite(data types.BufferInterface, option *packet.Options, fn func(ctx *types.HttpContext)) {
 	t.doWrite(data, option, fn)
 }
 

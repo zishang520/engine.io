@@ -171,11 +171,11 @@ func (p *parserv3) hasBinary(packets []*packet.Packet) bool {
 
 // Encodes multiple messages (payload).
 //
-//     <length>:data
+//	<length>:data
 //
 // Example:
 //
-//     11:hello world2:hi
+//	11:hello world2:hi
 //
 // If any contents are binary, they will be encoded as base64 strings. Base64
 // encoded strings are marked with a b before the length specifier

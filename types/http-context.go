@@ -97,7 +97,7 @@ func (c *HttpContext) IsDone() bool {
 }
 
 func (c *HttpContext) SetStatusCode(statusCode int) {
-	if !c.IsWroteHeader() {
+	if !c.IsWroteHeader() && !c.IsDone() {
 		c.mu_wh.Lock()
 		defer c.mu_wh.Unlock()
 

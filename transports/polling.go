@@ -215,23 +215,20 @@ func (p *polling) PollingSend(packets []*packet.Packet) {
 		p.shouldClose = nil
 	}
 
-	doWrite := func(data types.BufferInterface) {
-		option := &packet.Options{false}
-		for _, packetData := range packets {
-			if packetData.Options != nil && packetData.Options.Compress {
-				option.Compress = true
-				break
-			}
+	option := &packet.Options{false}
+	for _, packetData := range packets {
+		if packetData.Options != nil && packetData.Options.Compress {
+			option.Compress = true
+			break
 		}
-		p.Write(data, option)
 	}
 
 	if p.protocol == 3 {
 		data, _ := p.parser.EncodePayload(packets, p.supportsBinary)
-		doWrite(data)
+		p.Write(data, option)
 	} else {
 		data, _ := p.parser.EncodePayload(packets)
-		doWrite(data)
+		p.Write(data, option)
 	}
 }
 

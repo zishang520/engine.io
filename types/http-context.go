@@ -54,21 +54,16 @@ func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
 
 	c.isHostValid = true
 
-	gone := w.(http.CloseNotifier).CloseNotify()
 	go func() {
 		select {
 		case <-c.ctx.Done():
-			c.Close()
-			c.Emit("close")
-		case <-gone:
-			c.Close()
 			c.Emit("close")
 		}
 	}()
 	return c
 }
 
-func (c *HttpContext) Close() {
+func (c *HttpContext) Flush() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -108,7 +103,7 @@ func (c *HttpContext) SetStatusCode(statusCode int) {
 
 func (c *HttpContext) Write(wb []byte) (int, error) {
 	if !c.IsDone() {
-		defer c.Close()
+		defer c.Flush()
 		return c.response.Write(wb)
 	}
 	return 0, errors.New("You cannot write data repeatedly.").Err()

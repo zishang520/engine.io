@@ -348,19 +348,17 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 	polling_log.Debug("closing")
 
 	p.mu_dataCtx.RLock()
-	dataCtx := p.dataCtx
-	p.mu_dataCtx.RUnlock()
-	if dataCtx != nil && !dataCtx.IsWroteHeader() {
+	if p.dataCtx != nil && !p.dataCtx.IsWroteHeader() {
 		polling_log.Debug("aborting ongoing data request")
-		if h, ok := dataCtx.Response().(http.Hijacker); ok {
+		if h, ok := p.dataCtx.Response().(http.Hijacker); ok {
 			if netConn, _, err := h.Hijack(); err == nil {
-				if netConn.Close() == nil {
-					dataCtx.Close()
-					dataCtx.Emit("close")
+				if netConn.Close() == nil && !p.dataCtx.IsDone() {
+					p.dataCtx.Flush()
 				}
 			}
 		}
 	}
+	p.mu_dataCtx.RUnlock()
 
 	var closeTimeoutTimer *utils.Timer = nil
 

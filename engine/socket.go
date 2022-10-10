@@ -38,6 +38,7 @@ type socket struct {
 	checkIntervalTimer  *utils.Timer
 	upgradeTimeoutTimer *utils.Timer
 	pingTimeoutTimer    *utils.Timer
+	mupingTimeoutTimer  sync.Mutex
 	pingIntervalTimer   *utils.Timer
 
 	mureadyState     sync.RWMutex
@@ -255,6 +256,9 @@ func (s *socket) schedulePing() {
 
 // Resets ping timeout.
 func (s *socket) resetPingTimeout(timeout time.Duration) {
+	s.mupingTimeoutTimer.Lock()
+	defer s.mupingTimeoutTimer.Unlock()
+
 	utils.ClearTimeout(s.pingTimeoutTimer)
 	s.pingTimeoutTimer = utils.SetTimeOut(func() {
 		if s.ReadyState() == "closed" {

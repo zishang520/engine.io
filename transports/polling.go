@@ -360,10 +360,7 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 	}
 	p.mu_dataCtx.RUnlock()
 
-	var closeTimeoutTimer *utils.Timer = nil
-
 	onClose := func() {
-		utils.ClearTimeout(closeTimeoutTimer)
 		if len(fn) > 0 {
 			(fn[0])()
 		}
@@ -383,8 +380,11 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 		onClose()
 	} else {
 		polling_log.Debug("transport not writable - buffering orderly close")
-		p.shouldClose = onClose
-		closeTimeoutTimer = utils.SetTimeOut(onClose, p.closeTimeout*time.Millisecond)
+		closeTimeoutTimer := utils.SetTimeOut(onClose, p.closeTimeout*time.Millisecond)
+		p.shouldClose = func() {
+			utils.ClearTimeout(closeTimeoutTimer)
+			onClose()
+		}
 	}
 }
 

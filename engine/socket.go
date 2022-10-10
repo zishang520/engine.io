@@ -24,8 +24,9 @@ type socket struct {
 	request       *types.HttpContext
 	remoteAddress string
 
-	readyState string
-	transport  transports.Transport
+	readyState  string
+	transport   transports.Transport
+	mutransport sync.RWMutex
 
 	id                  string
 	server              Server
@@ -81,6 +82,9 @@ func (s *socket) Request() *types.HttpContext {
 }
 
 func (s *socket) Transport() transports.Transport {
+	s.mutransport.RLock()
+	defer s.mutransport.RUnlock()
+
 	return s.transport
 }
 
@@ -157,7 +161,7 @@ func (s *socket) onOpen() {
 	s.SetReadyState("open")
 
 	// sends an `open` packet
-	s.transport.SetSid(s.id)
+	s.Transport().SetSid(s.id)
 
 	data, err := json.Marshal(map[string]any{
 		"sid":          s.id,
@@ -208,7 +212,7 @@ func (s *socket) onPacket(data *packet.Packet) {
 
 	switch data.Type {
 	case packet.PING:
-		if s.transport.Protocol() != 3 {
+		if s.Transport().Protocol() != 3 {
 			s.onError("invalid heartbeat direction")
 			return
 		}
@@ -218,7 +222,7 @@ func (s *socket) onPacket(data *packet.Packet) {
 		break
 
 	case packet.PONG:
-		if s.transport.Protocol() == 3 {
+		if s.Transport().Protocol() == 3 {
 			s.onError("invalid heartbeat direction")
 			return
 		}
@@ -282,11 +286,17 @@ func (s *socket) setTransport(transport transports.Transport) {
 	flush := func(...any) { s.flush() }
 	onClose := func(...any) { s.OnClose("transport close") }
 
+	s.mutransport.Lock()
 	s.transport = transport
+	s.mutransport.Unlock()
+
+	s.mutransport.RLock()
 	s.transport.Once("error", onError)
 	s.transport.On("packet", onPacket)
 	s.transport.On("drain", flush)
 	s.transport.Once("close", onClose)
+	s.mutransport.RUnlock()
+
 	// s function will manage packet events (also message callbacks)
 	s.setupSendCallback()
 
@@ -302,7 +312,7 @@ func (s *socket) setTransport(transport transports.Transport) {
 
 // Upgrades socket to the given transport
 func (s *socket) MaybeUpgrade(transport transports.Transport) {
-	socket_log.Debug(`might upgrade socket transport from "%s" to "%s"`, s.transport.Name(), transport.Name())
+	socket_log.Debug(`might upgrade socket transport from "%s" to "%s"`, s.Transport().Name(), transport.Name())
 
 	s.muupgrading.Lock()
 	s.upgrading = true
@@ -324,7 +334,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		} else if packet.UPGRADE == data.Type && s.ReadyState() != "closed" {
 			socket_log.Debug("got upgrade packet - upgrading")
 			cleanup()
-			s.transport.Discard()
+			s.Transport().Discard()
 
 			s.muupgraded.Lock()
 			s.upgraded = true
@@ -347,9 +357,9 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 
 	// we force a polling cycle to ensure a fast upgrade
 	check = func() {
-		if "polling" == s.transport.Name() && s.transport.Writable() {
+		if "polling" == s.Transport().Name() && s.Transport().Writable() {
 			socket_log.Debug("writing a noop packet to polling for fast upgrade")
-			s.transport.Send([]*packet.Packet{&packet.Packet{Type: packet.NOOP}})
+			s.Transport().Send([]*packet.Packet{&packet.Packet{Type: packet.NOOP}})
 		}
 	}
 
@@ -417,12 +427,12 @@ func (s *socket) clearTransport() {
 	s.mucleanupFn.RUnlock()
 
 	// silence further transport errors and prevent uncaught exceptions
-	s.transport.On("error", func(...any) {
+	s.Transport().On("error", func(...any) {
 		socket_log.Debug("error triggered by discarded transport")
 	})
 
 	// ensure transport won't stay open
-	s.transport.Close()
+	s.Transport().Close()
 
 	utils.ClearTimeout(s.pingTimeoutTimer)
 }
@@ -487,11 +497,11 @@ func (s *socket) setupSendCallback() {
 		}
 	}
 
-	s.transport.On("drain", onDrain)
+	s.Transport().On("drain", onDrain)
 
 	s.mucleanupFn.Lock()
 	s.cleanupFn = append(s.cleanupFn, func() {
-		s.transport.RemoveListener("drain", onDrain)
+		s.Transport().RemoveListener("drain", onDrain)
 	})
 	s.mucleanupFn.Unlock()
 }
@@ -543,7 +553,7 @@ func (s *socket) flush() {
 	wbuf := append([]*packet.Packet{}, s.writeBuffer...)
 	s.muwriteBuffer.RUnlock()
 
-	if "closed" != s.ReadyState() && s.transport.Writable() && len(wbuf) > 0 {
+	if "closed" != s.ReadyState() && s.Transport().Writable() && len(wbuf) > 0 {
 		socket_log.Debug("flushing buffer to transport")
 		s.Emit("flush", wbuf)
 		s.server.Emit("flush", s, wbuf)
@@ -552,7 +562,7 @@ func (s *socket) flush() {
 		s.writeBuffer = []*packet.Packet{}
 		s.muwriteBuffer.Unlock()
 
-		if !s.transport.SupportsFraming() {
+		if !s.Transport().SupportsFraming() {
 			s.musentCallbackFn.Lock()
 			s.mupacketsFn.RLock()
 			s.sentCallbackFn = append(s.sentCallbackFn, s.packetsFn)
@@ -572,7 +582,7 @@ func (s *socket) flush() {
 		s.packetsFn = []func(transports.Transport){}
 		s.mupacketsFn.Unlock()
 
-		s.transport.Send(wbuf)
+		s.Transport().Send(wbuf)
 		s.Emit("drain")
 		s.server.Emit("drain", s)
 	}
@@ -580,7 +590,7 @@ func (s *socket) flush() {
 
 // Get available upgrades for this socket.
 func (s *socket) getAvailableUpgrades() (availableUpgrades []string) {
-	for _, upg := range s.server.Upgrades(s.transport.Name()).Keys() {
+	for _, upg := range s.server.Upgrades(s.Transport().Name()).Keys() {
 		if s.server.Opts().Transports().Has(upg) {
 			availableUpgrades = append(availableUpgrades, upg)
 		}
@@ -613,7 +623,7 @@ func (s *socket) Close(discard bool) {
 // Closes the underlying transport.
 func (s *socket) closeTransport(discard bool) {
 	if discard {
-		s.transport.Discard()
+		s.Transport().Discard()
 	}
-	s.transport.Close(func() { s.OnClose("forced close") })
+	s.Transport().Close(func() { s.OnClose("forced close") })
 }

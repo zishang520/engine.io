@@ -23,7 +23,7 @@ func (b *base64Id) GenerateId() (string, error) {
 	if _, err := rand.Read(r[:10]); err != nil {
 		return "", err
 	}
-	binary.BigEndian.PutUint64(r[10:], b.sequenceNumber)
+	binary.BigEndian.PutUint64(r[10:], atomic.LoadUint64(&b.sequenceNumber))
 	atomic.AddUint64(&b.sequenceNumber, 1)
 	return strings.ReplaceAll(strings.ReplaceAll(base64.StdEncoding.EncodeToString(r), "/", "_"), "+", "-"), nil
 }

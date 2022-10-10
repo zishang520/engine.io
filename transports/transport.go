@@ -50,6 +50,8 @@ type transport struct {
 	onData  func(types.BufferInterface)                                            // abstract
 	doWrite func(types.BufferInterface, *packet.Options, func(*types.HttpContext)) // abstract
 	onClose types.Callable                                                         // abstract
+
+	musend sync.Mutex
 }
 
 func NewTransport(ctx *types.HttpContext) *transport {
@@ -154,6 +156,9 @@ func (t *transport) DoWrite(data types.BufferInterface, option *packet.Options, 
 }
 
 func (t *transport) Send(packets []*packet.Packet) {
+	t.musend.Lock()
+	defer t.musend.Unlock()
+
 	t.send(packets)
 }
 

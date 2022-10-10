@@ -260,6 +260,13 @@ func (p *polling) Write(data types.BufferInterface, options *packet.Options) {
 
 // Performs the write.
 func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
+	p.mu_req.RLock()
+	ctx := p.req
+	p.mu_req.RUnlock()
+	if ctx == nil {
+		return
+	}
+
 	contentType := "application/octet-stream"
 	// explicit UTF-8 is required for pages not served under utf
 	switch data.(type) {
@@ -272,10 +279,6 @@ func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Opt
 	}
 
 	respond := func(data types.BufferInterface, length string) {
-		p.mu_req.RLock()
-		ctx := p.req
-		p.mu_req.RUnlock()
-
 		var mu sync.Mutex
 		headers["Content-Length"] = length
 		for key, value := range p.Headers(ctx, headers) {
@@ -298,7 +301,7 @@ func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Opt
 		return
 	}
 
-	encoding := utils.Contains(p.req.Headers().Peek("Accept-Encoding"), []string{"gzip", "deflate", "br"})
+	encoding := utils.Contains(ctx.Headers().Peek("Accept-Encoding"), []string{"gzip", "deflate", "br"})
 	if encoding == "" {
 		respond(data, strconv.Itoa(data.Len()))
 		return

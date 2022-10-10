@@ -28,19 +28,21 @@ type socket struct {
 	transport   transports.Transport
 	mutransport sync.RWMutex
 
-	id                  string
-	server              Server
-	upgrading           bool
-	upgraded            bool
-	writeBuffer         []*packet.Packet
-	packetsFn           []func(transports.Transport)
-	sentCallbackFn      []any
-	cleanupFn           []types.Callable
-	checkIntervalTimer  *utils.Timer
-	upgradeTimeoutTimer *utils.Timer
-	pingTimeoutTimer    *utils.Timer
-	mupingTimeoutTimer  sync.Mutex
-	pingIntervalTimer   *utils.Timer
+	id                   string
+	server               Server
+	upgrading            bool
+	upgraded             bool
+	writeBuffer          []*packet.Packet
+	packetsFn            []func(transports.Transport)
+	sentCallbackFn       []any
+	cleanupFn            []types.Callable
+	checkIntervalTimer   *utils.Timer
+	mucheckIntervalTimer sync.Mutex
+	upgradeTimeoutTimer  *utils.Timer
+	pingTimeoutTimer     *utils.Timer
+	mupingTimeoutTimer   sync.RWMutex
+	pingIntervalTimer    *utils.Timer
+	mupingIntervalTimer  sync.RWMutex
 
 	mureadyState     sync.RWMutex
 	muupgrading      sync.RWMutex
@@ -100,9 +102,9 @@ func (s *socket) ReadyState() string {
 }
 
 func (s *socket) SetReadyState(state string) {
-	socket_log.Debug("readyState updated from %s to %s", s.readyState, state)
 	s.mureadyState.Lock()
 	defer s.mureadyState.Unlock()
+	socket_log.Debug("readyState updated from %s to %s", s.readyState, state)
 
 	s.readyState = state
 }
@@ -227,7 +229,9 @@ func (s *socket) onPacket(data *packet.Packet) {
 			return
 		}
 		socket_log.Debug("got pong")
+		s.mupingIntervalTimer.RLock()
 		s.pingIntervalTimer.Refresh()
+		s.mupingIntervalTimer.RUnlock()
 		s.Emit("heartbeat")
 		break
 
@@ -251,6 +255,9 @@ func (s *socket) onError(err any) {
 // Pings client every `this.pingInterval` and expects response
 // within `this.pingTimeout` or closes connection.
 func (s *socket) schedulePing() {
+	s.mupingIntervalTimer.Lock()
+	defer s.mupingIntervalTimer.Unlock()
+
 	s.pingIntervalTimer = utils.SetTimeOut(func() {
 		socket_log.Debug("writing ping packet - expecting pong within %dms", int64(s.server.Opts().PingTimeout()/time.Millisecond))
 		s.sendPacket(packet.PING, nil, nil, nil)
@@ -329,8 +336,12 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 			socket_log.Debug("got probe ping packet, sending pong")
 			transport.Send([]*packet.Packet{&packet.Packet{Type: packet.PONG, Data: strings.NewReader("probe")}})
 			s.Emit("upgrading", transport)
+
+			s.mucheckIntervalTimer.Lock()
 			utils.ClearInterval(s.checkIntervalTimer)
 			s.checkIntervalTimer = utils.SetInterval(check, 100*time.Millisecond)
+			s.mucheckIntervalTimer.Unlock()
+
 		} else if packet.UPGRADE == data.Type && s.ReadyState() != "closed" {
 			socket_log.Debug("got upgrade packet - upgrading")
 			cleanup()
@@ -368,8 +379,10 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		s.upgrading = false
 		s.muupgrading.Unlock()
 
+		s.mucheckIntervalTimer.Lock()
 		utils.ClearInterval(s.checkIntervalTimer)
 		s.checkIntervalTimer = nil
+		s.mucheckIntervalTimer.Unlock()
 
 		utils.ClearTimeout(s.upgradeTimeoutTimer)
 		s.upgradeTimeoutTimer = nil
@@ -434,7 +447,9 @@ func (s *socket) clearTransport() {
 	// ensure transport won't stay open
 	s.Transport().Close()
 
+	s.mupingTimeoutTimer.RLock()
 	utils.ClearTimeout(s.pingTimeoutTimer)
+	s.mupingTimeoutTimer.RUnlock()
 }
 
 // Called upon transport considered closed.
@@ -446,11 +461,19 @@ func (s *socket) OnClose(reason string, description ...any) {
 		s.SetReadyState("closed")
 
 		// clear timers
+		s.mupingIntervalTimer.RLock()
 		utils.ClearTimeout(s.pingIntervalTimer)
-		utils.ClearTimeout(s.pingTimeoutTimer)
+		s.mupingIntervalTimer.RUnlock()
 
+		s.mupingTimeoutTimer.RLock()
+		utils.ClearTimeout(s.pingTimeoutTimer)
+		s.mupingTimeoutTimer.RUnlock()
+
+		s.mucheckIntervalTimer.Lock()
 		utils.ClearInterval(s.checkIntervalTimer)
 		s.checkIntervalTimer = nil
+		s.mucheckIntervalTimer.Unlock()
+
 		utils.ClearTimeout(s.upgradeTimeoutTimer)
 		// clean writeBuffer in next tick, so developers can still
 		// grab the writeBuffer on 'close' event

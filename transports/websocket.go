@@ -69,6 +69,7 @@ func (w *websocket) _init() {
 			}
 			break
 		}
+
 		switch mt {
 		case ws.BinaryMessage:
 			read := types.NewBytesBuffer(nil)
@@ -77,7 +78,6 @@ func (w *websocket) _init() {
 			} else {
 				w.WebSocketOnData(read)
 			}
-
 		case ws.TextMessage:
 			read := types.NewStringBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
@@ -87,6 +87,7 @@ func (w *websocket) _init() {
 			}
 		case ws.CloseMessage:
 			w.OnClose()
+			break
 		case ws.PingMessage:
 		case ws.PongMessage:
 		}

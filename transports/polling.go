@@ -26,7 +26,8 @@ type polling struct {
 	dataCtx    *types.HttpContext
 	mu_dataCtx sync.RWMutex
 
-	shouldClose types.Callable
+	shouldClose    types.Callable
+	mu_shouldClose sync.RWMutex
 }
 
 // HTTP polling New.
@@ -36,7 +37,6 @@ func NewPolling(ctx *types.HttpContext) *polling {
 }
 
 func (p *polling) New(ctx *types.HttpContext) *polling {
-
 	p.transport = &transport{}
 
 	p.supportsFraming = false
@@ -52,7 +52,7 @@ func (p *polling) New(ctx *types.HttpContext) *polling {
 	p.doClose = p.PollingDoClose
 	p.send = p.PollingSend
 
-	p.closeTimeout = 30 * 1000
+	p.closeTimeout = 30 * 1000 * time.Millisecond
 
 	return p
 }
@@ -107,6 +107,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 	p.SetWritable(true)
 	p.Emit("drain")
 
+	p.mu_shouldClose.RLock()
 	// if we're still writable but had a pending close, trigger an empty send
 	if p.Writable() && p.shouldClose != nil {
 		polling_log.Debug("triggering empty send to append close packet")
@@ -116,6 +117,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 			},
 		})
 	}
+	p.mu_shouldClose.RUnlock()
 }
 
 // The client sends a request with data.
@@ -224,8 +226,11 @@ func (p *polling) PollingOnClose() {
 
 // Writes a packet payload.
 func (p *polling) PollingSend(packets []*packet.Packet) {
-	p.SetWritable(false)
+	p.musend.Lock()
+	defer p.musend.Unlock()
 
+	p.SetWritable(false)
+	p.mu_shouldClose.Lock()
 	if p.shouldClose != nil {
 		polling_log.Debug("appending close packet to payload")
 		packets = append(packets, &packet.Packet{
@@ -234,6 +239,7 @@ func (p *polling) PollingSend(packets []*packet.Packet) {
 		p.shouldClose()
 		p.shouldClose = nil
 	}
+	p.mu_shouldClose.Unlock()
 
 	option := &packet.Options{false}
 	for _, packetData := range packets {
@@ -383,11 +389,13 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 		onClose()
 	} else {
 		polling_log.Debug("transport not writable - buffering orderly close")
-		closeTimeoutTimer := utils.SetTimeOut(onClose, p.closeTimeout*time.Millisecond)
+		closeTimeoutTimer := utils.SetTimeOut(onClose, p.closeTimeout)
+		p.mu_shouldClose.Lock()
 		p.shouldClose = func() {
 			utils.ClearTimeout(closeTimeoutTimer)
 			onClose()
 		}
+		p.mu_shouldClose.Unlock()
 	}
 }
 

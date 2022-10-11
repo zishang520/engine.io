@@ -15,7 +15,7 @@ type Log struct {
 
 	DEBUG bool
 
-	mu              sync.Mutex // ensures atomic writes; protects the following fields
+	mu              sync.RWMutex // ensures atomic writes; protects the following fields
 	prefix          string
 	namespaceRegexp *regexp.Regexp
 }
@@ -97,8 +97,9 @@ func (d *Log) Fatal(message string, args ...any) {
 
 // Prefix returns the output prefix for the logger.
 func (d *Log) Prefix() string {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
 	return d.prefix
 }
 
@@ -106,6 +107,7 @@ func (d *Log) Prefix() string {
 func (d *Log) SetPrefix(prefix string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
 	d.prefix = prefix
 
 	d.Logger.SetPrefix(prefix + " ")

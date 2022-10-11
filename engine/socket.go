@@ -28,21 +28,22 @@ type socket struct {
 	transport   transports.Transport
 	mutransport sync.RWMutex
 
-	id                   string
-	server               Server
-	upgrading            bool
-	upgraded             bool
-	writeBuffer          []*packet.Packet
-	packetsFn            []func(transports.Transport)
-	sentCallbackFn       []any
-	cleanupFn            []types.Callable
-	checkIntervalTimer   *utils.Timer
-	mucheckIntervalTimer sync.Mutex
-	upgradeTimeoutTimer  *utils.Timer
-	pingTimeoutTimer     *utils.Timer
-	mupingTimeoutTimer   sync.RWMutex
-	pingIntervalTimer    *utils.Timer
-	mupingIntervalTimer  sync.RWMutex
+	id                    string
+	server                Server
+	upgrading             bool
+	upgraded              bool
+	writeBuffer           []*packet.Packet
+	packetsFn             []func(transports.Transport)
+	sentCallbackFn        []any
+	cleanupFn             []types.Callable
+	checkIntervalTimer    *utils.Timer
+	mucheckIntervalTimer  sync.Mutex
+	upgradeTimeoutTimer   *utils.Timer
+	muupgradeTimeoutTimer sync.RWMutex
+	pingTimeoutTimer      *utils.Timer
+	mupingTimeoutTimer    sync.RWMutex
+	pingIntervalTimer     *utils.Timer
+	mupingIntervalTimer   sync.RWMutex
 
 	mureadyState     sync.RWMutex
 	muupgrading      sync.RWMutex
@@ -384,8 +385,10 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		s.checkIntervalTimer = nil
 		s.mucheckIntervalTimer.Unlock()
 
+		s.muupgradeTimeoutTimer.Lock()
 		utils.ClearTimeout(s.upgradeTimeoutTimer)
 		s.upgradeTimeoutTimer = nil
+		s.muupgradeTimeoutTimer.Unlock()
 
 		if transport != nil {
 			transport.RemoveListener("packet", onPacket)
@@ -413,6 +416,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	}
 
 	// set transport upgrade timer
+	s.muupgradeTimeoutTimer.Lock()
 	s.upgradeTimeoutTimer = utils.SetTimeOut(func() {
 		socket_log.Debug("client did not complete upgrade - closing transport")
 		cleanup()
@@ -422,6 +426,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 			}
 		}
 	}, s.server.Opts().UpgradeTimeout())
+	s.muupgradeTimeoutTimer.Unlock()
 
 	transport.On("packet", onPacket)
 	transport.Once("close", onTransportClose)
@@ -474,7 +479,10 @@ func (s *socket) OnClose(reason string, description ...any) {
 		s.checkIntervalTimer = nil
 		s.mucheckIntervalTimer.Unlock()
 
+		s.muupgradeTimeoutTimer.RLock()
 		utils.ClearTimeout(s.upgradeTimeoutTimer)
+		s.muupgradeTimeoutTimer.RUnlock()
+
 		// clean writeBuffer in next tick, so developers can still
 		// grab the writeBuffer on 'close' event
 		defer func() {

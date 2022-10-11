@@ -2,6 +2,8 @@ package packet
 
 import (
 	"io"
+
+	"github.com/zishang520/engine.io/types"
 )
 
 type Type string
@@ -23,7 +25,8 @@ type Options struct {
 }
 
 type Packet struct {
-	Type    Type      `json:"type"`
-	Data    io.Reader `json:"data,omitempty"`
-	Options *Options  `json:"options,omitempty"`
+	Type         Type                  `json:"type"`
+	Data         io.Reader             `json:"data,omitempty"`
+	Options      *Options              `json:"options,omitempty"`
+	WsPreEncoded types.BufferInterface `json:"wsPreEncoded,omitempty"`
 }

@@ -156,9 +156,6 @@ func (t *transport) DoWrite(data types.BufferInterface, option *packet.Options, 
 }
 
 func (t *transport) Send(packets []*packet.Packet) {
-	t.musend.Lock()
-	defer t.musend.Unlock()
-
 	t.send(packets)
 }
 
@@ -216,11 +213,11 @@ func (t *transport) OnRequest(req *types.HttpContext) {
 
 // Closes the transport.
 func (t *transport) Close(fn ...types.Callable) {
-	fn = append(fn, types.Noop)
 	if "closed" == t.ReadyState() || "closing" == t.ReadyState() {
 		return
 	}
 	t.SetReadyState("closing")
+	fn = append(fn, types.Noop)
 	t.DoClose(fn[0])
 }
 

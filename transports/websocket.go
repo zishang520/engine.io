@@ -46,54 +46,54 @@ func (w *websocket) New(ctx *types.HttpContext) *websocket {
 	w.doClose = w.WebSocketDoClose
 	w.send = w.WebSocketSend
 
-	go func() {
-		for {
-			mt, message, err := w.socket.NextReader()
-			if err != nil {
-				if ws.IsUnexpectedCloseError(err) {
-					w.OnClose()
-				} else {
-					w.OnError(err.Error())
-				}
-				break
-			}
+	go w._init()
 
-			if c, ok := message.(io.Closer); ok {
-				defer c.Close()
-			}
-
-			switch mt {
-			case ws.BinaryMessage:
-				read := types.NewBytesBuffer(nil)
-				if _, err := read.ReadFrom(message); err != nil {
-					w.OnError(err.Error())
-					break
-				} else {
-					w.WebSocketOnData(read)
-				}
-			case ws.TextMessage:
-				read := types.NewStringBuffer(nil)
-				if _, err := read.ReadFrom(message); err != nil {
-					w.OnError(err.Error())
-					break
-				} else {
-					w.WebSocketOnData(read)
-				}
-			case ws.CloseMessage:
-				w.OnClose()
-				break
-			case ws.PingMessage:
-			case ws.PongMessage:
-			}
-		}
-	}()
 	w.socket.On("error", func(errors ...any) {
 		w.OnError(errors[0].(error).Error())
 	})
 	w.socket.On("close", func(...any) {
 		w.OnClose()
 	})
+
 	return w
+}
+
+func (w *websocket) _init() {
+	for {
+		mt, message, err := w.socket.NextReader()
+		if err != nil {
+			if ws.IsUnexpectedCloseError(err) {
+				w.OnClose()
+			} else {
+				w.OnError(err.Error())
+			}
+			break
+		}
+		switch mt {
+		case ws.BinaryMessage:
+			read := types.NewBytesBuffer(nil)
+			if _, err := read.ReadFrom(message); err != nil {
+				w.OnError(err.Error())
+			} else {
+				w.WebSocketOnData(read)
+			}
+
+		case ws.TextMessage:
+			read := types.NewStringBuffer(nil)
+			if _, err := read.ReadFrom(message); err != nil {
+				w.OnError(err.Error())
+			} else {
+				w.WebSocketOnData(read)
+			}
+		case ws.CloseMessage:
+			w.OnClose()
+		case ws.PingMessage:
+		case ws.PongMessage:
+		}
+		if c, ok := message.(io.Closer); ok {
+			c.Close()
+		}
+	}
 }
 
 func (w *websocket) WebSocketOnData(data types.BufferInterface) {
@@ -103,31 +103,29 @@ func (w *websocket) WebSocketOnData(data types.BufferInterface) {
 
 // Writes a packet payload.
 func (w *websocket) WebSocketSend(packets []*packet.Packet) {
+	w.musend.Lock()
 	for _, packet := range packets {
-		w._send(packet)
+		w._Send(packet)
 	}
-}
+	w.musend.Unlock()
 
-func (w *websocket) _onEnd(err error) {
-	if err != nil {
-		w.OnError("write error", err.Error())
-		return
-	}
 	w.SetWritable(true)
 	w.Emit("drain")
 }
 
-func (w *websocket) _send(packet *packet.Packet) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (w *websocket) _Send(packet *packet.Packet) {
+	var data types.BufferInterface
 
-	data, err := w.parser.EncodePacket(packet, w.supportsBinary)
-	if err != nil {
-		ws_log.Debug(`Send Error "%s"`, err)
-		return
+	if packet.WsPreEncoded != nil {
+		data = packet.WsPreEncoded
+	} else {
+		var err error
+		data, err = w.parser.EncodePacket(packet, w.supportsBinary)
+		if err != nil {
+			ws_log.Debug(`Send Error "%s"`, err)
+			return
+		}
 	}
-
-	ws_log.Debug(`writing "%s"`, data)
 
 	// always creates a new object since ws modifies it
 	compress := false
@@ -139,7 +137,16 @@ func (w *websocket) _send(packet *packet.Packet) {
 			compress = false
 		}
 	}
+	ws_log.Debug(`writing "%s"`, data)
 	w.SetWritable(false)
+
+	w._send(data, compress)
+}
+
+func (w *websocket) _send(data types.BufferInterface, compress bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	w.socket.EnableWriteCompression(compress)
 	mt := ws.BinaryMessage
 	if _, ok := data.(*types.StringBuffer); ok {
@@ -147,21 +154,26 @@ func (w *websocket) _send(packet *packet.Packet) {
 	}
 	write, err := w.socket.NextWriter(mt)
 	if err != nil {
-		w._onEnd(err)
+		w.OnError("write error", err.Error())
 		return
 	}
+	defer func() {
+		if err := write.Close(); err != nil {
+			w.OnError("write error", err.Error())
+			return
+		}
+	}()
 	if _, err := io.Copy(write, data); err != nil {
-		w._onEnd(err)
+		w.OnError("write error", err.Error())
 		return
 	}
-	w._onEnd(write.Close())
 }
 
 // Closes the transport.
 func (w *websocket) WebSocketDoClose(fn ...types.Callable) {
 	ws_log.Debug(`closing`)
-	w.socket.Close()
 	if len(fn) > 0 {
 		(fn[0])()
 	}
+	w.socket.Close()
 }

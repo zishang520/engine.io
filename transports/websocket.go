@@ -2,7 +2,6 @@ package transports
 
 import (
 	"io"
-	"sync"
 
 	ws "github.com/gorilla/websocket"
 	"github.com/zishang520/engine.io/log"
@@ -16,7 +15,6 @@ type websocket struct {
 	*transport
 
 	socket *types.WebSocketConn
-	mu     sync.Mutex
 }
 
 // WebSocket transport
@@ -106,7 +104,7 @@ func (w *websocket) WebSocketOnData(data types.BufferInterface) {
 func (w *websocket) WebSocketSend(packets []*packet.Packet) {
 	w.musend.Lock()
 	for _, packet := range packets {
-		w._Send(packet)
+		w._send(packet)
 	}
 	w.musend.Unlock()
 
@@ -114,7 +112,7 @@ func (w *websocket) WebSocketSend(packets []*packet.Packet) {
 	w.Emit("drain")
 }
 
-func (w *websocket) _Send(packet *packet.Packet) {
+func (w *websocket) _send(packet *packet.Packet) {
 	var data types.BufferInterface
 
 	if packet.WsPreEncoded != nil {
@@ -141,13 +139,10 @@ func (w *websocket) _Send(packet *packet.Packet) {
 	ws_log.Debug(`writing "%s"`, data)
 	w.SetWritable(false)
 
-	w._send(data, compress)
+	w.write(data, compress)
 }
 
-func (w *websocket) _send(data types.BufferInterface, compress bool) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
+func (w *websocket) write(data types.BufferInterface, compress bool) {
 	w.socket.EnableWriteCompression(compress)
 	mt := ws.BinaryMessage
 	if _, ok := data.(*types.StringBuffer); ok {

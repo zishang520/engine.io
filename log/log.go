@@ -10,10 +10,10 @@ import (
 	"github.com/gookit/color"
 )
 
+var DEBUG bool = false
+
 type Log struct {
 	*_log.Logger
-
-	DEBUG bool
 
 	mu              sync.RWMutex // ensures atomic writes; protects the following fields
 	prefix          string
@@ -23,7 +23,6 @@ type Log struct {
 func NewLog(prefix string) *Log {
 	l := &Log{
 		Logger: _log.New(os.Stderr, "", 0),
-		DEBUG:  false,
 	}
 
 	if prefix != "" {
@@ -33,6 +32,7 @@ func NewLog(prefix string) *Log {
 	if debug := os.Getenv("DEBUG"); debug != "" {
 		l.namespaceRegexp = regexp.MustCompile(strings.ReplaceAll(regexp.QuoteMeta(strings.TrimSpace(debug)), `\*`, `.*`))
 	}
+
 	return l
 }
 
@@ -60,7 +60,7 @@ func (d *Log) Info(message string, args ...any) {
 
 // Console Debug Debug.
 func (d *Log) Debug(message string, args ...any) {
-	if d.DEBUG || d.checkNamespace(d.Prefix()) {
+	if DEBUG && d.checkNamespace(d.Prefix()) {
 		d.Logger.Println(color.Debug.Sprintf(message, args...))
 	}
 }

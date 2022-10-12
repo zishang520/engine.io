@@ -8,6 +8,7 @@ import (
 )
 
 func TestLog(t *testing.T) {
+	DEBUG = true
 	os.Setenv("DEBUG", "")
 	_log := NewLog("namespace")
 	buf := new(bytes.Buffer)

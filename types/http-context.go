@@ -17,6 +17,7 @@ type HttpContext struct {
 	events.EventEmitter
 
 	Websocket *WebSocketConn
+	Cleanup   Callable
 
 	request  *http.Request
 	response http.ResponseWriter
@@ -29,8 +30,6 @@ type HttpContext struct {
 	isHostValid bool
 
 	ctx context.Context
-
-	Cleanup Callable
 
 	isDone bool
 	done   chan struct{}

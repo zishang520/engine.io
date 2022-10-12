@@ -483,7 +483,7 @@ func (s *socket) OnClose(reason string, description ...any) {
 		utils.ClearTimeout(s.upgradeTimeoutTimer)
 		s.muupgradeTimeoutTimer.RUnlock()
 
-		// clean writeBuffer in next tick, so developers can still
+		// clean writeBuffer in defer, so developers can still
 		// grab the writeBuffer on 'close' event
 		defer func() {
 			s.muwriteBuffer.Lock()

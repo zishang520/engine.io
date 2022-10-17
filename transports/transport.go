@@ -45,11 +45,11 @@ type transport struct {
 	_writable   bool
 	mu_writable sync.RWMutex
 
-	send    func([]*packet.Packet)                                                 // abstract
-	doClose func(...types.Callable)                                                // abstract
-	onData  func(types.BufferInterface)                                            // abstract
-	doWrite func(types.BufferInterface, *packet.Options, func(*types.HttpContext)) // abstract
-	onClose types.Callable                                                         // abstract
+	send    func([]*packet.Packet)                                                                     // abstract
+	doClose func(...types.Callable)                                                                    // abstract
+	onData  func(types.BufferInterface)                                                                // abstract
+	doWrite func(*types.HttpContext, types.BufferInterface, *packet.Options, func(*types.HttpContext)) // abstract
+	onClose types.Callable                                                                             // abstract
 
 	musend sync.Mutex
 }
@@ -151,8 +151,8 @@ func (t *transport) OnClose() {
 	t.onClose()
 }
 
-func (t *transport) DoWrite(data types.BufferInterface, option *packet.Options, fn func(ctx *types.HttpContext)) {
-	t.doWrite(data, option, fn)
+func (t *transport) DoWrite(ctx *types.HttpContext, data types.BufferInterface, option *packet.Options, fn func(ctx *types.HttpContext)) {
+	t.doWrite(ctx, data, option, fn)
 }
 
 func (t *transport) Send(packets []*packet.Packet) {

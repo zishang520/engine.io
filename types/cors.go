@@ -221,11 +221,8 @@ func (c *cors) applyHeaders() *cors {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	var mu sync.Mutex
 	for _, header := range c.headers {
-		mu.Lock()
 		c.ctx.Response().Header().Set(header.Key, header.Value)
-		mu.Unlock()
 	}
 	vary := c.ctx.Response().Header().Get("Vary")
 	if vary == "*" {

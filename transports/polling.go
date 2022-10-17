@@ -91,6 +91,10 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 		p.OnError("poll connection closed prematurely")
 	})
 
+	p.mu_req.Lock()
+	p.req = ctx
+	p.mu_req.Unlock()
+
 	ctx.Cleanup = func() {
 		ctx.RemoveListener("close", onClose)
 		p.mu_req.Lock()
@@ -99,10 +103,6 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 	}
 
 	ctx.On("close", onClose)
-
-	p.mu_req.Lock()
-	p.req = ctx
-	p.mu_req.Unlock()
 
 	p.SetWritable(true)
 	p.Emit("drain")
@@ -147,7 +147,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	var onClose events.Listener
 
 	cleanup := func() {
-		p.dataCtx.RemoveListener("close", onClose)
+		ctx.RemoveListener("close", onClose)
 		p.mu_dataCtx.Lock()
 		p.dataCtx = nil
 		p.mu_dataCtx.Unlock()
@@ -158,11 +158,11 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		p.OnError("data request connection closed prematurely")
 	}
 
-	p.dataCtx.On("close", onClose)
+	ctx.On("close", onClose)
 
-	if p.dataCtx.Request().ContentLength > p.maxHttpBufferSize {
-		p.dataCtx.SetStatusCode(http.StatusRequestEntityTooLarge)
-		p.dataCtx.Write(nil)
+	if ctx.Request().ContentLength > p.maxHttpBufferSize {
+		ctx.SetStatusCode(http.StatusRequestEntityTooLarge)
+		ctx.Write(nil)
 		cleanup()
 		return
 	}
@@ -173,7 +173,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	} else {
 		packet = types.NewStringBuffer(nil)
 	}
-	if rc, ok := p.dataCtx.Request().Body.(io.ReadCloser); ok && rc != nil {
+	if rc, ok := ctx.Request().Body.(io.ReadCloser); ok && rc != nil {
 		packet.ReadFrom(rc)
 		rc.Close()
 	}
@@ -185,14 +185,11 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		"Content-Type":   "text/html",
 		"Content-Length": "2",
 	}
-	var mu sync.Mutex
-	for key, value := range p.Headers(p.dataCtx, headers) {
-		mu.Lock()
-		p.dataCtx.Response().Header().Set(key, value)
-		mu.Unlock()
+	for key, value := range p.Headers(ctx, headers) {
+		ctx.Response().Header().Set(key, value)
 	}
-	p.dataCtx.SetStatusCode(http.StatusOK)
-	io.WriteString(p.dataCtx, "ok")
+	ctx.SetStatusCode(http.StatusOK)
+	io.WriteString(ctx, "ok")
 	cleanup()
 }
 
@@ -229,6 +226,14 @@ func (p *polling) PollingSend(packets []*packet.Packet) {
 	p.musend.Lock()
 	defer p.musend.Unlock()
 
+	p.mu_req.RLock()
+	ctx := p.req
+	p.mu_req.RUnlock()
+
+	if ctx == nil {
+		return
+	}
+
 	p.SetWritable(false)
 	p.mu_shouldClose.Lock()
 	if p.shouldClose != nil {
@@ -251,28 +256,21 @@ func (p *polling) PollingSend(packets []*packet.Packet) {
 
 	if p.protocol == 3 {
 		data, _ := p.parser.EncodePayload(packets, p.supportsBinary)
-		p.Write(data, option)
+		p.write(ctx, data, option)
 	} else {
 		data, _ := p.parser.EncodePayload(packets)
-		p.Write(data, option)
+		p.write(ctx, data, option)
 	}
 }
 
 // Writes data as response to poll request.
-func (p *polling) Write(data types.BufferInterface, options *packet.Options) {
+func (p *polling) write(ctx *types.HttpContext, data types.BufferInterface, options *packet.Options) {
 	polling_log.Debug(`writing "%s"`, data)
-	p.DoWrite(data, options, func(ctx *types.HttpContext) { ctx.Cleanup() })
+	p.DoWrite(ctx, data, options, func(ctx *types.HttpContext) { ctx.Cleanup() })
 }
 
 // Performs the write.
-func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
-	p.mu_req.RLock()
-	ctx := p.req
-	p.mu_req.RUnlock()
-	if ctx == nil {
-		return
-	}
-
+func (p *polling) PollingDoWrite(ctx *types.HttpContext, data types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
 	contentType := "application/octet-stream"
 	// explicit UTF-8 is required for pages not served under utf
 	switch data.(type) {
@@ -285,12 +283,9 @@ func (p *polling) PollingDoWrite(data types.BufferInterface, options *packet.Opt
 	}
 
 	respond := func(data types.BufferInterface, length string) {
-		var mu sync.Mutex
 		headers["Content-Length"] = length
 		for key, value := range p.Headers(ctx, headers) {
-			mu.Lock()
 			ctx.Response().Header().Set(key, value)
-			mu.Unlock()
 		}
 		ctx.SetStatusCode(http.StatusOK)
 		io.Copy(ctx, data)
@@ -357,17 +352,19 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 	polling_log.Debug("closing")
 
 	p.mu_dataCtx.RLock()
-	if p.dataCtx != nil && !p.dataCtx.IsWroteHeader() {
+	dataCtx := p.dataCtx
+	p.mu_dataCtx.RUnlock()
+
+	if dataCtx != nil && !(dataCtx.IsWroteHeader() && dataCtx.IsDone()) {
 		polling_log.Debug("aborting ongoing data request")
-		if h, ok := p.dataCtx.Response().(http.Hijacker); ok {
+		if h, ok := dataCtx.Response().(http.Hijacker); ok {
 			if netConn, _, err := h.Hijack(); err == nil {
-				if netConn.Close() == nil && !p.dataCtx.IsDone() {
-					p.dataCtx.Flush()
+				if netConn.Close() == nil && !dataCtx.IsDone() {
+					dataCtx.Flush()
 				}
 			}
 		}
 	}
-	p.mu_dataCtx.RUnlock()
 
 	onClose := func() {
 		if len(fn) > 0 {

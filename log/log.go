@@ -30,7 +30,7 @@ func NewLog(prefix string) *Log {
 	}
 
 	if debug := os.Getenv("DEBUG"); debug != "" {
-		l.namespaceRegexp = regexp.MustCompile(strings.ReplaceAll(regexp.QuoteMeta(strings.TrimSpace(debug)), `\*`, `.*`))
+		l.namespaceRegexp = regexp.MustCompile("^" + strings.ReplaceAll(regexp.QuoteMeta(strings.TrimSpace(debug)), `\*`, `.*`) + "$")
 	}
 
 	return l

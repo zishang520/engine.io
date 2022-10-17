@@ -62,7 +62,7 @@ func (j *jsonp) JSONPOnData(data types.BufferInterface) {
 }
 
 // Performs the write.
-func (j *jsonp) JSONPDoWrite(data types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
+func (j *jsonp) JSONPDoWrite(ctx *types.HttpContext, data types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
 	// prepare response
 	res := types.NewStringBufferString(j.head)
 	encoder := json.NewEncoder(res)
@@ -72,7 +72,7 @@ func (j *jsonp) JSONPDoWrite(data types.BufferInterface, options *packet.Options
 		// Since 1.18 the following source code is very annoying '\n' bytes
 		res.Truncate(res.Len() - 1) // '\n' 😑
 		res.WriteString(j.foot)
-		j.PollingDoWrite(res, options, callback)
+		j.PollingDoWrite(ctx, res, options, callback)
 	} else {
 		jsonp_log.Debug(`jsonp DoWrite error "%v"`, err)
 	}

@@ -254,10 +254,10 @@ func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, m
 	socket := NewSocket(id, s, transport, ctx, protocol)
 
 	transport.On("headers", func(args ...any) {
-		headers, req := args[0].(map[string]string), args[1].(*types.HttpContext)
+		headers, req := args[0].(*utils.ParameterBag), args[1].(*types.HttpContext)
 		if !ctx.Query().Has("sid") {
 			if cookie := s.opts.Cookie(); cookie != nil {
-				headers["Set-Cookie"] = cookie.String()
+				headers.Set("Set-Cookie", cookie.String())
 			}
 			s.Emit("initial_headers", headers, req)
 		}

@@ -179,15 +179,13 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	}
 	p.OnData(packet)
 
-	headers := map[string]string{
+	headers := utils.NewParameterBag(map[string][]string{
 		// text/html is required instead of text/plain to avoid an
 		// unwanted download dialog on certain user-agents (GH-43)
-		"Content-Type":   "text/html",
-		"Content-Length": "2",
-	}
-	for key, value := range p.Headers(ctx, headers) {
-		ctx.Response().Header().Set(key, value)
-	}
+		"Content-Type":   []string{"text/html"},
+		"Content-Length": []string{"2"},
+	})
+	ctx.ResponseHeaders.With(p.Headers(ctx, headers).All())
 	ctx.SetStatusCode(http.StatusOK)
 	io.WriteString(ctx, "ok")
 	cleanup()
@@ -278,15 +276,13 @@ func (p *polling) PollingDoWrite(ctx *types.HttpContext, data types.BufferInterf
 		contentType = "text/plain; charset=UTF-8"
 	}
 
-	headers := map[string]string{
-		"Content-Type": contentType,
-	}
+	headers := utils.NewParameterBag(map[string][]string{
+		"Content-Type": []string{contentType},
+	})
 
 	respond := func(data types.BufferInterface, length string) {
-		headers["Content-Length"] = length
-		for key, value := range p.Headers(ctx, headers) {
-			ctx.Response().Header().Set(key, value)
-		}
+		headers.Set("Content-Length", length)
+		ctx.ResponseHeaders.With(p.Headers(ctx, headers).All())
 		ctx.SetStatusCode(http.StatusOK)
 		io.Copy(ctx, data)
 		callback(ctx)
@@ -309,7 +305,7 @@ func (p *polling) PollingDoWrite(ctx *types.HttpContext, data types.BufferInterf
 	}
 
 	if buf, err := p.compress(data, encoding); err == nil {
-		headers["Content-Encoding"] = encoding
+		headers.Set("Content-Encoding", encoding)
 		respond(buf, strconv.Itoa(buf.Len()))
 	}
 }
@@ -355,11 +351,11 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 	dataCtx := p.dataCtx
 	p.mu_dataCtx.RUnlock()
 
-	if dataCtx != nil && !(dataCtx.IsWroteHeader() && dataCtx.IsDone()) {
+	if dataCtx != nil && !dataCtx.IsDone() {
 		polling_log.Debug("aborting ongoing data request")
 		if h, ok := dataCtx.Response().(http.Hijacker); ok {
 			if netConn, _, err := h.Hijack(); err == nil {
-				if netConn.Close() == nil && !dataCtx.IsDone() {
+				if netConn.Close() == nil {
 					dataCtx.Flush()
 				}
 			}
@@ -397,15 +393,12 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 }
 
 // Returns headers for a response.
-func (p *polling) Headers(ctx *types.HttpContext, headers ...map[string]string) map[string]string {
-	headers = append(headers, map[string]string{})
-
+func (p *polling) Headers(ctx *types.HttpContext, headers *utils.ParameterBag) *utils.ParameterBag {
 	// prevent XSS warnings on IE
 	// https://github.com/socketio/socket.io/pull/1333
-	ua := ctx.UserAgent()
-	if (len(ua) > 0) && ((strings.Index(ua, ";MSIE") > -1) || (strings.Index(ua, "Trident/") > -1)) {
-		headers[0]["X-XSS-Protection"] = "0"
+	if ua := ctx.UserAgent(); (len(ua) > 0) && ((strings.Index(ua, ";MSIE") > -1) || (strings.Index(ua, "Trident/") > -1)) {
+		headers.Set("X-XSS-Protection", "0")
 	}
-	p.Emit("headers", headers[0], ctx)
-	return headers[0]
+	p.Emit("headers", headers, ctx)
+	return headers
 }

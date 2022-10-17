@@ -107,7 +107,7 @@ func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 	}
 
 	// delegate to ws
-	if conn, err := ws.Upgrade(ctx.Response(), ctx.Request(), ctx.Response().Header()); err == nil {
+	if conn, err := ws.Upgrade(ctx.Response(), ctx.Request(), ctx.ResponseHeaders.All()); err == nil {
 		conn.SetReadLimit(s.opts.MaxHttpBufferSize())
 		wsc.Conn = conn
 		s.onWebSocket(ctx, wsc)
@@ -227,7 +227,7 @@ func abortRequest(ctx *types.HttpContext, errorCode int, errorContext map[string
 	if m, ok := errorContext["message"]; ok {
 		message = m.(string)
 	}
-	ctx.Response().Header().Set("Content-Type", "application/json")
+	ctx.ResponseHeaders.Set("Content-Type", "application/json")
 	ctx.SetStatusCode(statusCode)
 	if b, err := json.Marshal(types.CodeMessage{Code: errorCode, Message: message}); err == nil {
 		ctx.Write(b)

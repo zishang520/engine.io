@@ -397,13 +397,13 @@ The main server/manager. _Inherits from events.EventEmitter_.
 - `initial_headers`
     - Fired on the first request of the connection, before writing the response headers
     - **Arguments**
-      - `headers` (`map[string]string`): a hash of headers
+      - `headers` (`*utils.ParameterBag`): a hash of headers
       - `ctx` (`*types.HttpContext`): the request
 
 - `headers`
     - Fired on the all requests of the connection, before writing the response headers
     - **Arguments**
-      - `headers` (`map[string]string`): a hash of headers
+      - `headers` (`*utils.ParameterBag`): a hash of headers
       - `ctx` (`*types.HttpContext`): the request
 
 - `connection_error`

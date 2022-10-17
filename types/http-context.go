@@ -35,8 +35,9 @@ type HttpContext struct {
 	done   chan struct{}
 	mu     sync.RWMutex
 
-	wroteHeader bool
-	mu_wh       sync.RWMutex
+	statusCode      int
+	mu_wh           sync.RWMutex
+	ResponseHeaders *utils.ParameterBag
 }
 
 func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
@@ -52,6 +53,9 @@ func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
 	c.query = utils.NewParameterBag(r.URL.Query())
 
 	c.isHostValid = true
+
+	c.ResponseHeaders = utils.NewParameterBag(nil)
+	c.ResponseHeaders.With(c.response.Header())
 
 	go func() {
 		select {
@@ -77,13 +81,6 @@ func (c *HttpContext) Done() <-chan struct{} {
 	return c.done
 }
 
-func (c *HttpContext) IsWroteHeader() bool {
-	c.mu_wh.RLock()
-	defer c.mu_wh.RUnlock()
-
-	return c.wroteHeader
-}
-
 func (c *HttpContext) IsDone() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -92,18 +89,28 @@ func (c *HttpContext) IsDone() bool {
 }
 
 func (c *HttpContext) SetStatusCode(statusCode int) {
-	if !c.IsWroteHeader() && !c.IsDone() {
-		c.mu_wh.Lock()
-		defer c.mu_wh.Unlock()
+	c.mu_wh.Lock()
+	defer c.mu_wh.Unlock()
 
-		c.response.WriteHeader(statusCode)
-		c.wroteHeader = true
-	}
+	c.statusCode = statusCode
+}
+
+func (c *HttpContext) GetStatusCode() int {
+	c.mu_wh.RLock()
+	defer c.mu_wh.RUnlock()
+
+	return c.statusCode
 }
 
 func (c *HttpContext) Write(wb []byte) (int, error) {
 	if !c.IsDone() {
 		defer c.Flush()
+
+		for k, v := range c.ResponseHeaders.All() {
+			c.response.Header().Add(k, v[0])
+		}
+		c.response.WriteHeader(c.GetStatusCode())
+
 		return c.response.Write(wb)
 	}
 	return 0, errors.New("You cannot write data repeatedly.").Err()

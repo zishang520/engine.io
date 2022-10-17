@@ -11,6 +11,9 @@ type ParameterBag struct {
 }
 
 func NewParameterBag(parameters map[string][]string) *ParameterBag {
+	if parameters == nil {
+		parameters = make(map[string][]string)
+	}
 	return &ParameterBag{parameters: parameters}
 }
 
@@ -19,7 +22,12 @@ func (p *ParameterBag) All() map[string][]string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	return p.parameters
+	_tmp := map[string][]string{}
+	for k, v := range p.parameters {
+		_tmp[k] = append([]string{}, v...)
+	}
+
+	return _tmp
 }
 
 // Returns the parameter keys.
@@ -40,6 +48,16 @@ func (p *ParameterBag) Replace(parameters map[string][]string) {
 	defer p.mu.Unlock()
 
 	p.parameters = parameters
+}
+
+// Replaces the current parameters by a new set.
+func (p *ParameterBag) With(parameters map[string][]string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for k, v := range parameters {
+		p.parameters[k] = append([]string{}, v...)
+	}
 }
 
 // Add adds the value to key. It appends to any existing

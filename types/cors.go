@@ -222,16 +222,15 @@ func (c *cors) applyHeaders() *cors {
 	defer c.mu.RUnlock()
 
 	for _, header := range c.headers {
-		c.ctx.Response().Header().Set(header.Key, header.Value)
+		c.ctx.ResponseHeaders.Set(header.Key, header.Value)
 	}
-	vary := c.ctx.Response().Header().Get("Vary")
-	if vary == "*" {
-		c.ctx.Response().Header().Set("Vary", "*")
+	if vary := c.ctx.ResponseHeaders.Peek("Vary"); vary == "*" {
+		c.ctx.ResponseHeaders.Set("Vary", "*")
 	} else {
 		if len(c.varys) > 0 {
 			varys := parseVary(vary)
 			varys.Add(c.varys...)
-			c.ctx.Response().Header().Set("Vary", strings.Join(varys.Keys(), ", "))
+			c.ctx.ResponseHeaders.Set("Vary", strings.Join(varys.Keys(), ", "))
 		}
 	}
 	return c
@@ -253,7 +252,7 @@ func corsFunc(options *Cors, ctx *HttpContext, next Callable) {
 		} else {
 			// Safari (and potentially other browsers) need content-length 0,
 			//   for 204 or they just hang waiting for a body
-			ctx.Response().Header().Set("Content-Length", "0")
+			ctx.ResponseHeaders.Set("Content-Length", "0")
 			ctx.SetStatusCode(options.OptionsSuccessStatus)
 			ctx.Write(nil)
 		}

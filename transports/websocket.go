@@ -85,6 +85,9 @@ func (w *websocket) _init() {
 			}
 		case ws.CloseMessage:
 			w.OnClose()
+			if c, ok := message.(io.Closer); ok {
+				c.Close()
+			}
 			break
 		case ws.PingMessage:
 		case ws.PongMessage:
@@ -102,14 +105,17 @@ func (w *websocket) WebSocketOnData(data types.BufferInterface) {
 
 // Writes a packet payload.
 func (w *websocket) WebSocketSend(packets []*packet.Packet) {
+	w.SetWritable(false)
+	defer func() {
+		w.SetWritable(true)
+		w.Emit("drain")
+	}()
+
 	w.musend.Lock()
+	defer w.musend.Unlock()
 	for _, packet := range packets {
 		w._send(packet)
 	}
-	w.musend.Unlock()
-
-	w.SetWritable(true)
-	w.Emit("drain")
 }
 
 func (w *websocket) _send(packet *packet.Packet) {
@@ -137,7 +143,6 @@ func (w *websocket) _send(packet *packet.Packet) {
 		}
 	}
 	ws_log.Debug(`writing "%s"`, data)
-	w.SetWritable(false)
 
 	w.write(data, compress)
 }

@@ -34,10 +34,6 @@ func (s *HttpServer) server(addr string) *http.Server {
 		s.Emit("close")
 	})
 
-	if s.servers == nil {
-		s.servers = []*http.Server{}
-	}
-
 	s.servers = append(s.servers, server)
 
 	return server

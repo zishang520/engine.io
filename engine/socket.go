@@ -487,16 +487,16 @@ func (s *socket) OnClose(reason string, description ...any) {
 		// grab the writeBuffer on 'close' event
 		defer func() {
 			s.muwriteBuffer.Lock()
-			s.writeBuffer = []*packet.Packet{}
+			s.writeBuffer = s.writeBuffer[:0]
 			s.muwriteBuffer.Unlock()
 		}()
 
 		s.mupacketsFn.Lock()
-		s.packetsFn = []func(transports.Transport){}
+		s.packetsFn = s.packetsFn[:0]
 		s.mupacketsFn.Unlock()
 
 		s.musentCallbackFn.Lock()
-		s.sentCallbackFn = []any{}
+		s.sentCallbackFn = s.sentCallbackFn[:0]
 		s.musentCallbackFn.Unlock()
 
 		s.clearTransport()
@@ -590,7 +590,7 @@ func (s *socket) flush() {
 		s.server.Emit("flush", s, wbuf)
 
 		s.muwriteBuffer.Lock()
-		s.writeBuffer = []*packet.Packet{}
+		s.writeBuffer = s.writeBuffer[:0]
 		s.muwriteBuffer.Unlock()
 
 		if !s.Transport().SupportsFraming() {
@@ -610,7 +610,7 @@ func (s *socket) flush() {
 			s.musentCallbackFn.Unlock()
 		}
 		s.mupacketsFn.Lock()
-		s.packetsFn = []func(transports.Transport){}
+		s.packetsFn = s.packetsFn[:0]
 		s.mupacketsFn.Unlock()
 
 		s.Transport().Send(wbuf)

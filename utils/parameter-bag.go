@@ -31,11 +31,10 @@ func (p *ParameterBag) All() map[string][]string {
 }
 
 // Returns the parameter keys.
-func (p *ParameterBag) Keys() []string {
+func (p *ParameterBag) Keys() (keys []string) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	keys := []string{}
 	for k := range p.parameters {
 		keys = append(keys, k)
 	}

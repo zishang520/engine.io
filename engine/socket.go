@@ -518,11 +518,11 @@ func (s *socket) setupSendCallback() {
 			switch fns := seqFn.(type) {
 			case func(transports.Transport):
 				socket_log.Debug("executing send callback")
-				fns(s.transport)
+				fns(s.Transport())
 			case []func(transports.Transport):
 				socket_log.Debug("executing batch send callback")
 				for _, fn := range fns {
-					fn(s.transport)
+					fn(s.Transport())
 				}
 			}
 		}

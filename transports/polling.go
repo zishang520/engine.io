@@ -78,7 +78,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 		defer p.mu_req.RUnlock()
 		polling_log.Debug("request overlap")
 		// assert: p.res, '.req and .res should be (un)set together'
-		p.OnError("overlap from client")
+		p.OnError("overlap from client", nil)
 		ctx.SetStatusCode(http.StatusInternalServerError)
 		ctx.Write(nil)
 		return
@@ -88,7 +88,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 	polling_log.Debug("setting request")
 
 	onClose := events.Listener(func(...any) {
-		p.OnError("poll connection closed prematurely")
+		p.OnError("poll connection closed prematurely", nil)
 	})
 
 	p.mu_req.Lock()
@@ -126,7 +126,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	if p.dataCtx != nil {
 		defer p.mu_dataCtx.RUnlock()
 		// assert: p.dataRes, '.dataReq and .dataRes should be (un)set together'
-		p.OnError("data request overlap from client")
+		p.OnError("data request overlap from client", nil)
 		ctx.SetStatusCode(http.StatusInternalServerError)
 		ctx.Write(nil)
 		return
@@ -136,7 +136,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	isBinary := "application/octet-stream" == ctx.Headers().Peek("Content-Type")
 
 	if isBinary && p.protocol == 4 {
-		p.OnError("invalid content")
+		p.OnError("invalid content", nil)
 		return
 	}
 
@@ -155,7 +155,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 
 	onClose = func(...any) {
 		cleanup()
-		p.OnError("data request connection closed prematurely")
+		p.OnError("data request connection closed prematurely", nil)
 	}
 
 	ctx.On("close", onClose)

@@ -41,7 +41,7 @@ type Transport interface {
 	DoClose(types.Callable)
 
 	// Called with a transport error.
-	OnError(string, ...string)
+	OnError(string, error)
 
 	// Called with parsed out a packets from the data stream.
 	OnPacket(*packet.Packet)

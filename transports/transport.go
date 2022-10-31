@@ -222,15 +222,11 @@ func (t *transport) Close(fn ...types.Callable) {
 }
 
 // Called with a transport error.
-func (t *transport) OnError(msg string, desc ...string) {
-	desc = append(desc, "")
+func (t *transport) OnError(msg string, desc error) {
 	if t.ListenerCount("error") > 0 {
-		err := errors.New(msg)
-		err.Type = "TransportError"
-		err.Description = desc[0]
-		t.Emit("error", err.Err())
+		t.Emit("error", errors.NewTransportError(msg, desc).Err())
 	} else {
-		transport_log.Debug("ignored transport error %s (%s)", msg, desc[0])
+		transport_log.Debug("ignored transport error %s (%s)", msg, desc)
 	}
 }
 

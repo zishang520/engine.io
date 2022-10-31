@@ -47,7 +47,7 @@ func (w *websocket) New(ctx *types.HttpContext) *websocket {
 	go w._init()
 
 	w.socket.On("error", func(errors ...any) {
-		w.OnError(errors[0].(error).Error())
+		w.OnError("websocket error", errors[0].(error))
 	})
 	w.socket.On("close", func(...any) {
 		w.OnClose()
@@ -63,7 +63,7 @@ func (w *websocket) _init() {
 			if ws.IsUnexpectedCloseError(err) {
 				w.OnClose()
 			} else {
-				w.OnError(err.Error())
+				w.OnError("Error reading data", err)
 			}
 			break
 		}
@@ -72,14 +72,14 @@ func (w *websocket) _init() {
 		case ws.BinaryMessage:
 			read := types.NewBytesBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
-				w.OnError(err.Error())
+				w.OnError("Error reading data", err)
 			} else {
 				w.WebSocketOnData(read)
 			}
 		case ws.TextMessage:
 			read := types.NewStringBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
-				w.OnError(err.Error())
+				w.OnError("Error reading data", err)
 			} else {
 				w.WebSocketOnData(read)
 			}
@@ -155,17 +155,17 @@ func (w *websocket) write(data types.BufferInterface, compress bool) {
 	}
 	write, err := w.socket.NextWriter(mt)
 	if err != nil {
-		w.OnError("write error", err.Error())
+		w.OnError("write error", err)
 		return
 	}
 	defer func() {
 		if err := write.Close(); err != nil {
-			w.OnError("write error", err.Error())
+			w.OnError("write error", err)
 			return
 		}
 	}()
 	if _, err := io.Copy(write, data); err != nil {
-		w.OnError("write error", err.Error())
+		w.OnError("write error", err)
 		return
 	}
 }

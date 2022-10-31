@@ -2,12 +2,8 @@ package errors
 
 type Error struct {
 	Message     string
+	Description error
 	Type        string
-	Description string
-}
-
-func New(message string) *Error {
-	return &Error{Message: message}
 }
 
 func (e *Error) Err() error {
@@ -16,4 +12,16 @@ func (e *Error) Err() error {
 
 func (e *Error) Error() string {
 	return e.Message
+}
+
+func New(message string) *Error {
+	return &Error{Message: message}
+}
+
+func NewTransportError(reason string, description error) *Error {
+	return &Error{
+		Message:     reason,
+		Description: description,
+		Type:        "TransportError",
+	}
 }

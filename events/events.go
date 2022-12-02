@@ -222,7 +222,7 @@ type oneTimelistener struct {
 func (l *oneTimelistener) execute(vals ...any) {
 	if atomic.CompareAndSwapInt32(&l.fired, 0, 1) {
 		defer l.emitter.RemoveListener(l.evt, l.listener)
-		l.listener(vals)
+		l.listener(vals...)
 	}
 }
 

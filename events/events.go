@@ -212,10 +212,13 @@ func (e *emmiter) On(evt EventName, listener ...Listener) error {
 }
 
 type oneTimelistener struct {
+	// fired has to be first in the struct to guarantee alignment for atomic
+	// operations. http://golang.org/pkg/sync/atomic/#pkg-note-BUG
+	fired int32
+
 	evt        EventName
 	emitter    *emmiter
 	listener   Listener
-	fired      int32
 	executeRef Listener
 }
 

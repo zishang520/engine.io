@@ -34,10 +34,13 @@ var errorMessages map[int]string = map[int]string{
 }
 
 type server struct {
+	// clientsCount has to be first in the struct to guarantee alignment for atomic
+	// operations. http://golang.org/pkg/sync/atomic/#pkg-note-BUG
+	clientsCount uint64
+
 	events.EventEmitter
 
 	clients        *sync.Map
-	clientsCount   uint64
 	corsMiddleware func(*types.HttpContext, types.Callable)
 	opts           config.ServerOptionsInterface
 

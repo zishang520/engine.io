@@ -180,13 +180,7 @@ func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 // Captures upgrade requests for a types.HttpServer.
 func (s *server) Attach(server *types.HttpServer, opts any) {
 	options, _ := opts.(config.AttachOptionsInterface)
-	path := "/engine.io"
-
-	if options != nil {
-		if options.GetRawPath() != nil {
-			path = strings.TrimRight(options.Path(), "/")
-		}
-	}
+	path := s._computePath(options)
 
 	server.On("close", func(...any) {
 		s.Close()

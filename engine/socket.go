@@ -20,7 +20,8 @@ var socket_log = log.NewLog("engine:socket")
 type socket struct {
 	events.EventEmitter
 
-	protocol      int
+	protocol int
+	// TODO for the next major release: do not keep the reference to the first HTTP request, as it stays in memory
 	request       *types.HttpContext
 	remoteAddress string
 
@@ -28,6 +29,8 @@ type socket struct {
 	transport   transports.Transport
 	mutransport sync.RWMutex
 
+	// This is the session identifier that the client will use in the subsequent HTTP requests. It must not be shared with
+	// others parties, as it might lead to session hijacking.
 	id                    string
 	server                Server
 	upgrading             bool
@@ -538,21 +541,39 @@ func (s *socket) setupSendCallback() {
 }
 
 // Sends a message packet.
-func (s *socket) Send(data io.Reader, options *packet.Options, callback func(transports.Transport)) Socket {
+func (s *socket) Send(
+	data io.Reader,
+	options *packet.Options,
+	callback func(transports.Transport),
+) Socket {
 	s.sendPacket(packet.MESSAGE, data, options, callback)
 	return s
 }
 
-func (s *socket) Write(data io.Reader, options *packet.Options, callback func(transports.Transport)) Socket {
+// Alias of {@link send}.
+func (s *socket) Write(
+	data io.Reader,
+	options *packet.Options,
+	callback func(transports.Transport),
+) Socket {
 	s.sendPacket(packet.MESSAGE, data, options, callback)
 	return s
 }
 
 // Sends a packet.
-func (s *socket) sendPacket(packetType packet.Type, data io.Reader, options *packet.Options, callback func(transports.Transport)) {
+func (s *socket) sendPacket(
+	packetType packet.Type,
+	data io.Reader,
+	options *packet.Options,
+	callback func(transports.Transport),
+) {
 
 	if "closing" != s.ReadyState() && "closed" != s.ReadyState() {
 		socket_log.Debug(`sending packet "%s" (%v)`, packetType, data)
+
+		if options == nil {
+			options = &packet.Options{true}
+		}
 
 		packet := &packet.Packet{
 			Type:    packetType,
@@ -643,17 +664,21 @@ func (s *socket) Close(discard bool) {
 	s.muwriteBuffer.RUnlock()
 
 	if writeBufferLength > 0 {
+		socket_log.Debug("there are %d remaining packets in the buffer, waiting for the 'drain' event", writeBufferLength)
 		s.Once("drain", func(...any) {
+			socket_log.Debug("all packets have been sent, closing the transport")
 			s.closeTransport(discard)
 		})
 		return
 	}
 
+	socket_log.Debug("the buffer is empty, closing the transport right away (discard? %t)", discard)
 	s.closeTransport(discard)
 }
 
 // Closes the underlying transport.
 func (s *socket) closeTransport(discard bool) {
+	socket_log.Debug("closing the transport (discard? %t)", discard)
 	if discard {
 		s.Transport().Discard()
 	}

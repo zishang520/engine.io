@@ -107,6 +107,26 @@ func (s *server) ClientsCount() uint64 {
 	return atomic.LoadUint64(&s.clientsCount)
 }
 
+// Compute the pathname of the requests that are handled by the server
+func (s *server) _computePath(options config.AttachOptionsInterface) {
+	path := "/engine.io"
+
+	if options != nil {
+		if options.GetRawPath() != nil {
+			path = strings.TrimRight(options.Path(), "/")
+		}
+		if options.AddTrailingSlash() != false {
+			// normalize path
+			path += "/"
+		}
+	} else {
+		// normalize path
+		path += "/"
+	}
+
+	return path
+}
+
 // Returns a list of available transports for upgrade given a certain transport.
 func (s *server) Upgrades(transport string) *types.Set[string] {
 	if !s.opts.AllowUpgrades() {

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -108,7 +109,7 @@ func (s *server) ClientsCount() uint64 {
 }
 
 // Compute the pathname of the requests that are handled by the server
-func (s *server) _computePath(options config.AttachOptionsInterface) {
+func (s *server) _computePath(options config.AttachOptionsInterface) string {
 	path := "/engine.io"
 
 	if options != nil {

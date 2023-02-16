@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/zishang520/engine.io/config"

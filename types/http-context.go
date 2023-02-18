@@ -62,6 +62,8 @@ func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
 		case <-c.ctx.Done():
 			c.Flush()
 			c.Emit("close")
+		case <-c.done:
+			c.Emit("close")
 		}
 	}()
 	return c

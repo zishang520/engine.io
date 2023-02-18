@@ -28,6 +28,12 @@ func TestAttachOptionsDefauleValue(t *testing.T) {
 			t.Fatalf(`*AttachOptions.DestroyUpgradeTimeout() = %d, want match for %d`, destroyUpgradeTimeout, 1000*time.Millisecond)
 		}
 	})
+
+	t.Run("addTrailingSlash", func(t *testing.T) {
+		if addTrailingSlash := opts.AddTrailingSlash(); opts.GetRawAddTrailingSlash() == nil && addTrailingSlash != true {
+			t.Fatalf(`*AttachOptions.AddTrailingSlash() = %t, want match for %t`, addTrailingSlash, true)
+		}
+	})
 }
 
 func TestAttachOptionsSetValue(t *testing.T) {

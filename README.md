@@ -486,6 +486,7 @@ to a single process.
       - `SetPath(string)`: name of the path to capture (`/engine.io`).
       - ~~`SetDestroyUpgrade(bool)`~~: destroy unhandled upgrade requests (`true`)
       - ~~`SetDestroyUpgradeTimeout(time.Duration)`~~: milliseconds after which unhandled requests are ended (`1000 * time.Millisecond`)
+      - ~~`SetAddTrailingSlash(bool)`~~: Whether we should add a trailing slash to the request path (`true`)
 - `GenerateId`
     - Generate a socket id.
     - Overwrite this method to generate your custom socket id.

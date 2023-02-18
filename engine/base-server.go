@@ -2,6 +2,7 @@ package engine
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -108,6 +109,26 @@ func (s *server) Clients() *sync.Map {
 
 func (s *server) ClientsCount() uint64 {
 	return atomic.LoadUint64(&s.clientsCount)
+}
+
+// Compute the pathname of the requests that are handled by the server
+func (s *server) _computePath(options config.AttachOptionsInterface) string {
+	path := "/engine.io"
+
+	if options != nil {
+		if options.GetRawPath() != nil {
+			path = strings.TrimRight(options.Path(), "/")
+		}
+		if options.AddTrailingSlash() != false {
+			// normalize path
+			path += "/"
+		}
+	} else {
+		// normalize path
+		path += "/"
+	}
+
+	return path
 }
 
 // Returns a list of available transports for upgrade given a certain transport.

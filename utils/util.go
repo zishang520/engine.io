@@ -6,6 +6,13 @@ import (
 	"strings"
 )
 
+func Value(value string, _default string) string {
+	if value == "" {
+		return _default
+	}
+	return value
+}
+
 func Contains(haystack string, needles []string) string {
 
 	for _, needle := range needles {

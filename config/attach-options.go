@@ -16,6 +16,10 @@ type AttachOptionsInterface interface {
 	SetDestroyUpgradeTimeout(time.Duration)
 	GetRawDestroyUpgradeTimeout() *time.Duration
 	DestroyUpgradeTimeout() time.Duration
+
+	SetAddTrailingSlash(bool)
+	GetRawAddTrailingSlash() *bool
+	AddTrailingSlash() bool
 }
 
 type AttachOptions struct {
@@ -25,8 +29,11 @@ type AttachOptions struct {
 	// destroy unhandled upgrade requests
 	destroyUpgrade *bool
 
-	//  milliseconds after which unhandled requests are ended
+	// milliseconds after which unhandled requests are ended
 	destroyUpgradeTimeout *time.Duration
+
+	// Whether we should add a trailing slash to the request path.
+	addTrailingSlash *bool
 }
 
 func DefaultAttachOptions() *AttachOptions {
@@ -49,6 +56,10 @@ func (a *AttachOptions) Assign(data AttachOptionsInterface) AttachOptionsInterfa
 
 	if a.GetRawDestroyUpgrade() == nil {
 		a.SetDestroyUpgrade(data.DestroyUpgrade())
+	}
+
+	if a.GetRawAddTrailingSlash() == nil {
+		a.SetAddTrailingSlash(data.AddTrailingSlash())
 	}
 
 	return a
@@ -100,4 +111,20 @@ func (a *AttachOptions) DestroyUpgradeTimeout() time.Duration {
 	}
 
 	return *a.destroyUpgradeTimeout
+}
+
+// Whether we should add a trailing slash to the request path.
+// @default true
+func (a *AttachOptions) SetAddTrailingSlash(addTrailingSlash bool) {
+	a.addTrailingSlash = &addTrailingSlash
+}
+func (a *AttachOptions) GetRawAddTrailingSlash() *bool {
+	return a.addTrailingSlash
+}
+func (a *AttachOptions) AddTrailingSlash() bool {
+	if a.addTrailingSlash == nil {
+		return true
+	}
+
+	return *a.addTrailingSlash
 }

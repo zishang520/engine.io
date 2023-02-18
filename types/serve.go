@@ -67,7 +67,6 @@ func (mux *ServeMux) match(path string) (h http.Handler, pattern string) {
 // Handler returns a “page not found” handler and an empty pattern.
 func (mux *ServeMux) Handler(r *http.Request) (h http.Handler, pattern string) {
 	path := utils.CleanPath(strings.TrimRight(r.URL.Path, "/"))
-
 	// CONNECT requests are not canonicalized.
 	if r.Method == http.MethodConnect {
 		return mux.handler(r.Host, path)
@@ -135,9 +134,8 @@ func (mux *ServeMux) Handle(pattern string, handler http.Handler) {
 	e := muxEntry{h: handler, pattern: pattern}
 	if pattern[len(pattern)-1] == '/' {
 		mux.es = appendSorted(mux.es, e)
-	} else {
-		mux.m[pattern] = e
 	}
+	mux.m[utils.Value(strings.TrimRight(pattern, "/"), "/")] = e
 
 	if pattern[0] != '/' {
 		mux.hosts = true

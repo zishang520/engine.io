@@ -2,7 +2,7 @@ package types
 
 import (
 	"net/http"
-	"sort"
+	// "sort"
 	"strings"
 	"sync"
 
@@ -66,7 +66,7 @@ func (mux *ServeMux) match(path string) (h http.Handler, pattern string) {
 // If there is no registered handler that applies to the request,
 // Handler returns a “page not found” handler and an empty pattern.
 func (mux *ServeMux) Handler(r *http.Request) (h http.Handler, pattern string) {
-	path := utils.CleanPath(strings.TrimRight(r.URL.Path, "/"))
+	path := utils.CleanPath(r.URL.Path)
 	// CONNECT requests are not canonicalized.
 	if r.Method == http.MethodConnect {
 		return mux.handler(r.Host, path)
@@ -134,8 +134,9 @@ func (mux *ServeMux) Handle(pattern string, handler http.Handler) {
 	e := muxEntry{h: handler, pattern: pattern}
 	if pattern[len(pattern)-1] == '/' {
 		mux.es = appendSorted(mux.es, e)
+	} else {
+		mux.m[pattern] = e
 	}
-	mux.m[utils.Value(strings.TrimRight(pattern, "/"), "/")] = e
 
 	if pattern[0] != '/' {
 		mux.hosts = true
@@ -143,13 +144,14 @@ func (mux *ServeMux) Handle(pattern string, handler http.Handler) {
 }
 
 func appendSorted(es []muxEntry, e muxEntry) []muxEntry {
-	n := len(es)
-	i := sort.Search(n, func(i int) bool {
-		return len(es[i].pattern) < len(e.pattern)
-	})
-	if i == n {
-		return append(es, e)
-	}
+	// n := len(es)
+	// i := sort.Search(n, func(i int) bool {
+	// 	return len(es[i].pattern) < len(e.pattern)
+	// })
+	// if i == n {
+	// 	return append(es, e)
+	// }
+	i := 0
 	// we now know that i points at where we want to insert
 	es = append(es, muxEntry{}) // try to grow the slice in place, any entry works.
 	copy(es[i+1:], es[i:])      // Move shorter entries down

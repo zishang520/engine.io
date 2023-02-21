@@ -12,6 +12,7 @@ import (
 	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/transports"
 	"github.com/zishang520/engine.io/types"
+	"github.com/zishang520/engine.io/utils"
 )
 
 var server_log = log.NewLog("engine")
@@ -185,22 +186,13 @@ func (s *server) Attach(server *types.HttpServer, opts any) {
 		s.Close()
 	})
 
-	server.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		if !websocket.IsWebSocketUpgrade(r) {
-			server_log.Debug(`intercepting request for path "%s"`, path)
-			s.HandleRequest(types.NewHttpContext(w, r))
-		} else if s.opts.Transports().Has("websocket") {
-			s.HandleUpgrade(types.NewHttpContext(w, r))
-		} else {
-			http.Error(w, "Not Implemented", http.StatusNotImplemented)
-		}
-	})
+	server.HandleFunc(path, s.ServeHTTP)
 }
 
 // Captures upgrade requests for a http.Handler, Need to handle server shutdown disconnecting client connections.
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !websocket.IsWebSocketUpgrade(r) {
-		server_log.Debug(`intercepting request for path "%s"`, r.URL.Path)
+		server_log.Debug(`intercepting request for path "%s"`, utils.CleanPath(r.URL.Path))
 		s.HandleRequest(types.NewHttpContext(w, r))
 	} else if s.opts.Transports().Has("websocket") {
 		s.HandleUpgrade(types.NewHttpContext(w, r))

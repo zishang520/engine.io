@@ -353,13 +353,9 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 
 	if dataCtx != nil && !dataCtx.IsDone() {
 		polling_log.Debug("aborting ongoing data request")
-		if h, ok := dataCtx.Response().(http.Hijacker); ok {
-			if netConn, _, err := h.Hijack(); err == nil {
-				if netConn.Close() == nil {
-					dataCtx.Flush()
-				}
-			}
-		}
+		dataCtx.ResponseHeaders.Set("Connection", "close")
+		dataCtx.SetStatusCode(http.StatusTooManyRequests)
+		dataCtx.Write(nil)
 	}
 
 	onClose := func() {

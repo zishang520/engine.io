@@ -38,6 +38,8 @@ type HttpContext struct {
 	statusCode      int
 	mu_wh           sync.RWMutex
 	ResponseHeaders *utils.ParameterBag
+
+	mu_w sync.RWMutex
 }
 
 func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
@@ -105,6 +107,9 @@ func (c *HttpContext) GetStatusCode() int {
 }
 
 func (c *HttpContext) Write(wb []byte) (int, error) {
+	c.mu_w.RLock()
+	defer c.mu_w.RUnlock()
+
 	if !c.IsDone() {
 		defer c.Flush()
 

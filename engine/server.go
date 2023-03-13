@@ -56,64 +56,62 @@ func (s *server) HandleRequest(ctx *types.HttpContext) {
 		}
 	}
 
-	if s.corsMiddleware != nil {
-		s.corsMiddleware(ctx, func() {
-			callback(s.Verify(ctx, false))
-		})
-	} else {
+	s._applyMiddlewares(ctx, func() {
 		callback(s.Verify(ctx, false))
-	}
+	})
 
 	<-ctx.Done()
 }
 
 // Handles an Engine.IO HTTP Upgrade.
 func (s *server) HandleUpgrade(ctx *types.HttpContext) {
-	errorCode, errorContext := s.Verify(ctx, true)
-	if errorContext != nil {
-		s.Emit("connection_error", &types.ErrorMessage{
-			CodeMessage: &types.CodeMessage{
-				Code:    errorCode,
-				Message: errorMessages[errorCode],
-			},
-			Req:     ctx,
-			Context: errorContext,
-		})
-		abortUpgrade(ctx, errorCode, errorContext)
-		return
-	}
+	s._applyMiddlewares(ctx, func() {
+		errorCode, errorContext := s.Verify(ctx, true)
+		if errorContext != nil {
+			s.Emit("connection_error", &types.ErrorMessage{
+				CodeMessage: &types.CodeMessage{
+					Code:    errorCode,
+					Message: errorMessages[errorCode],
+				},
+				Req:     ctx,
+				Context: errorContext,
+			})
+			abortUpgrade(ctx, errorCode, errorContext)
+			return
+		}
 
-	wsc := &types.WebSocketConn{EventEmitter: events.New()}
+		wsc := &types.WebSocketConn{EventEmitter: events.New()}
 
-	ws := &websocket.Upgrader{
-		ReadBufferSize:    1024,
-		WriteBufferSize:   1024,
-		EnableCompression: s.opts.PerMessageDeflate() != nil,
-		Error: func(_ http.ResponseWriter, _ *http.Request, _ int, reason error) {
-			if websocket.IsUnexpectedCloseError(reason) {
-				wsc.Emit("close")
-			} else {
-				wsc.Emit("error", reason)
-			}
-		},
-		CheckOrigin: func(*http.Request) bool {
-			if allowRequest := s.opts.AllowRequest(); allowRequest != nil {
-				if err := allowRequest(ctx); err != nil {
-					return false
+		ws := &websocket.Upgrader{
+			ReadBufferSize:    1024,
+			WriteBufferSize:   1024,
+			EnableCompression: s.opts.PerMessageDeflate() != nil,
+			Error: func(_ http.ResponseWriter, _ *http.Request, _ int, reason error) {
+				if websocket.IsUnexpectedCloseError(reason) {
+					wsc.Emit("close")
+				} else {
+					wsc.Emit("error", reason)
 				}
-			}
-			return true
-		},
-	}
+			},
+			CheckOrigin: func(*http.Request) bool {
+				if allowRequest := s.opts.AllowRequest(); allowRequest != nil {
+					if err := allowRequest(ctx); err != nil {
+						return false
+					}
+				}
+				return true
+			},
+		}
 
-	// delegate to ws
-	if conn, err := ws.Upgrade(ctx.Response(), ctx.Request(), ctx.ResponseHeaders.All()); err == nil {
-		conn.SetReadLimit(s.opts.MaxHttpBufferSize())
-		wsc.Conn = conn
-		s.onWebSocket(ctx, wsc)
-	} else {
-		server_log.Debug("websocket error before upgrade: %s", err)
-	}
+		// delegate to ws
+		if conn, err := ws.Upgrade(ctx.Response(), ctx.Request(), ctx.ResponseHeaders.All()); err == nil {
+			conn.SetReadLimit(s.opts.MaxHttpBufferSize())
+			wsc.Conn = conn
+			s.onWebSocket(ctx, wsc)
+		} else {
+			server_log.Debug("websocket error before upgrade: %s", err)
+		}
+	})
 }
 
 // Called upon a ws.io connection.

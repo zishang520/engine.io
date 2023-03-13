@@ -41,9 +41,9 @@ type server struct {
 
 	events.EventEmitter
 
-	clients        *sync.Map
-	corsMiddleware func(*types.HttpContext, types.Callable)
-	opts           config.ServerOptionsInterface
+	clients     *sync.Map
+	middlewares []Middleware
+	opts        config.ServerOptionsInterface
 
 	httpServer *types.HttpServer
 }
@@ -84,7 +84,7 @@ func (s *server) New(opt any) *server {
 		}
 
 		if cors := s.opts.Cors(); cors != nil {
-			s.corsMiddleware = types.MiddlewareWrapper(cors)
+			s.Use(types.MiddlewareWrapper(cors))
 		}
 	}
 
@@ -186,6 +186,36 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]a
 	}
 
 	return OK_REQUEST, nil
+}
+
+// Adds a new middleware.
+func (s *server) Use(fn Middleware) {
+	// It seems that there is no need to lock? ? ?
+	s.middlewares = append(s.middlewares, fn)
+}
+
+/**
+ * Apply the middlewares to the request.
+ */
+func (s *server) _applyMiddlewares(ctx *types.HttpContext, callback types.Callable) {
+	if len(s.middlewares) == 0 {
+		server_log.Debug("no middleware to apply, skipping")
+		callback()
+		return
+	}
+	var apply func(int)
+	apply = func(i int) {
+		server_log.Debug("applying middleware n°%d", i+1)
+		s.middlewares[i](ctx, func() {
+			if i+1 < len(s.middlewares) {
+				apply(i + 1)
+			} else {
+				callback()
+			}
+		})
+	}
+
+	apply(0)
 }
 
 // Closes all clients.

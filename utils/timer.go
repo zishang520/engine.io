@@ -1,11 +1,13 @@
 package utils
 
 import (
+	"runtime"
 	"time"
 )
 
 type Timer struct {
 	t     chan struct{}
+	stop  chan struct{}
 	timer *time.Timer
 	sleep time.Duration
 	fn    func()
@@ -21,9 +23,18 @@ func (t *Timer) Refresh() *Timer {
 	return t
 }
 
+func (t *Timer) Unref() {
+	runtime.SetFinalizer(t, func(t *Timer) {
+		if t.timer.Stop() {
+			t.stop <- struct{}{}
+		}
+	})
+}
+
 func SetTimeOut(fn func(), sleep time.Duration) *Timer {
 	timeout := &Timer{
 		t:     make(chan struct{}),
+		stop:  make(chan struct{}),
 		timer: time.NewTimer(sleep),
 		sleep: sleep,
 	}
@@ -32,6 +43,8 @@ func SetTimeOut(fn func(), sleep time.Duration) *Timer {
 		case <-timeout.timer.C:
 			go fn()
 		case <-timeout.t:
+			return
+		case <-timeout.stop:
 			return
 		}
 	}
@@ -48,6 +61,7 @@ func ClearTimeout(timeout *Timer) {
 func SetInterval(fn func(), sleep time.Duration) *Timer {
 	timeout := &Timer{
 		t:     make(chan struct{}),
+		stop:  make(chan struct{}),
 		timer: time.NewTimer(sleep),
 		sleep: sleep,
 	}
@@ -58,6 +72,8 @@ func SetInterval(fn func(), sleep time.Duration) *Timer {
 				timeout.timer.Reset(timeout.sleep)
 				go fn()
 			case <-timeout.t:
+				return
+			case <-timeout.stop:
 				return
 			}
 		}

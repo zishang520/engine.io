@@ -28,6 +28,9 @@ type Server interface {
 	// Returns a list of available transports for upgrade given a certain transport.
 	Upgrades(string) *types.Set[string]
 
+	// Adds a new middleware.
+	Use(Middleware)
+
 	// Closes all clients.
 	Close() Server
 

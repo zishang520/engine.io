@@ -144,7 +144,8 @@ func (e *emmiter) Emit(evt EventName, data ...any) {
 		defer e.mu.RUnlock() // RUnlock
 		return               // has no listeners to emit/speak yet
 	}
-	listeners := append([]*listener{}, e.evtListeners[evt]...)
+	listeners := make([]*listener, len(e.evtListeners[evt]))
+	copy(listeners, e.evtListeners[evt])
 	e.mu.RUnlock()
 
 	if len(listeners) > 0 {
@@ -290,7 +291,8 @@ func (e *emmiter) RemoveListener(evt EventName, listener Listener) bool {
 		return false
 	}
 
-	e.evtListeners[evt] = append(listeners[:idx], listeners[idx+1:]...)
+	copy(listeners[idx:], listeners[idx+1:])
+	e.evtListeners[evt] = listeners[:len(listeners)-1]
 
 	return true
 }

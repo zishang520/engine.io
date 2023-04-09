@@ -24,7 +24,8 @@ func (p *ParameterBag) All() map[string][]string {
 
 	_tmp := map[string][]string{}
 	for k, v := range p.parameters {
-		_tmp[k] = append([]string{}, v...)
+		_tmp[k] = make([]string, len(v))
+		copy(_tmp[k], v)
 	}
 
 	return _tmp
@@ -55,7 +56,8 @@ func (p *ParameterBag) With(parameters map[string][]string) {
 	defer p.mu.Unlock()
 
 	for k, v := range parameters {
-		p.parameters[k] = append([]string{}, v...)
+		p.parameters[k] = make([]string, len(v))
+		copy(p.parameters[k], v)
 	}
 }
 

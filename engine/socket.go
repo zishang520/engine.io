@@ -602,7 +602,8 @@ func (s *socket) sendPacket(
 // Attempts to flush the packets buffer.
 func (s *socket) flush() {
 	s.muwriteBuffer.RLock()
-	wbuf := append([]*packet.Packet{}, s.writeBuffer...)
+	wbuf := make([]*packet.Packet, len(s.writeBuffer))
+	copy(wbuf, s.writeBuffer)
 	s.muwriteBuffer.RUnlock()
 
 	if "closed" != s.ReadyState() && s.Transport().Writable() && len(wbuf) > 0 {

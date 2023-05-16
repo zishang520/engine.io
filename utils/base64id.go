@@ -20,10 +20,9 @@ func Base64Id() *base64Id {
 
 func (b *base64Id) GenerateId() (string, error) {
 	r := make([]byte, 18)
-	if _, err := rand.Read(r[:10]); err != nil {
+	if _, err := rand.Read(r); err != nil {
 		return "", err
 	}
-	binary.BigEndian.PutUint64(r[10:], atomic.LoadUint64(&b.sequenceNumber))
-	atomic.AddUint64(&b.sequenceNumber, 1)
-	return strings.ReplaceAll(strings.ReplaceAll(base64.StdEncoding.EncodeToString(r), "/", "_"), "+", "-"), nil
+	binary.BigEndian.PutUint64(r[10:], atomic.AddUint64(&b.sequenceNumber, 1)-1)
+	return strings.NewReplacer("/", "_", "+", "-").Replace(base64.StdEncoding.EncodeToString(r)), nil
 }

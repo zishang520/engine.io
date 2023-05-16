@@ -77,9 +77,9 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 	if p.req != nil {
 		defer p.mu_req.RUnlock()
 		polling_log.Debug("request overlap")
-		// assert: p.res, '.req and .res should be (un)set together'
+		// assert: p.res, '.req should be (un)set together'
 		p.OnError("overlap from client", nil)
-		ctx.SetStatusCode(http.StatusInternalServerError)
+		ctx.SetStatusCode(http.StatusBadRequest)
 		ctx.Write(nil)
 		return
 	}
@@ -125,9 +125,9 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	p.mu_dataCtx.RLock()
 	if p.dataCtx != nil {
 		defer p.mu_dataCtx.RUnlock()
-		// assert: p.dataRes, '.dataReq and .dataRes should be (un)set together'
+		// assert: p.dataRes, '.dataCtx should be (un)set together'
 		p.OnError("data request overlap from client", nil)
-		ctx.SetStatusCode(http.StatusInternalServerError)
+		ctx.SetStatusCode(http.StatusBadRequest)
 		ctx.Write(nil)
 		return
 	}

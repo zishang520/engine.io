@@ -236,7 +236,7 @@ func (c *cors) applyHeaders() *cors {
 	return c
 }
 
-func corsFunc(options *Cors, ctx *HttpContext, next Callable) {
+func corsFunc(options *Cors, ctx *HttpContext, next func(error)) {
 	c := &cors{
 		options: options,
 		ctx:     ctx,
@@ -248,7 +248,7 @@ func corsFunc(options *Cors, ctx *HttpContext, next Callable) {
 		// preflight
 		c.configureOrigin().configureCredentials().configureMethods().configureAllowedHeaders().configureMaxAge().configureExposedHeaders().applyHeaders()
 		if options.PreflightContinue {
-			next()
+			next(nil)
 		} else {
 			// Safari (and potentially other browsers) need content-length 0,
 			//   for 204 or they just hang waiting for a body
@@ -259,7 +259,7 @@ func corsFunc(options *Cors, ctx *HttpContext, next Callable) {
 	} else {
 		// actual response
 		c.configureOrigin().configureCredentials().configureExposedHeaders().applyHeaders()
-		next()
+		next(nil)
 	}
 }
 
@@ -270,7 +270,7 @@ var defaults = &Cors{
 	OptionsSuccessStatus: 204,
 }
 
-func MiddlewareWrapper(options *Cors) func(*HttpContext, Callable) {
+func MiddlewareWrapper(options *Cors) func(*HttpContext, func(error)) {
 	if options == nil {
 		options = defaults
 	} else {
@@ -287,9 +287,9 @@ func MiddlewareWrapper(options *Cors) func(*HttpContext, Callable) {
 		}
 	}
 
-	return func(ctx *HttpContext, next Callable) {
+	return func(ctx *HttpContext, next func(error)) {
 		if options.Origin == nil {
-			next()
+			next(nil)
 		} else {
 			corsFunc(options, ctx, next)
 		}

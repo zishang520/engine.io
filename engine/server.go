@@ -56,8 +56,12 @@ func (s *server) HandleRequest(ctx *types.HttpContext) {
 		}
 	}
 
-	s._applyMiddlewares(ctx, func() {
-		callback(s.Verify(ctx, false))
+	s._applyMiddlewares(ctx, func(err error) {
+		if err != nil {
+			callback(BAD_REQUEST, map[string]any{"name": "MIDDLEWARE_FAILURE"})
+		} else {
+			callback(s.Verify(ctx, false))
+		}
 	})
 
 	<-ctx.Done()
@@ -65,8 +69,7 @@ func (s *server) HandleRequest(ctx *types.HttpContext) {
 
 // Handles an Engine.IO HTTP Upgrade.
 func (s *server) HandleUpgrade(ctx *types.HttpContext) {
-	s._applyMiddlewares(ctx, func() {
-		errorCode, errorContext := s.Verify(ctx, true)
+	callback := func(errorCode int, errorContext map[string]any) {
 		if errorContext != nil {
 			s.Emit("connection_error", &types.ErrorMessage{
 				CodeMessage: &types.CodeMessage{
@@ -110,6 +113,14 @@ func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 			s.onWebSocket(ctx, wsc)
 		} else {
 			server_log.Debug("websocket error before upgrade: %s", err)
+		}
+	}
+
+	s._applyMiddlewares(ctx, func(err error) {
+		if err != nil {
+			callback(BAD_REQUEST, map[string]any{"name": "MIDDLEWARE_FAILURE"})
+		} else {
+			callback(s.Verify(ctx, true))
 		}
 	})
 }

@@ -197,20 +197,24 @@ func (s *server) Use(fn Middleware) {
 /**
  * Apply the middlewares to the request.
  */
-func (s *server) _applyMiddlewares(ctx *types.HttpContext, callback types.Callable) {
+func (s *server) _applyMiddlewares(ctx *types.HttpContext, callback func(error)) {
 	if len(s.middlewares) == 0 {
 		server_log.Debug("no middleware to apply, skipping")
-		callback()
+		callback(nil)
 		return
 	}
 	var apply func(int)
 	apply = func(i int) {
 		server_log.Debug("applying middleware n°%d", i+1)
-		s.middlewares[i](ctx, func() {
+		s.middlewares[i](ctx, func(err error) {
+			if err != nil {
+				callback(err)
+				return
+			}
 			if i+1 < len(s.middlewares) {
 				apply(i + 1)
 			} else {
-				callback()
+				callback(nil)
 			}
 		})
 	}

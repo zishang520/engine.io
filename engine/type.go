@@ -76,4 +76,4 @@ type Socket interface {
 
 // Middleware functions are functions that have access to the *types.HttpContext
 // and the next middleware function in the application's context cycle.
-type Middleware func(*types.HttpContext, types.Callable)
+type Middleware func(*types.HttpContext, func(error))

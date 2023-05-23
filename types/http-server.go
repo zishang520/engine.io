@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/zishang520/engine.io/events"
+	"golang.org/x/net/http2"
 )
 
 type HttpServer struct {
@@ -79,6 +80,26 @@ func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn 
 
 	go func() {
 		if err := s.server(addr).ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+			panic(err)
+		}
+	}()
+
+	if fn != nil {
+		defer fn()
+	}
+	s.Emit("listening")
+
+	return s
+}
+
+func (s *HttpServer) ListenHTTP2TLS(addr string, certFile string, keyFile string, conf *http2.Server, fn Callable) *HttpServer {
+
+	go func() {
+		server := s.server(addr)
+		if err := http2.ConfigureServer(server, conf); err != nil {
+			panic(err)
+		}
+		if err := server.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()

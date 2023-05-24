@@ -16,12 +16,12 @@ func TestParserv3(t *testing.T) {
 	t.Run("hasBinary", func(t *testing.T) {
 		if b := p.hasBinary([]*packet.Packet{
 			nil,
-			&packet.Packet{
+			{
 				Type:    packet.CLOSE,
 				Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
 				Options: nil,
 			},
-			&packet.Packet{
+			{
 				Type:    packet.OPEN,
 				Data:    bytes.NewBuffer([]byte("ABC")),
 				Options: nil,
@@ -261,12 +261,12 @@ func TestParserv3(t *testing.T) {
 	t.Run("EncodePayload/Base64", func(t *testing.T) {
 		data, err := p.EncodePayload(
 			[]*packet.Packet{
-				&packet.Packet{
+				{
 					Type:    packet.OPEN,
 					Data:    bytes.NewBuffer([]byte("ABC")),
 					Options: nil,
 				},
-				&packet.Packet{
+				{
 					Type:    packet.CLOSE,
 					Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
 					Options: nil,
@@ -285,12 +285,12 @@ func TestParserv3(t *testing.T) {
 	t.Run("EncodePayload", func(t *testing.T) {
 		data, err := p.EncodePayload(
 			[]*packet.Packet{
-				&packet.Packet{
+				{
 					Type:    packet.OPEN,
 					Data:    bytes.NewBuffer([]byte("ABC")),
 					Options: nil,
 				},
-				&packet.Packet{
+				{
 					Type:    packet.CLOSE,
 					Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
 					Options: nil,
@@ -583,12 +583,12 @@ func TestParserv4(t *testing.T) {
 	t.Run("EncodePayload/Base64", func(t *testing.T) {
 		data, err := p.EncodePayload(
 			[]*packet.Packet{
-				&packet.Packet{
+				{
 					Type:    packet.OPEN,
 					Data:    bytes.NewBuffer([]byte("ABC")),
 					Options: nil,
 				},
-				&packet.Packet{
+				{
 					Type:    packet.CLOSE,
 					Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
 					Options: nil,
@@ -607,12 +607,12 @@ func TestParserv4(t *testing.T) {
 	t.Run("EncodePayload", func(t *testing.T) {
 		data, err := p.EncodePayload(
 			[]*packet.Packet{
-				&packet.Packet{
+				{
 					Type:    packet.OPEN,
 					Data:    bytes.NewBuffer([]byte("ABC")),
 					Options: nil,
 				},
-				&packet.Packet{
+				{
 					Type:    packet.CLOSE,
 					Data:    strings.NewReader("test测试中文和表情字符❤️🧡💛🧓🏾💟"),
 					Options: nil,

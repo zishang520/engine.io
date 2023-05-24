@@ -112,7 +112,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 	if p.Writable() && p.shouldClose != nil {
 		polling_log.Debug("triggering empty send to append close packet")
 		p.Send([]*packet.Packet{
-			&packet.Packet{
+			{
 				Type: packet.NOOP,
 			},
 		})
@@ -182,8 +182,8 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	headers := utils.NewParameterBag(map[string][]string{
 		// text/html is required instead of text/plain to avoid an
 		// unwanted download dialog on certain user-agents (GH-43)
-		"Content-Type":   []string{"text/html"},
-		"Content-Length": []string{"2"},
+		"Content-Type":   {"text/html"},
+		"Content-Length": {"2"},
 	})
 	ctx.ResponseHeaders.With(p.Headers(ctx, headers).All())
 	ctx.SetStatusCode(http.StatusOK)
@@ -211,7 +211,7 @@ func (p *polling) PollingOnClose() {
 	if p.Writable() {
 		// close pending poll request
 		p.Send([]*packet.Packet{
-			&packet.Packet{
+			{
 				Type: packet.NOOP,
 			},
 		})
@@ -244,7 +244,7 @@ func (p *polling) PollingSend(packets []*packet.Packet) {
 	}
 	p.mu_shouldClose.Unlock()
 
-	option := &packet.Options{false}
+	option := &packet.Options{Compress: false}
 	for _, packetData := range packets {
 		if packetData.Options != nil && packetData.Options.Compress {
 			option.Compress = true
@@ -277,7 +277,7 @@ func (p *polling) PollingDoWrite(ctx *types.HttpContext, data types.BufferInterf
 	}
 
 	headers := utils.NewParameterBag(map[string][]string{
-		"Content-Type": []string{contentType},
+		"Content-Type": {contentType},
 	})
 
 	respond := func(data types.BufferInterface, length string) {
@@ -368,7 +368,7 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 	if p.Writable() {
 		polling_log.Debug("transport writable - closing right away")
 		p.Send([]*packet.Packet{
-			&packet.Packet{
+			{
 				Type: packet.CLOSE,
 			},
 		})

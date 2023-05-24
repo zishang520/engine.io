@@ -374,7 +374,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	check = func() {
 		if "polling" == s.Transport().Name() && s.Transport().Writable() {
 			socket_log.Debug("writing a noop packet to polling for fast upgrade")
-			s.Transport().Send([]*packet.Packet{&packet.Packet{Type: packet.NOOP}})
+			s.Transport().Send([]*packet.Packet{{Type: packet.NOOP}})
 		}
 	}
 
@@ -572,7 +572,7 @@ func (s *socket) sendPacket(
 		socket_log.Debug(`sending packet "%s" (%v)`, packetType, data)
 
 		if options == nil {
-			options = &packet.Options{true}
+			options = &packet.Options{Compress: true}
 		}
 
 		packet := &packet.Packet{

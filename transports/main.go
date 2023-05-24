@@ -11,7 +11,7 @@ type transports struct {
 }
 
 var _transports map[string]*transports = map[string]*transports{
-	"polling": &transports{
+	"polling": {
 		// Polling polymorphic New.
 		New: func(ctx *types.HttpContext) Transport {
 			if ctx.Query().Has("j") {
@@ -23,7 +23,7 @@ var _transports map[string]*transports = map[string]*transports{
 		UpgradesTo:      types.NewSet("websocket"),
 	},
 
-	"websocket": &transports{
+	"websocket": {
 		New: func(ctx *types.HttpContext) Transport {
 			return NewWebSocket(ctx)
 		},

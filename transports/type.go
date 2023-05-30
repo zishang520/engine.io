@@ -1,9 +1,10 @@
 package transports
 
 import (
+	"github.com/zishang520/engine.io-go-parser/packet"
+	"github.com/zishang520/engine.io-go-parser/parser"
+	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/events"
-	"github.com/zishang520/engine.io/packet"
-	"github.com/zishang520/engine.io/parser"
 	"github.com/zishang520/engine.io/types"
 )
 
@@ -47,7 +48,7 @@ type Transport interface {
 	OnPacket(*packet.Packet)
 
 	// Called with the encoded packet data.
-	OnData(types.BufferInterface)
+	OnData(_types.BufferInterface)
 
 	// Called upon transport close.
 	OnClose()

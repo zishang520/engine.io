@@ -5,8 +5,9 @@ import (
 	"net/url"
 	"regexp"
 
+	"github.com/zishang520/engine.io-go-parser/packet"
+	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/log"
-	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/types"
 )
 
@@ -43,7 +44,7 @@ func (j *jsonp) New(ctx *types.HttpContext) *jsonp {
 
 // Handles incoming data.
 // Due to a bug in \n handling by browsers, we expect a escaped string.
-func (j *jsonp) JSONPOnData(data types.BufferInterface) {
+func (j *jsonp) JSONPOnData(data _types.BufferInterface) {
 	if data, err := url.ParseQuery(data.String()); err == nil {
 		if data.Has("d") {
 			_data := rSlashes.ReplaceAllStringFunc(data.Get("d"), func(m string) string {
@@ -54,7 +55,7 @@ func (j *jsonp) JSONPOnData(data types.BufferInterface) {
 			})
 			// client will send already escaped newlines as \\\\n and newlines as \\n
 			// \\n must be replaced with \n and \\\\n with \\n
-			j.PollingOnData(types.NewStringBufferString(rDoubleSlashes.ReplaceAllString(_data, "\\n")))
+			j.PollingOnData(_types.NewStringBufferString(rDoubleSlashes.ReplaceAllString(_data, "\\n")))
 		}
 	} else {
 		jsonp_log.Debug(`jsonp OnData error "%v"`, err)
@@ -62,9 +63,9 @@ func (j *jsonp) JSONPOnData(data types.BufferInterface) {
 }
 
 // Performs the write.
-func (j *jsonp) JSONPDoWrite(ctx *types.HttpContext, data types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
+func (j *jsonp) JSONPDoWrite(ctx *types.HttpContext, data _types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
 	// prepare response
-	res := types.NewStringBufferString(j.head)
+	res := _types.NewStringBufferString(j.head)
 	encoder := json.NewEncoder(res)
 	// we must output valid javascript, not valid json
 	// see: http://timelessrepo.com/json-isnt-a-javascript-subset

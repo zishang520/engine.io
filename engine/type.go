@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io/config"
 	"github.com/zishang520/engine.io/events"
-	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/transports"
 	"github.com/zishang520/engine.io/types"
 )

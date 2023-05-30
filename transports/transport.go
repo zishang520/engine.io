@@ -4,11 +4,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zishang520/engine.io-go-parser/packet"
+	"github.com/zishang520/engine.io-go-parser/parser"
+	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/events"
 	"github.com/zishang520/engine.io/log"
-	"github.com/zishang520/engine.io/packet"
-	"github.com/zishang520/engine.io/parser"
 	"github.com/zishang520/engine.io/types"
 )
 
@@ -45,11 +46,11 @@ type transport struct {
 	_writable   bool
 	mu_writable sync.RWMutex
 
-	send    func([]*packet.Packet)                                                                     // abstract
-	doClose func(...types.Callable)                                                                    // abstract
-	onData  func(types.BufferInterface)                                                                // abstract
-	doWrite func(*types.HttpContext, types.BufferInterface, *packet.Options, func(*types.HttpContext)) // abstract
-	onClose types.Callable                                                                             // abstract
+	send    func([]*packet.Packet)                                                                      // abstract
+	doClose func(...types.Callable)                                                                     // abstract
+	onData  func(_types.BufferInterface)                                                                // abstract
+	doWrite func(*types.HttpContext, _types.BufferInterface, *packet.Options, func(*types.HttpContext)) // abstract
+	onClose types.Callable                                                                              // abstract
 
 	musend sync.Mutex
 }
@@ -143,7 +144,7 @@ func (t *transport) DoClose(fn types.Callable) {
 	t.doClose(fn)
 }
 
-func (t *transport) OnData(data types.BufferInterface) {
+func (t *transport) OnData(data _types.BufferInterface) {
 	t.onData(data)
 }
 
@@ -151,7 +152,7 @@ func (t *transport) OnClose() {
 	t.onClose()
 }
 
-func (t *transport) DoWrite(ctx *types.HttpContext, data types.BufferInterface, option *packet.Options, fn func(ctx *types.HttpContext)) {
+func (t *transport) DoWrite(ctx *types.HttpContext, data _types.BufferInterface, option *packet.Options, fn func(ctx *types.HttpContext)) {
 	t.doWrite(ctx, data, option, fn)
 }
 
@@ -236,7 +237,7 @@ func (t *transport) OnPacket(packet *packet.Packet) {
 }
 
 // Called with the encoded packet data.
-func (t *transport) TransportOnData(data types.BufferInterface) {
+func (t *transport) TransportOnData(data _types.BufferInterface) {
 	p, _ := t.parser.DecodePacket(data)
 	t.OnPacket(p)
 }

@@ -4,8 +4,9 @@ import (
 	"io"
 
 	ws "github.com/gorilla/websocket"
+	"github.com/zishang520/engine.io-go-parser/packet"
+	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/log"
-	"github.com/zishang520/engine.io/packet"
 	"github.com/zishang520/engine.io/types"
 )
 
@@ -70,14 +71,14 @@ func (w *websocket) _init() {
 
 		switch mt {
 		case ws.BinaryMessage:
-			read := types.NewBytesBuffer(nil)
+			read := _types.NewBytesBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
 				w.OnError("Error reading data", err)
 			} else {
 				w.WebSocketOnData(read)
 			}
 		case ws.TextMessage:
-			read := types.NewStringBuffer(nil)
+			read := _types.NewStringBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
 				w.OnError("Error reading data", err)
 			} else {
@@ -98,7 +99,7 @@ func (w *websocket) _init() {
 	}
 }
 
-func (w *websocket) WebSocketOnData(data types.BufferInterface) {
+func (w *websocket) WebSocketOnData(data _types.BufferInterface) {
 	ws_log.Debug(`websocket received "%s"`, data)
 	w.TransportOnData(data)
 }
@@ -119,7 +120,7 @@ func (w *websocket) WebSocketSend(packets []*packet.Packet) {
 }
 
 func (w *websocket) _send(packet *packet.Packet) {
-	var data types.BufferInterface
+	var data _types.BufferInterface
 
 	if packet.WsPreEncoded != nil {
 		data = packet.WsPreEncoded
@@ -147,10 +148,10 @@ func (w *websocket) _send(packet *packet.Packet) {
 	w.write(data, compress)
 }
 
-func (w *websocket) write(data types.BufferInterface, compress bool) {
+func (w *websocket) write(data _types.BufferInterface, compress bool) {
 	w.socket.EnableWriteCompression(compress)
 	mt := ws.BinaryMessage
-	if _, ok := data.(*types.StringBuffer); ok {
+	if _, ok := data.(*_types.StringBuffer); ok {
 		mt = ws.TextMessage
 	}
 	write, err := w.socket.NextWriter(mt)

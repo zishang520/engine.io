@@ -39,7 +39,7 @@ type HttpContext struct {
 	mu_wh           sync.RWMutex
 	ResponseHeaders *utils.ParameterBag
 
-	mu_w sync.RWMutex
+	mu_w sync.Mutex
 }
 
 func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
@@ -107,14 +107,14 @@ func (c *HttpContext) GetStatusCode() int {
 }
 
 func (c *HttpContext) Write(wb []byte) (int, error) {
-	c.mu_w.RLock()
-	defer c.mu_w.RUnlock()
+	c.mu_w.Lock()
+	defer c.mu_w.Unlock()
 
 	if !c.IsDone() {
 		defer c.Flush()
 
 		for k, v := range c.ResponseHeaders.All() {
-			c.response.Header().Add(k, v[0])
+			c.response.Header().Set(k, v[0])
 		}
 		c.response.WriteHeader(c.GetStatusCode())
 

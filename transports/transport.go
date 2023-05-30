@@ -168,9 +168,10 @@ func (t *transport) ReadyState() string {
 }
 
 func (t *transport) SetReadyState(state string) {
-	transport_log.Debug(`readyState updated from %s to %s (%s)`, t._readyState, state, t.Name())
 	t.mu_readyState.Lock()
 	defer t.mu_readyState.Unlock()
+
+	transport_log.Debug(`readyState updated from %s to %s (%s)`, t._readyState, state, t.Name())
 
 	t._readyState = state
 }

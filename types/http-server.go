@@ -31,9 +31,6 @@ func (s *HttpServer) server(addr string) *http.Server {
 	defer s.mu.Unlock()
 
 	server := &http.Server{Addr: addr, Handler: s}
-	server.RegisterOnShutdown(func() {
-		s.Emit("close")
-	})
 
 	s.servers = append(s.servers, server)
 
@@ -45,6 +42,8 @@ func (s *HttpServer) Close(fn Callable) error {
 	defer s.mu.RUnlock()
 
 	if s.servers != nil {
+		s.Emit("close")
+
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 

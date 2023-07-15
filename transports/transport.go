@@ -140,6 +140,7 @@ func (t *transport) SetWritable(writable bool) {
 	t._writable = writable
 }
 
+// Closes the transport.
 func (t *transport) DoClose(fn types.Callable) {
 	t.doClose(fn)
 }
@@ -156,6 +157,7 @@ func (t *transport) DoWrite(ctx *types.HttpContext, data _types.BufferInterface,
 	t.doWrite(ctx, data, option, fn)
 }
 
+// Sends an array of packets.
 func (t *transport) Send(packets []*packet.Packet) {
 	t.send(packets)
 }
@@ -180,6 +182,7 @@ func (t *transport) CloseTimeout() time.Duration {
 	return t.closeTimeout
 }
 
+// The name of the transport.
 func (t *transport) Name() string {
 	return t.name
 }
@@ -188,6 +191,7 @@ func (t *transport) HandlesUpgrades() bool {
 	return t.handlesUpgrades
 }
 
+// Advertise framing support.
 func (t *transport) SupportsFraming() bool {
 	return t.supportsFraming
 }

@@ -195,7 +195,7 @@ func TestServerOptionsSetValue(t *testing.T) {
 	})
 
 	t.Run("perMessageDeflate", func(t *testing.T) {
-		input := &types.PerMessageDeflate{1024}
+		input := &types.PerMessageDeflate{Threshold: 1024}
 		opts.SetPerMessageDeflate(input)
 		if perMessageDeflate := opts.PerMessageDeflate(); perMessageDeflate.Threshold != 1024 {
 			t.Fatalf(`*ServerOptions.PerMessageDeflate().Threshold = %d, want match for %d`, perMessageDeflate.Threshold, 1024)
@@ -203,7 +203,7 @@ func TestServerOptionsSetValue(t *testing.T) {
 	})
 
 	t.Run("httpCompression/threshold", func(t *testing.T) {
-		input := &types.HttpCompression{2048}
+		input := &types.HttpCompression{Threshold: 2048}
 		opts.SetHttpCompression(input)
 		if httpCompression := opts.HttpCompression(); httpCompression != nil && httpCompression.Threshold != 2048 {
 			t.Fatalf(`*ServerOptions.HttpCompression().Threshold = %d, want match for %d`, httpCompression.Threshold, 2048)

@@ -196,7 +196,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 func (p *polling) PollingOnData(data _types.BufferInterface) {
 	polling_log.Debug(`received "%s"`, data)
 
-	for _, packetData := range p.parser.DecodePayload(data) {
+	p.parser.DecodePayload(data, func(packetData *packet.Packet) {
 		if packet.CLOSE == packetData.Type {
 			polling_log.Debug("got xhr close packet")
 			p.OnClose()
@@ -204,7 +204,7 @@ func (p *polling) PollingOnData(data _types.BufferInterface) {
 		}
 
 		p.OnPacket(packetData)
-	}
+	})
 }
 
 // Overrides onClose.

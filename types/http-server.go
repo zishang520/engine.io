@@ -30,23 +30,23 @@ func CreateServer(defaultHandler http.Handler) *HttpServer {
 	return s
 }
 
-func (s *HttpServer) server(addr string) *http.Server {
+func (s *HttpServer) server(addr string, handler http.Handler) *http.Server {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	server := &http.Server{Addr: addr, Handler: s}
+	server := &http.Server{Addr: addr, Handler: handler}
 
 	s.servers = append(s.servers, server)
 
 	return server
 }
 
-func (s *HttpServer) h3Server() *http3.Server {
+func (s *HttpServer) h3Server(handler http.Handler) *http3.Server {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// Start the servers
-	server := &http3.Server{Handler: s}
+	server := &http3.Server{Handler: handler}
 
 	s.servers = append(s.servers, server)
 
@@ -85,7 +85,7 @@ func (s *HttpServer) Close(fn Callable) error {
 func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
 
 	go func() {
-		if err := s.server(addr).ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := s.server(addr, s).ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
@@ -101,7 +101,7 @@ func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
 func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn Callable) *HttpServer {
 
 	go func() {
-		if err := s.server(addr).ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+		if err := s.server(addr, s).ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
@@ -114,10 +114,13 @@ func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn 
 	return s
 }
 
+// Starting with Go 1.6, the http package has transparent support for the HTTP/2 protocol when using HTTPS.
+//
+// Deprecated: this method will be removed in the next major release, please use *HttpServer.ListenTLS instead.
 func (s *HttpServer) ListenHTTP2TLS(addr string, certFile string, keyFile string, conf *http2.Server, fn Callable) *HttpServer {
 
 	go func() {
-		server := s.server(addr)
+		server := s.server(addr, s)
 		if err := http2.ConfigureServer(server, conf); err != nil {
 			panic(err)
 		}
@@ -166,17 +169,17 @@ func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string
 		}
 		defer udpConn.Close()
 
-		server := s.h3Server()
+		server := s.h3Server(s)
 		server.TLSConfig = config
 		server.QuicConfig = quicConfig
 
 		hErr := make(chan error)
 		qErr := make(chan error)
 		go func() {
-			hErr <- http.ListenAndServeTLS(addr, certFile, keyFile, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			hErr <- s.server(addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				server.SetQuicHeaders(w.Header())
 				s.ServeHTTP(w, r)
-			}))
+			})).ListenAndServeTLS(certFile, keyFile)
 		}()
 		go func() {
 			qErr <- server.Serve(udpConn)

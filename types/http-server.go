@@ -10,6 +10,7 @@ import (
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
+	"github.com/quic-go/webtransport-go"
 	"github.com/zishang520/engine.io/events"
 	"golang.org/x/net/http2"
 )
@@ -30,7 +31,7 @@ func CreateServer(defaultHandler http.Handler) *HttpServer {
 	return s
 }
 
-func (s *HttpServer) server(addr string, handler http.Handler) *http.Server {
+func (s *HttpServer) httpServer(addr string, handler http.Handler) *http.Server {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -41,12 +42,14 @@ func (s *HttpServer) server(addr string, handler http.Handler) *http.Server {
 	return server
 }
 
-func (s *HttpServer) h3Server(handler http.Handler) *http3.Server {
+func (s *HttpServer) webtransportServer(handler http.Handler) *webtransport.Server {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// Start the servers
-	server := &http3.Server{Handler: handler}
+	server := &webtransport.Server{
+		H3: http3.Server{Handler: handler},
+	}
 
 	s.servers = append(s.servers, server)
 
@@ -69,7 +72,7 @@ func (s *HttpServer) Close(fn Callable) error {
 				if err := s.Shutdown(ctx); err != nil {
 					return err
 				}
-			case *http3.Server:
+			case *webtransport.Server:
 				if err := s.Close(); err != nil {
 					return err
 				}
@@ -85,7 +88,7 @@ func (s *HttpServer) Close(fn Callable) error {
 func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
 
 	go func() {
-		if err := s.server(addr, s).ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := s.httpServer(addr, s).ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
@@ -101,7 +104,7 @@ func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
 func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn Callable) *HttpServer {
 
 	go func() {
-		if err := s.server(addr, s).ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+		if err := s.httpServer(addr, s).ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
@@ -120,7 +123,7 @@ func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn 
 func (s *HttpServer) ListenHTTP2TLS(addr string, certFile string, keyFile string, conf *http2.Server, fn Callable) *HttpServer {
 
 	go func() {
-		server := s.server(addr, s)
+		server := s.httpServer(addr, s)
 		if err := http2.ConfigureServer(server, conf); err != nil {
 			panic(err)
 		}
@@ -169,15 +172,15 @@ func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string
 		}
 		defer udpConn.Close()
 
-		server := s.h3Server(s)
-		server.TLSConfig = config
-		server.QuicConfig = quicConfig
+		server := s.webtransportServer(s)
+		server.H3.TLSConfig = config
+		server.H3.QuicConfig = quicConfig
 
 		hErr := make(chan error)
 		qErr := make(chan error)
 		go func() {
-			hErr <- s.server(addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				server.SetQuicHeaders(w.Header())
+			hErr <- s.httpServer(addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server.H3.SetQuicHeaders(w.Header())
 				s.ServeHTTP(w, r)
 			})).ListenAndServeTLS(certFile, keyFile)
 		}()

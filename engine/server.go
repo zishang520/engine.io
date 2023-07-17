@@ -96,12 +96,8 @@ func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 					wsc.Emit("error", reason)
 				}
 			},
-			CheckOrigin: func(*http.Request) bool {
-				if allowRequest := s.opts.AllowRequest(); allowRequest != nil {
-					if err := allowRequest(ctx); err != nil {
-						return false
-					}
-				}
+			CheckOrigin: func(_ *http.Request) bool {
+				// Verified in *server.Verify()
 				return true
 			},
 		}

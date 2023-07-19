@@ -14,7 +14,7 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/quic-go/quic-go v0.36.2
 	github.com/quic-go/webtransport-go v0.5.3
-	github.com/zishang520/engine.io-go-parser v1.1.1
+	github.com/zishang520/engine.io-go-parser v1.2.0
 	golang.org/x/net v0.12.0
 )
 

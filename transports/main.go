@@ -20,7 +20,7 @@ var _transports map[string]*transports = map[string]*transports{
 			return NewPolling(ctx)
 		},
 		HandlesUpgrades: false,
-		UpgradesTo:      types.NewSet("websocket"),
+		UpgradesTo:      types.NewSet("websocket", "webtransport"),
 	},
 
 	"websocket": {

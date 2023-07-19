@@ -16,8 +16,10 @@ import (
 type HttpContext struct {
 	events.EventEmitter
 
-	Websocket *WebSocketConn
-	Cleanup   Callable
+	Websocket    *WebSocketConn
+	WebTransport *WebTransportConn
+
+	Cleanup Callable
 
 	request  *http.Request
 	response http.ResponseWriter

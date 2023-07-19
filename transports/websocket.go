@@ -174,8 +174,8 @@ func (w *websocket) write(data _types.BufferInterface, compress bool) {
 // Closes the transport.
 func (w *websocket) WebSocketDoClose(fn ...types.Callable) {
 	ws_log.Debug(`closing`)
+	w.socket.Close()
 	if len(fn) > 0 {
 		(fn[0])()
 	}
-	w.socket.Close()
 }

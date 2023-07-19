@@ -95,9 +95,10 @@ func main() {
         Credentials: true,
     })
 
-    http := types.CreateServer(nil).Listen("127.0.0.1:4444", nil)
+    httpServer := types.CreateServer(nil)
+    httpServer.Listen("127.0.0.1:4444", nil)
 
-    engineServer := engine.Attach(http, serverOptions)
+    engineServer := engine.Attach(httpServer, serverOptions)
 
     engineServer.On("connection", func(sockets ...any) {
         socket := sockets[0].(engine.Socket)
@@ -155,7 +156,8 @@ func main() {
         Credentials: true,
     })
 
-    httpServer := types.CreateServer(nil).Listen("127.0.0.1:4444", nil)
+    httpServer := types.CreateServer(nil)
+    httpServer.Listen("127.0.0.1:4444", nil)
 
     engineServer := engine.New(serverOptions)
 

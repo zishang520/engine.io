@@ -85,10 +85,11 @@ func (s *HttpServer) Close(fn Callable) error {
 	return nil
 }
 
-func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
+func (s *HttpServer) Listen(addr string, fn Callable) *http.Server {
+	server := s.httpServer(addr, s)
 
 	go func() {
-		if err := s.httpServer(addr, s).ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
@@ -98,13 +99,14 @@ func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
 	}
 	s.Emit("listening")
 
-	return s
+	return server
 }
 
-func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn Callable) *HttpServer {
+func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn Callable) *http.Server {
+	server := s.httpServer(addr, s)
 
 	go func() {
-		if err := s.httpServer(addr, s).ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
@@ -114,16 +116,16 @@ func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn 
 	}
 	s.Emit("listening")
 
-	return s
+	return server
 }
 
 // Starting with Go 1.6, the http package has transparent support for the HTTP/2 protocol when using HTTPS.
 //
 // Deprecated: this method will be removed in the next major release, please use *HttpServer.ListenTLS instead.
-func (s *HttpServer) ListenHTTP2TLS(addr string, certFile string, keyFile string, conf *http2.Server, fn Callable) *HttpServer {
+func (s *HttpServer) ListenHTTP2TLS(addr string, certFile string, keyFile string, conf *http2.Server, fn Callable) *http.Server {
+	server := s.httpServer(addr, s)
 
 	go func() {
-		server := s.httpServer(addr, s)
 		if err := http2.ConfigureServer(server, conf); err != nil {
 			panic(err)
 		}
@@ -137,44 +139,44 @@ func (s *HttpServer) ListenHTTP2TLS(addr string, certFile string, keyFile string
 	}
 	s.Emit("listening")
 
-	return s
+	return server
 }
 
-func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string, quicConfig *quic.Config, fn Callable) *HttpServer {
+func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string, quicConfig *quic.Config, fn Callable) *webtransport.Server {
+
+	// Load certs
+	var err error
+	certs := make([]tls.Certificate, 1)
+	certs[0], err = tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		panic(err)
+	}
+	// We currently only use the cert-related stuff from tls.Config,
+	// so we don't need to make a full copy.
+	config := &tls.Config{
+		Certificates: certs,
+	}
+
+	if addr == "" {
+		addr = ":https"
+	}
+
+	// Open the listeners
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		panic(err)
+	}
+	udpConn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		panic(err)
+	}
+
+	server := s.webtransportServer(s)
+	server.H3.TLSConfig = config
+	server.H3.QuicConfig = quicConfig
 
 	go func() {
-
-		// Load certs
-		var err error
-		certs := make([]tls.Certificate, 1)
-		certs[0], err = tls.LoadX509KeyPair(certFile, keyFile)
-		if err != nil {
-			panic(err)
-		}
-		// We currently only use the cert-related stuff from tls.Config,
-		// so we don't need to make a full copy.
-		config := &tls.Config{
-			Certificates: certs,
-		}
-
-		if addr == "" {
-			addr = ":https"
-		}
-
-		// Open the listeners
-		udpAddr, err := net.ResolveUDPAddr("udp", addr)
-		if err != nil {
-			panic(err)
-		}
-		udpConn, err := net.ListenUDP("udp", udpAddr)
-		if err != nil {
-			panic(err)
-		}
 		defer udpConn.Close()
-
-		server := s.webtransportServer(s)
-		server.H3.TLSConfig = config
-		server.H3.QuicConfig = quicConfig
 
 		hErr := make(chan error)
 		qErr := make(chan error)
@@ -207,5 +209,5 @@ func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string
 	}
 	s.Emit("listening")
 
-	return s
+	return server
 }

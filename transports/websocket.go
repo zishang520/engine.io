@@ -66,7 +66,7 @@ func (w *websocket) _init() {
 			} else {
 				w.OnError("Error reading data", err)
 			}
-			break
+			return
 		}
 
 		switch mt {
@@ -89,7 +89,7 @@ func (w *websocket) _init() {
 			if c, ok := message.(io.Closer); ok {
 				c.Close()
 			}
-			break
+			return
 		case ws.PingMessage:
 		case ws.PongMessage:
 		}
@@ -129,6 +129,7 @@ func (w *websocket) _send(packet *packet.Packet) {
 		data, err = w.parser.EncodePacket(packet, w.supportsBinary)
 		if err != nil {
 			ws_log.Debug(`Send Error "%s"`, err)
+			w.OnError("write error", err)
 			return
 		}
 	}

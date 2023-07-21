@@ -30,6 +30,14 @@ var _transports map[string]*transports = map[string]*transports{
 		HandlesUpgrades: true,
 		UpgradesTo:      types.NewSet[string](),
 	},
+
+	"webtransport": {
+		New: func(ctx *types.HttpContext) Transport {
+			return NewWebTransport(ctx)
+		},
+		HandlesUpgrades: true,
+		UpgradesTo:      types.NewSet[string](),
+	},
 }
 
 func Transports() map[string]*transports {

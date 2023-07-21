@@ -40,7 +40,6 @@ func (w *webTransport) New(ctx *types.HttpContext) *webTransport {
 	// Transport name
 	w.name = "webtransport"
 
-	ctx.Query().Set("EIO", "4")
 	w.transport.New(ctx)
 
 	w.session = ctx.WebTransport
@@ -99,6 +98,7 @@ LOOP:
 
 			if !binaryFlag && n == 1 && buf[0] == byte(0x36) {
 				binaryFlag = true
+				data.Reset() // clean
 				break LOOP
 			}
 

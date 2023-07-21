@@ -49,6 +49,9 @@ func (s *HttpServer) webtransportServer(handler http.Handler) *webtransport.Serv
 	// Start the servers
 	server := &webtransport.Server{
 		H3: http3.Server{Handler: handler},
+		CheckOrigin: func(_ *http.Request) bool {
+			return true
+		},
 	}
 
 	s.servers = append(s.servers, server)

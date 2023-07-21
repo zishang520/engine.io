@@ -1,11 +1,13 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/quic-go/webtransport-go"
 	"github.com/zishang520/engine.io/config"
 	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/events"
@@ -69,17 +71,20 @@ func (s *server) HandleRequest(ctx *types.HttpContext) {
 
 // Handles an Engine.IO HTTP Upgrade.
 func (s *server) HandleUpgrade(ctx *types.HttpContext) {
+	emitError := func(errorCode int, errorContext map[string]any) {
+		s.Emit("connection_error", &types.ErrorMessage{
+			CodeMessage: &types.CodeMessage{
+				Code:    errorCode,
+				Message: errorMessages[errorCode],
+			},
+			Req:     ctx,
+			Context: errorContext,
+		})
+		abortUpgrade(ctx, errorCode, errorContext)
+	}
 	callback := func(errorCode int, errorContext map[string]any) {
 		if errorContext != nil {
-			s.Emit("connection_error", &types.ErrorMessage{
-				CodeMessage: &types.CodeMessage{
-					Code:    errorCode,
-					Message: errorMessages[errorCode],
-				},
-				Req:     ctx,
-				Context: errorContext,
-			})
-			abortUpgrade(ctx, errorCode, errorContext)
+			emitError(errorCode, errorContext)
 			return
 		}
 
@@ -108,6 +113,7 @@ func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 			wsc.Conn = conn
 			s.onWebSocket(ctx, wsc)
 		} else {
+			emitError(BAD_REQUEST, map[string]any{"name": "UPGRADE_FAILURE"})
 			server_log.Debug("websocket error before upgrade: %s", err)
 		}
 	}
@@ -182,6 +188,114 @@ func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 	}
 }
 
+type webTransportHandshake struct {
+	Sid string `json:"sid"`
+}
+
+func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.Server) {
+	ctx.Query().Set("EIO", "4")
+	emitError := func(errorCode int, errorContext map[string]any) {
+		if errorContext != nil {
+			s.Emit("connection_error", &types.ErrorMessage{
+				CodeMessage: &types.CodeMessage{
+					Code:    errorCode,
+					Message: errorMessages[errorCode],
+				},
+				Req:     ctx,
+				Context: errorContext,
+			})
+			abortUpgrade(ctx, errorCode, errorContext)
+			return
+		}
+	}
+
+	wtc := &types.WebTransportConn{EventEmitter: events.New()}
+
+	session, err := wt.Upgrade(ctx.Response(), ctx.Request())
+	if err != nil {
+		utils.Log().Debug("upgrading failed: %s", err)
+		emitError(BAD_REQUEST, map[string]any{"name": "UPGRADE_FAILURE"})
+		return
+	}
+
+	wtc.Session = session
+
+	timeout := utils.SetTimeOut(func() {
+		server_log.Debug("the client failed to establish a bidirectional stream in the given period")
+		session.CloseWithError(0, "")
+	}, s.opts.UpgradeTimeout())
+
+	// session.ConnectionState()
+	stream, err := session.AcceptStream(context.Background())
+	if err != nil {
+		utils.Log().Debug("session is closed")
+		return
+	}
+	buf := make([]byte, 32)
+	// reading the first packet of the stream
+	n, err := stream.Read(buf)
+	if err != nil {
+		utils.Log().Debug("stream is closed")
+		return
+	}
+	utils.ClearTimeout(timeout)
+	handshake := buf[:n]
+
+	ctx.WebTransport = wtc
+
+	// handshake is either
+	// "0" => new session
+	// '0{"sid":"xxxx"}' => upgrade
+	if n == 1 && handshake[0] == '0' {
+		if errorCode, errorContext, t := s.Handshake(ctx.Request().Proto, ctx); t == nil {
+			abortUpgrade(ctx, errorCode, errorContext)
+		}
+		return
+	}
+	var wth webTransportHandshake
+
+	if n > 1 && handshake[0] == '0' {
+		if err := json.Unmarshal(handshake[1:], &wth); err != nil {
+			server_log.Debug("invalid WebTransport handshake")
+			session.CloseWithError(0, "")
+			return
+		}
+	} else {
+		server_log.Debug("invalid WebTransport handshake")
+		session.CloseWithError(0, "")
+		return
+	}
+
+	if len(wth.Sid) == 0 {
+		server_log.Debug("invalid WebTransport handshake")
+		session.CloseWithError(0, "")
+		return
+	}
+
+	client, ok := s.clients.Load(wth.Sid)
+
+	if !ok {
+		server_log.Debug("upgrade attempt for closed client")
+		session.CloseWithError(0, "")
+	} else if client.(Socket).Upgrading() {
+		server_log.Debug("transport has already been trying to upgrade")
+		session.CloseWithError(0, "")
+	} else if client.(Socket).Upgraded() {
+		server_log.Debug("transport had already been upgraded")
+		session.CloseWithError(0, "")
+	} else {
+		server_log.Debug("upgrading existing transport")
+
+		transport, err := s.CreateTransport(ctx.Request().Proto, ctx)
+		if err != nil {
+			server_log.Debug("upgrading not existing transport")
+			session.CloseWithError(0, "")
+		} else {
+			client.(Socket).MaybeUpgrade(transport)
+		}
+	}
+}
+
 // Captures upgrade requests for a types.HttpServer.
 func (s *server) Attach(server *types.HttpServer, opts any) {
 	options, _ := opts.(config.AttachOptionsInterface)
@@ -221,18 +335,30 @@ func abortRequest(ctx *types.HttpContext, errorCode int, errorContext map[string
 	ctx.SetStatusCode(statusCode)
 	if b, err := json.Marshal(types.CodeMessage{Code: errorCode, Message: message}); err == nil {
 		ctx.Write(b)
-	} else {
-		io.WriteString(ctx, `{"code":400,"message":"Bad request"}`)
+		return
 	}
+	io.WriteString(ctx, `{"code":400,"message":"Bad request"}`)
 }
 
 // Close the WebSocket connection
 func abortUpgrade(ctx *types.HttpContext, errorCode int, errorContext map[string]any) {
+	ctx.On("error", func(...any) {
+		server_log.Debug("ignoring error from closed connection")
+	})
+
 	server_log.Debug("abortUpgrade %d", errorCode)
 	message := errorMessages[errorCode]
 	if m, ok := errorContext["message"]; ok {
 		message = m.(string)
 	}
-	ctx.SetStatusCode(http.StatusBadRequest)
-	io.WriteString(ctx, message)
+
+	if ctx.Websocket != nil {
+		defer ctx.Websocket.Close()
+		ctx.Websocket.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, message))
+	} else if ctx.WebTransport != nil {
+		ctx.WebTransport.CloseWithError(http.StatusBadRequest, message)
+	} else {
+		ctx.SetStatusCode(http.StatusBadRequest)
+		io.WriteString(ctx, message)
+	}
 }

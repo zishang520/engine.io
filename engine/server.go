@@ -238,7 +238,10 @@ func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.
 		utils.Log().Debug("session is closed")
 		return
 	}
-	buf := make([]byte, 32)
+
+	wtc.Stream = stream
+
+	buf := make([]byte, 35) // Must be 35 bytes, the remaining data is not json data (relative to golang generating sid).
 	// reading the first packet of the stream
 	n, err := stream.Read(buf)
 	if err != nil {
@@ -298,6 +301,11 @@ func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.
 			server_log.Debug("upgrading not existing transport")
 			session.CloseWithError(0, "")
 		} else {
+			if ctx.Query().Has("b64") {
+				transport.SetSupportsBinary(false)
+			} else {
+				transport.SetSupportsBinary(true)
+			}
 			client.(Socket).MaybeUpgrade(transport)
 		}
 	}

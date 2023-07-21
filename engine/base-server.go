@@ -278,7 +278,7 @@ func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, m
 		return BAD_REQUEST, map[string]any{"name": "ID_GENERATION_ERROR", "error": err}, nil
 	}
 
-	server_log.Debug(`handshaking client "%s"`, id)
+	server_log.Debug(`handshaking client "%s" (%s)`, id, transportName)
 
 	transport, err := s.CreateTransport(transportName, ctx)
 	if err != nil {

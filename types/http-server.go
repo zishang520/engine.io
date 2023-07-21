@@ -42,13 +42,25 @@ func (s *HttpServer) httpServer(addr string, handler http.Handler) *http.Server 
 	return server
 }
 
-func (s *HttpServer) webtransportServer(handler http.Handler) *webtransport.Server {
+func (s *HttpServer) h3Server(handler http.Handler) *http3.Server {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Start the servers
+	server := &http3.Server{Handler: handler}
+
+	s.servers = append(s.servers, server)
+
+	return server
+}
+
+func (s *HttpServer) webtransportServer(addr string, handler http.Handler) *webtransport.Server {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// Start the servers
 	server := &webtransport.Server{
-		H3: http3.Server{Handler: handler},
+		H3: http3.Server{Addr: addr, Handler: handler},
 		CheckOrigin: func(_ *http.Request) bool {
 			return true
 		},
@@ -73,6 +85,10 @@ func (s *HttpServer) Close(fn Callable) error {
 			switch s := server.(type) {
 			case *http.Server:
 				if err := s.Shutdown(ctx); err != nil {
+					return err
+				}
+			case *http3.Server:
+				if err := s.Close(); err != nil {
 					return err
 				}
 			case *webtransport.Server:
@@ -145,7 +161,7 @@ func (s *HttpServer) ListenHTTP2TLS(addr string, certFile string, keyFile string
 	return server
 }
 
-func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string, quicConfig *quic.Config, fn Callable) *webtransport.Server {
+func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string, quicConfig *quic.Config, fn Callable) *http3.Server {
 
 	// Load certs
 	var err error
@@ -174,9 +190,9 @@ func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string
 		panic(err)
 	}
 
-	server := s.webtransportServer(s)
-	server.H3.TLSConfig = config
-	server.H3.QuicConfig = quicConfig
+	server := s.h3Server(s)
+	server.TLSConfig = config
+	server.QuicConfig = quicConfig
 
 	go func() {
 		defer udpConn.Close()
@@ -185,7 +201,7 @@ func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string
 		qErr := make(chan error)
 		go func() {
 			hErr <- s.httpServer(addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				server.H3.SetQuicHeaders(w.Header())
+				server.SetQuicHeaders(w.Header())
 				s.ServeHTTP(w, r)
 			})).ListenAndServeTLS(certFile, keyFile)
 		}()
@@ -204,6 +220,25 @@ func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string
 			if err != http.ErrServerClosed {
 				panic(err)
 			}
+		}
+	}()
+
+	if fn != nil {
+		defer fn()
+	}
+	s.Emit("listening")
+
+	return server
+}
+
+func (s *HttpServer) ListenWebTransportTLS(addr string, certFile string, keyFile string, quicConfig *quic.Config, fn Callable) *webtransport.Server {
+
+	server := s.webtransportServer(addr, s)
+	server.H3.QuicConfig = quicConfig
+
+	go func() {
+		if err := server.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+			panic(err)
 		}
 	}()
 

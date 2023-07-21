@@ -8,4 +8,6 @@ import (
 type WebTransportConn struct {
 	events.EventEmitter
 	*webtransport.Session
+
+	Stream webtransport.Stream
 }

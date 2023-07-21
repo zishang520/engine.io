@@ -78,9 +78,7 @@ type ServerOptions struct {
 	maxHttpBufferSize *int64
 
 	// A function that receives a given handshake or upgrade request as its first parameter,
-	// and can decide whether to continue or not. The second argument is a function that needs
-	// to be called with the decided information: fn(err, success), where success is a boolean
-	// value where false means that the request is rejected, and err is an error code.
+	// and can decide whether to continue. Returning an error indicates that the request was rejected.
 	allowRequest AllowRequest
 
 	// the low-level transports that are enabled

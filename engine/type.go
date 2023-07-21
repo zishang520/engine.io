@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/quic-go/webtransport-go"
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io/config"
 	"github.com/zishang520/engine.io/events"
@@ -39,6 +40,8 @@ type Server interface {
 
 	// Handles an Engine.IO HTTP Upgrade.
 	HandleUpgrade(*types.HttpContext)
+
+	OnWebTransportSession(*types.HttpContext, *webtransport.Server)
 
 	// Captures upgrade requests for a *types.HttpServer.
 	Attach(*types.HttpServer, any)

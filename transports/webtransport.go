@@ -1,10 +1,8 @@
 package transports
 
 import (
-	"context"
 	"io"
 
-	"github.com/quic-go/webtransport-go"
 	"github.com/zishang520/engine.io-go-parser/packet"
 	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/log"
@@ -19,7 +17,6 @@ type webTransport struct {
 	*transport
 
 	session *types.WebTransportConn
-	stream  webtransport.Stream
 }
 
 // WebTransport transport
@@ -62,15 +59,7 @@ func (w *webTransport) New(ctx *types.HttpContext) *webTransport {
 }
 
 func (w *webTransport) _init(ctx *types.HttpContext) {
-	var err error
-	// Wait for incoming bidi stream
-	w.stream, err = w.session.AcceptStream(context.Background())
-	if err != nil {
-		w.OnError("Error reading data", err)
-		return
-	}
-
-	defer w.stream.Close()
+	defer w.session.Stream.Close()
 
 	binaryFlag := false
 LOOP:
@@ -84,7 +73,7 @@ LOOP:
 		// Read data from the stream
 		buf := make([]byte, 1024)
 		for {
-			n, err := w.stream.Read(buf)
+			n, err := w.session.Stream.Read(buf)
 			if err != nil {
 				if err == io.EOF {
 					w.OnClose()
@@ -146,14 +135,14 @@ func (w *webTransport) write(packet *packet.Packet) {
 
 	if _, ok := data.(*_types.BytesBuffer); ok {
 		wt_log.Debug("writing binary header")
-		if _, err := w.stream.Write(BINARY_HEADER); err != nil {
+		if _, err := w.session.Stream.Write(BINARY_HEADER); err != nil {
 			w.OnError("write error", err)
 			return
 		}
 	}
 
 	wt_log.Debug(`writing chunk: "%s"`, data)
-	if _, err := io.Copy(w.stream, data); err != nil {
+	if _, err := io.Copy(w.session.Stream, data); err != nil {
 		w.OnError("write error", err)
 		return
 	}

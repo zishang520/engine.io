@@ -193,6 +193,13 @@ type webTransportHandshake struct {
 }
 
 func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.Server) {
+	if allowRequest := s.opts.AllowRequest(); allowRequest != nil {
+		if err := allowRequest(ctx); err != nil {
+			abortUpgrade(ctx, FORBIDDEN, map[string]any{"message": err.Error()})
+			return
+		}
+	}
+
 	ctx.Query().Set("EIO", "4")
 	emitError := func(errorCode int, errorContext map[string]any) {
 		if errorContext != nil {

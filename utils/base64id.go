@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
-	"strings"
 	"sync/atomic"
 )
 
@@ -24,5 +23,5 @@ func (b *base64Id) GenerateId() (string, error) {
 		return "", err
 	}
 	binary.BigEndian.PutUint64(r[10:], atomic.AddUint64(&b.sequenceNumber, 1)-1)
-	return strings.NewReplacer("/", "_", "+", "-").Replace(base64.StdEncoding.EncodeToString(r)), nil
+	return base64.RawURLEncoding.EncodeToString(r), nil
 }

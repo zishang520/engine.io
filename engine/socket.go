@@ -339,7 +339,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		io.Copy(sb, data.Data)
 		if packet.PING == data.Type && "probe" == sb.String() {
 			socket_log.Debug("got probe ping packet, sending pong")
-			transport.Send([]*packet.Packet{&packet.Packet{Type: packet.PONG, Data: strings.NewReader("probe")}})
+			transport.Send([]*packet.Packet{{Type: packet.PONG, Data: strings.NewReader("probe")}})
 			s.Emit("upgrading", transport)
 
 			s.mucheckIntervalTimer.Lock()

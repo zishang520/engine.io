@@ -88,7 +88,7 @@ LOOP:
 			if !binaryFlag && n == 1 && buf[0] == byte(0x36) {
 				binaryFlag = true
 				data.Reset() // clean
-				break LOOP
+				goto LOOP
 			}
 
 			if _, err := data.Write(buf[:n]); err != nil {

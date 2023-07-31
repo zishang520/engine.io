@@ -432,7 +432,7 @@ The main server/manager. _Inherits from events.EventEmitter_.
 keep in mind the properties below will only reflect the clients connected
 to a single process.
 
-- `Clients()` _(*sync.Map)_: hash of connected clients by id.
+- `Clients()` _(*types.Map\[string, engine.Socket\])_: hash of connected clients by id.
 - `ClientsCount()` _(uint64)_: number of connected clients.
 
 ##### Methods

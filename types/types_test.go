@@ -59,3 +59,16 @@ func TestSet(t *testing.T) {
 		}
 	})
 }
+
+func TestMap(t *testing.T) {
+	_map := &Map[string, string]{}
+
+	t.Run("Swap", func(t *testing.T) {
+		if _, b := _map.Swap("Swap", "Value"); b != false {
+			t.Fatalf(`*Map.Swap("Swap") = %t, want match for %t`, b, false)
+		}
+		if _, b := _map.Swap("Swap", "123"); b != true {
+			t.Fatalf(`*Map.Swap("Swap") = %t, want match for %t`, b, true)
+		}
+	})
+}

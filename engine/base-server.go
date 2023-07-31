@@ -3,7 +3,6 @@ package engine
 import (
 	"net/http"
 	"strings"
-	"sync"
 	"sync/atomic"
 
 	"github.com/zishang520/engine.io/config"
@@ -41,7 +40,7 @@ type server struct {
 
 	events.EventEmitter
 
-	clients     *sync.Map
+	clients     *types.Map[string, Socket]
 	middlewares []Middleware
 	opts        config.ServerOptionsInterface
 
@@ -61,7 +60,7 @@ func NewServer(opt any) *server {
 func (s *server) New(opt any) *server {
 	opts, _ := opt.(config.ServerOptionsInterface)
 
-	s.clients = &sync.Map{}
+	s.clients = &types.Map[string, Socket]{}
 	atomic.StoreUint64(&s.clientsCount, 0)
 
 	s.opts = config.DefaultServerOptions().Assign(opts)
@@ -103,7 +102,7 @@ func (s *server) Opts() config.ServerOptionsInterface {
 	return s.opts
 }
 
-func (s *server) Clients() *sync.Map {
+func (s *server) Clients() *types.Map[string, Socket] {
 	return s.clients
 }
 
@@ -225,8 +224,8 @@ func (s *server) _applyMiddlewares(ctx *types.HttpContext, callback func(error))
 // Closes all clients.
 func (s *server) Close() Server {
 	server_log.Debug("closing all open clients")
-	s.clients.Range(func(_, client any) bool {
-		client.(Socket).Close(true)
+	s.clients.Range(func(_ string, client Socket) bool {
+		client.Close(true)
 		return true
 	})
 

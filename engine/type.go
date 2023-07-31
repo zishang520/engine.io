@@ -3,7 +3,6 @@ package engine
 import (
 	"io"
 	"net/http"
-	"sync"
 
 	"github.com/quic-go/webtransport-go"
 	"github.com/zishang520/engine.io-go-parser/packet"
@@ -23,7 +22,7 @@ type Server interface {
 
 	HttpServer() *types.HttpServer
 	Opts() config.ServerOptionsInterface
-	Clients() *sync.Map
+	Clients() *types.Map[string, Socket]
 	ClientsCount() uint64
 
 	// Returns a list of available transports for upgrade given a certain transport.

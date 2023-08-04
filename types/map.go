@@ -100,7 +100,7 @@ type entry[TValue any] struct {
 }
 
 func newEntry[TValue any](i TValue) *entry[TValue] {
-	e := &entry[TValue]{}
+	e := &entry[TValue]{expunged: new(TValue)}
 	e.p.Store(&i)
 	return e
 }

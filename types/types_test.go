@@ -70,5 +70,8 @@ func TestMap(t *testing.T) {
 		if _, b := _map.Swap("Swap", "123"); b != true {
 			t.Fatalf(`*Map.Swap("Swap") = %t, want match for %t`, b, true)
 		}
+		if expunged := _map.dirty["Swap"].expunged; expunged == nil {
+			t.Fatalf(`*Map.Swap("Swap").expunged = %v, want to match not nil`, expunged)
+		}
 	})
 }

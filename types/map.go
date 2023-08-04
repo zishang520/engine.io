@@ -499,7 +499,13 @@ func (m *Map[TKey, TValue]) Len() int {
 		m.mu.Unlock()
 	}
 
-	return len(read.m)
+	n := 0
+	for _, e := range read.m {
+		if _, ok := e.load(); ok {
+			n++
+		}
+	}
+	return n
 }
 
 func (m *Map[TKey, TValue]) missLocked() {

@@ -73,5 +73,9 @@ func TestMap(t *testing.T) {
 		if expunged := _map.dirty["Swap"].expunged; expunged == nil {
 			t.Fatalf(`*Map.Swap("Swap").expunged = %v, want to match not nil`, expunged)
 		}
+		_map.Delete("Swap")
+		if n := _map.Len(); n != 0 {
+			t.Fatalf(`*Map.Len() = %d, want match for %d`, n, 0)
+		}
 	})
 }

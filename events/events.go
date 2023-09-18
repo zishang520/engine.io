@@ -27,14 +27,6 @@ type (
 	Listener func(...any)
 	// Events the type for registered listeners, it's just a map[string][]func(...any)
 	Events map[EventName][]Listener
-
-	listener struct {
-		listener Listener
-		ptr      uintptr
-	}
-
-	events map[EventName][]*listener
-
 	// EventEmitter is the message/or/event manager
 	EventEmitter interface {
 		// AddListener is an alias for .On(eventName, listener).
@@ -74,6 +66,13 @@ type (
 		// Len returns the length of all registered events
 		Len() int
 	}
+
+	listener struct {
+		listener Listener
+		ptr      uintptr
+	}
+
+	events map[EventName][]*listener
 
 	emmiter struct {
 		maxListeners uint

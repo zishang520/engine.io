@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestEmitterOptions(t *testing.T) {
+func TestMsgPack(t *testing.T) {
 	pack := MsgPack()
 
 	t.Run("Encode/Decode", func(t *testing.T) {

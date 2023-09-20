@@ -477,35 +477,28 @@ func (m *Map[TKey, TValue]) Range(f func(key TKey, value TValue) bool) {
 	}
 }
 
-func (m *Map[TKey, TValue]) Len() int {
-	// We need to be able to iterate over all of the keys that were already
-	// present at the start of the call to Range.
-	// If read.amended is false, then read.m satisfies that property without
-	// requiring us to hold m.mu for a long time.
-	read := m.loadReadOnly()
-	if read.amended {
-		// m.dirty contains keys not in read.m. Fortunately, Range is already O(N)
-		// (assuming the caller does not break out early), so a call to Range
-		// amortizes an entire copy of the map: we can promote the dirty copy
-		// immediately!
-		m.mu.Lock()
-		read = m.loadReadOnly()
-		if read.amended {
-			read = readOnly[TKey, TValue]{m: m.dirty}
-			m.read.Store(&read)
-			m.dirty = nil
-			m.misses = 0
-		}
-		m.mu.Unlock()
-	}
-
-	n := 0
-	for _, e := range read.m {
-		if _, ok := e.load(); ok {
-			n++
-		}
-	}
+func (m *Map[TKey, TValue]) Len() (n int) {
+	m.Range(func(_ TKey, _ TValue) bool {
+		n++
+		return true
+	})
 	return n
+}
+
+func (m *Map[TKey, TValue]) Keys() (keys []TKey) {
+	m.Range(func(k TKey, _ TValue) bool {
+		keys = append(keys, k)
+		return true
+	})
+	return keys
+}
+
+func (m *Map[TKey, TValue]) Values() (values []TValue) {
+	m.Range(func(_ TKey, v TValue) bool {
+		values = append(values, v)
+		return true
+	})
+	return values
 }
 
 func (m *Map[TKey, TValue]) missLocked() {

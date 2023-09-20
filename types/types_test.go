@@ -77,5 +77,12 @@ func TestMap(t *testing.T) {
 		if n := _map.Len(); n != 0 {
 			t.Fatalf(`*Map.Len() = %d, want match for %d`, n, 0)
 		}
+		if keys := _map.Keys(); len(keys) != 0 {
+			t.Fatalf(`*Map.Keys() = %v, want match for []`, keys)
+		}
+		_map.Store("key", "value")
+		if values := _map.Values(); len(values) != 1 {
+			t.Fatalf(`*Map.Values() = %v, want match for []`, values)
+		}
 	})
 }

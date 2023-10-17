@@ -9,10 +9,10 @@ retract (
 )
 
 require (
-	github.com/andybalholm/brotli v1.0.5
+	github.com/andybalholm/brotli v1.0.6
 	github.com/gookit/color v1.5.4
 	github.com/gorilla/websocket v1.5.0
-	github.com/vmihailenco/msgpack/v5 v5.3.5
+	github.com/vmihailenco/msgpack/v5 v5.4.0
 	github.com/zishang520/engine.io-go-parser v1.2.2
 	golang.org/x/net v0.17.0
 )

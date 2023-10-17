@@ -82,24 +82,28 @@ func (p *ParameterBag) Peek(key string, _default ...string) string {
 
 // Returns a parameter by name.
 func (p *ParameterBag) GetFirst(key string, _default ...string) (string, bool) {
-	_default = append(_default, "")
-
 	if value, ok := p.Gets(key); ok && len(value) > 0 {
 		return value[0], ok
 	}
-	return _default[0], false
+
+	if len(_default) > 0 {
+		return _default[0], false
+	}
+	return "", false
 }
 
 // Returns a parameter by name.
 func (p *ParameterBag) GetLast(key string, _default ...string) (string, bool) {
-	_default = append(_default, "")
-
 	if value, ok := p.Gets(key); ok {
 		if l := len(value); l > 0 {
 			return value[l-1], ok
 		}
 	}
-	return _default[0], false
+
+	if len(_default) > 0 {
+		return _default[0], false
+	}
+	return "", false
 }
 
 // Returns a parameter by name.
@@ -107,11 +111,14 @@ func (p *ParameterBag) Gets(key string, _default ...[]string) ([]string, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	_default = append(_default, []string{})
 	if v, ok := p.parameters[key]; ok {
 		return v, ok
 	}
-	return _default[0], false
+
+	if len(_default) > 0 {
+		return _default[0], false
+	}
+	return []string{}, false
 }
 
 // Sets a parameter by name.

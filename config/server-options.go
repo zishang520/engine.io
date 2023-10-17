@@ -8,109 +8,109 @@ import (
 	"github.com/zishang520/engine.io/types"
 )
 
-type AllowRequest func(*types.HttpContext) error
+type (
+	AllowRequest func(*types.HttpContext) error
 
-type ServerOptionsInterface interface {
-	SetPingTimeout(time.Duration)
-	GetRawPingTimeout() *time.Duration
-	PingTimeout() time.Duration
+	ServerOptionsInterface interface {
+		SetPingTimeout(time.Duration)
+		GetRawPingTimeout() *time.Duration
+		PingTimeout() time.Duration
 
-	SetPingInterval(time.Duration)
-	GetRawPingInterval() *time.Duration
-	PingInterval() time.Duration
+		SetPingInterval(time.Duration)
+		GetRawPingInterval() *time.Duration
+		PingInterval() time.Duration
 
-	SetUpgradeTimeout(time.Duration)
-	GetRawUpgradeTimeout() *time.Duration
-	UpgradeTimeout() time.Duration
+		SetUpgradeTimeout(time.Duration)
+		GetRawUpgradeTimeout() *time.Duration
+		UpgradeTimeout() time.Duration
 
-	SetMaxHttpBufferSize(int64)
-	GetRawMaxHttpBufferSize() *int64
-	MaxHttpBufferSize() int64
+		SetMaxHttpBufferSize(int64)
+		GetRawMaxHttpBufferSize() *int64
+		MaxHttpBufferSize() int64
 
-	SetAllowRequest(AllowRequest)
-	GetRawAllowRequest() AllowRequest
-	AllowRequest() AllowRequest
+		SetAllowRequest(AllowRequest)
+		GetRawAllowRequest() AllowRequest
+		AllowRequest() AllowRequest
 
-	SetTransports(*types.Set[string])
-	GetRawTransports() *types.Set[string]
-	Transports() *types.Set[string]
+		SetTransports(*types.Set[string])
+		GetRawTransports() *types.Set[string]
+		Transports() *types.Set[string]
 
-	SetAllowUpgrades(bool)
-	GetRawAllowUpgrades() *bool
-	AllowUpgrades() bool
+		SetAllowUpgrades(bool)
+		GetRawAllowUpgrades() *bool
+		AllowUpgrades() bool
 
-	SetPerMessageDeflate(*types.PerMessageDeflate)
-	GetRawPerMessageDeflate() *types.PerMessageDeflate
-	PerMessageDeflate() *types.PerMessageDeflate
+		SetPerMessageDeflate(*types.PerMessageDeflate)
+		GetRawPerMessageDeflate() *types.PerMessageDeflate
+		PerMessageDeflate() *types.PerMessageDeflate
 
-	SetHttpCompression(*types.HttpCompression)
-	GetRawHttpCompression() *types.HttpCompression
-	HttpCompression() *types.HttpCompression
+		SetHttpCompression(*types.HttpCompression)
+		GetRawHttpCompression() *types.HttpCompression
+		HttpCompression() *types.HttpCompression
 
-	SetInitialPacket(io.Reader)
-	GetRawInitialPacket() io.Reader
-	InitialPacket() io.Reader
+		SetInitialPacket(io.Reader)
+		GetRawInitialPacket() io.Reader
+		InitialPacket() io.Reader
 
-	SetCookie(*http.Cookie)
-	GetRawCookie() *http.Cookie
-	Cookie() *http.Cookie
+		SetCookie(*http.Cookie)
+		GetRawCookie() *http.Cookie
+		Cookie() *http.Cookie
 
-	SetCors(*types.Cors)
-	GetRawCors() *types.Cors
-	Cors() *types.Cors
+		SetCors(*types.Cors)
+		GetRawCors() *types.Cors
+		Cors() *types.Cors
 
-	SetAllowEIO3(bool)
-	GetRawAllowEIO3() *bool
-	AllowEIO3() bool
-}
+		SetAllowEIO3(bool)
+		GetRawAllowEIO3() *bool
+		AllowEIO3() bool
+	}
 
-type ServerOptions struct {
-	// how many ms without a pong packet to consider the connection closed
-	pingTimeout *time.Duration
+	ServerOptions struct {
+		// how many ms without a pong packet to consider the connection closed
+		pingTimeout *time.Duration
 
-	// how many ms before sending a new ping packet
-	pingInterval *time.Duration
+		// how many ms before sending a new ping packet
+		pingInterval *time.Duration
 
-	// how many ms before an uncompleted transport upgrade is cancelled
-	upgradeTimeout *time.Duration
+		// how many ms before an uncompleted transport upgrade is cancelled
+		upgradeTimeout *time.Duration
 
-	// how many bytes or characters a message can be, before closing the session (to avoid DoS).
-	maxHttpBufferSize *int64
+		// how many bytes or characters a message can be, before closing the session (to avoid DoS).
+		maxHttpBufferSize *int64
 
-	// A function that receives a given handshake or upgrade request as its first parameter,
-	// and can decide whether to continue or not. The second argument is a function that needs
-	// to be called with the decided information: fn(err, success), where success is a boolean
-	// value where false means that the request is rejected, and err is an error code.
-	allowRequest AllowRequest
+		// A function that receives a given handshake or upgrade request as its first parameter,
+		// and can decide whether to continue. Returning an error indicates that the request was rejected.
+		allowRequest AllowRequest
 
-	// the low-level transports that are enabled
-	transports *types.Set[string]
+		// the low-level transports that are enabled
+		transports *types.Set[string]
 
-	// whether to allow transport upgrades
-	allowUpgrades *bool
+		// whether to allow transport upgrades
+		allowUpgrades *bool
 
-	// parameters of the WebSocket permessage-deflate extension (see ws module api docs). Set to false to disable.
-	perMessageDeflate *types.PerMessageDeflate
+		// parameters of the WebSocket permessage-deflate extension (see ws module api docs). Set to false to disable.
+		perMessageDeflate *types.PerMessageDeflate
 
-	// parameters of the http compression for the polling transports (see zlib api docs). Set to false to disable.
-	httpCompression *types.HttpCompression
+		// parameters of the http compression for the polling transports (see zlib api docs). Set to false to disable.
+		httpCompression *types.HttpCompression
 
-	// wsEngine is not supported
-	// wsEngine
+		// wsEngine is not supported
+		// wsEngine
 
-	// an optional packet which will be concatenated to the handshake packet emitted by Engine.IO.
-	initialPacket io.Reader
+		// an optional packet which will be concatenated to the handshake packet emitted by Engine.IO.
+		initialPacket io.Reader
 
-	// configuration of the cookie that contains the client sid to send as part of handshake response headers. This cookie
-	// might be used for sticky-session. Defaults to not sending any cookie.
-	cookie *http.Cookie
+		// configuration of the cookie that contains the client sid to send as part of handshake response headers. This cookie
+		// might be used for sticky-session. Defaults to not sending any cookie.
+		cookie *http.Cookie
 
-	// the options that will be forwarded to the cors module
-	cors *types.Cors
+		// the options that will be forwarded to the cors module
+		cors *types.Cors
 
-	// whether to enable compatibility with Socket.IO v2 clients
-	allowEIO3 *bool
-}
+		// whether to enable compatibility with Socket.IO v2 clients
+		allowEIO3 *bool
+	}
+)
 
 func DefaultServerOptions() *ServerOptions {
 	s := &ServerOptions{}
@@ -166,7 +166,7 @@ func (s *ServerOptions) Assign(data ServerOptionsInterface) ServerOptionsInterfa
 }
 
 // how many ms without a pong packet to consider the connection closed
-// @default 20000
+// @default 20_000
 func (s *ServerOptions) SetPingTimeout(pingTimeout time.Duration) {
 	s.pingTimeout = &pingTimeout
 }
@@ -175,13 +175,13 @@ func (s *ServerOptions) GetRawPingTimeout() *time.Duration {
 }
 func (s *ServerOptions) PingTimeout() time.Duration {
 	if s.pingTimeout == nil {
-		return time.Duration(20000 * time.Millisecond)
+		return time.Duration(20_000 * time.Millisecond)
 	}
 	return *s.pingTimeout
 }
 
 // how many ms before sending a new ping packet
-// @default 25000
+// @default 25_000
 func (s *ServerOptions) SetPingInterval(pingInterval time.Duration) {
 	s.pingInterval = &pingInterval
 }
@@ -190,14 +190,14 @@ func (s *ServerOptions) GetRawPingInterval() *time.Duration {
 }
 func (s *ServerOptions) PingInterval() time.Duration {
 	if s.pingInterval == nil {
-		return time.Duration(25000 * time.Millisecond)
+		return time.Duration(25_000 * time.Millisecond)
 	}
 
 	return *s.pingInterval
 }
 
 // how many ms before an uncompleted transport upgrade is cancelled
-// @default 10000
+// @default 10_000
 func (s *ServerOptions) SetUpgradeTimeout(upgradeTimeout time.Duration) {
 	s.upgradeTimeout = &upgradeTimeout
 }
@@ -206,7 +206,7 @@ func (s *ServerOptions) GetRawUpgradeTimeout() *time.Duration {
 }
 func (s *ServerOptions) UpgradeTimeout() time.Duration {
 	if s.upgradeTimeout == nil {
-		return time.Duration(10000 * time.Millisecond)
+		return time.Duration(10_000 * time.Millisecond)
 	}
 	return *s.upgradeTimeout
 }

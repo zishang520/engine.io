@@ -32,7 +32,7 @@ type HttpContext struct {
 	ctx context.Context
 
 	isDone bool
-	done   chan struct{}
+	done   chan Void
 	mu     sync.RWMutex
 
 	statusCode      int
@@ -46,7 +46,7 @@ func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
 	c := &HttpContext{}
 	c.EventEmitter = events.New()
 	c.ctx = r.Context()
-	c.done = make(chan struct{})
+	c.done = make(chan Void)
 
 	c.request = r
 	c.response = w
@@ -81,7 +81,7 @@ func (c *HttpContext) Flush() {
 	}
 }
 
-func (c *HttpContext) Done() <-chan struct{} {
+func (c *HttpContext) Done() <-chan Void {
 	return c.done
 }
 
@@ -152,23 +152,13 @@ func (c *HttpContext) GetPathInfo() string {
 }
 
 func (c *HttpContext) Get(key string, _default ...string) string {
-	_default = append(_default, "")
-
-	if v, ok := c.query.Get(key); ok {
-		return v
-	}
-
-	return _default[0]
+	v, _ := c.query.Get(key, _default...)
+	return v
 }
 
 func (c *HttpContext) Gets(key string, _default ...[]string) []string {
-	_default = append(_default, []string{})
-
-	if v, ok := c.query.Gets(key); ok {
-		return v
-	}
-
-	return _default[0]
+	v, _ := c.query.Gets(key, _default...)
+	return v
 }
 
 func (c *HttpContext) Method() string {

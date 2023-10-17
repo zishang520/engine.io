@@ -17,6 +17,7 @@ type Transport interface {
 	SetGttpCompression(*types.HttpCompression)
 	SetPerMessageDeflate(*types.PerMessageDeflate)
 	SetReadyState(string)
+	SetWritable(bool)
 
 	Parser() parser.Parser
 	Sid() string
@@ -29,7 +30,6 @@ type Transport interface {
 	PerMessageDeflate() *types.PerMessageDeflate
 	ReadyState() string
 	Writable() bool
-	SetWritable(bool)
 
 	// Flags the transport as discarded.
 	Discard()

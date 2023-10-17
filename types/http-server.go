@@ -26,14 +26,11 @@ func CreateServer(defaultHandler http.Handler) *HttpServer {
 	return s
 }
 
-func (s *HttpServer) server(addr string) *http.Server {
+func (s *HttpServer) httpServer(addr string, handler http.Handler) *http.Server {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	server := &http.Server{Addr: addr, Handler: s}
-	server.RegisterOnShutdown(func() {
-		s.Emit("close")
-	})
+	server := &http.Server{Addr: addr, Handler: handler}
 
 	s.servers = append(s.servers, server)
 
@@ -45,6 +42,8 @@ func (s *HttpServer) Close(fn Callable) error {
 	defer s.mu.RUnlock()
 
 	if s.servers != nil {
+		s.Emit("close")
+
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
@@ -61,9 +60,8 @@ func (s *HttpServer) Close(fn Callable) error {
 }
 
 func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
-
 	go func() {
-		if err := s.server(addr).ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := s.httpServer(addr, s).ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
@@ -77,9 +75,8 @@ func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
 }
 
 func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn Callable) *HttpServer {
-
 	go func() {
-		if err := s.server(addr).ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+		if err := s.httpServer(addr, s).ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
@@ -92,10 +89,12 @@ func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn 
 	return s
 }
 
+// Starting with Go 1.6, the http package has transparent support for the HTTP/2 protocol when using HTTPS.
+//
+// Deprecated: this method will be removed in the next major release, please use *HttpServer.ListenTLS instead.
 func (s *HttpServer) ListenHTTP2TLS(addr string, certFile string, keyFile string, conf *http2.Server, fn Callable) *HttpServer {
-
 	go func() {
-		server := s.server(addr)
+		server := s.httpServer(addr, s)
 		if err := http2.ConfigureServer(server, conf); err != nil {
 			panic(err)
 		}

@@ -9,19 +9,21 @@ import (
 	"github.com/zishang520/engine.io/utils"
 )
 
-type ServeMux struct {
-	DefaultHandler http.Handler // Default Handler
+type (
+	ServeMux struct {
+		DefaultHandler http.Handler // Default Handler
 
-	mu    sync.RWMutex
-	m     map[string]muxEntry
-	es    []muxEntry // slice of entries sorted from longest to shortest.
-	hosts bool       // whether any patterns contain hostnames
-}
+		mu    sync.RWMutex
+		m     map[string]muxEntry
+		es    []muxEntry // slice of entries sorted from longest to shortest.
+		hosts bool       // whether any patterns contain hostnames
+	}
 
-type muxEntry struct {
-	h       http.Handler
-	pattern string
-}
+	muxEntry struct {
+		h       http.Handler
+		pattern string
+	}
+)
 
 // NewServeMux allocates and returns a new ServeMux.
 func NewServeMux(defaultHandler http.Handler) *ServeMux {

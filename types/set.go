@@ -72,7 +72,6 @@ func (s *Set[T]) All() map[T]Void {
 	defer s.mu.RUnlock()
 
 	_tmp := map[T]Void{}
-
 	for k := range s.cache {
 		_tmp[k] = NULL
 	}

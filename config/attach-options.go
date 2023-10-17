@@ -4,37 +4,39 @@ import (
 	"time"
 )
 
-type AttachOptionsInterface interface {
-	SetPath(string)
-	GetRawPath() *string
-	Path() string
+type (
+	AttachOptionsInterface interface {
+		SetPath(string)
+		GetRawPath() *string
+		Path() string
 
-	SetDestroyUpgrade(bool)
-	GetRawDestroyUpgrade() *bool
-	DestroyUpgrade() bool
+		SetDestroyUpgrade(bool)
+		GetRawDestroyUpgrade() *bool
+		DestroyUpgrade() bool
 
-	SetDestroyUpgradeTimeout(time.Duration)
-	GetRawDestroyUpgradeTimeout() *time.Duration
-	DestroyUpgradeTimeout() time.Duration
+		SetDestroyUpgradeTimeout(time.Duration)
+		GetRawDestroyUpgradeTimeout() *time.Duration
+		DestroyUpgradeTimeout() time.Duration
 
-	SetAddTrailingSlash(bool)
-	GetRawAddTrailingSlash() *bool
-	AddTrailingSlash() bool
-}
+		SetAddTrailingSlash(bool)
+		GetRawAddTrailingSlash() *bool
+		AddTrailingSlash() bool
+	}
 
-type AttachOptions struct {
-	// name of the path to capture
-	path *string
+	AttachOptions struct {
+		// name of the path to capture
+		path *string
 
-	// destroy unhandled upgrade requests
-	destroyUpgrade *bool
+		// destroy unhandled upgrade requests
+		destroyUpgrade *bool
 
-	// milliseconds after which unhandled requests are ended
-	destroyUpgradeTimeout *time.Duration
+		// milliseconds after which unhandled requests are ended
+		destroyUpgradeTimeout *time.Duration
 
-	// Whether we should add a trailing slash to the request path.
-	addTrailingSlash *bool
-}
+		// Whether we should add a trailing slash to the request path.
+		addTrailingSlash *bool
+	}
+)
 
 func DefaultAttachOptions() *AttachOptions {
 	a := &AttachOptions{}

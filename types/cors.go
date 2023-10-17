@@ -7,25 +7,32 @@ import (
 	"sync"
 )
 
-type Cors struct {
-	Origin               any    `json:"origin,omitempty" mapstructure:"origin,omitempty" msgpack:"origin,omitempty"`
-	Methods              any    `json:"methods,omitempty" mapstructure:"methods,omitempty" msgpack:"methods,omitempty"`
-	AllowedHeaders       any    `json:"allowedHeaders,omitempty" mapstructure:"allowedHeaders,omitempty" msgpack:"allowedHeaders,omitempty"`
-	Headers              any    `json:"headers,omitempty" mapstructure:"headers,omitempty" msgpack:"headers,omitempty"`
-	ExposedHeaders       any    `json:"exposedHeaders,omitempty" mapstructure:"exposedHeaders,omitempty" msgpack:"exposedHeaders,omitempty"`
-	MaxAge               string `json:"maxAge,omitempty" mapstructure:"maxAge,omitempty" msgpack:"maxAge,omitempty"`
-	Credentials          bool   `json:"credentials,omitempty" mapstructure:"credentials,omitempty" msgpack:"credentials,omitempty"`
-	PreflightContinue    bool   `json:"preflightContinue,omitempty" mapstructure:"preflightContinue,omitempty" msgpack:"preflightContinue,omitempty"`
-	OptionsSuccessStatus int    `json:"optionsSuccessStatus,omitempty" mapstructure:"optionsSuccessStatus,omitempty" msgpack:"optionsSuccessStatus,omitempty"`
-}
+type (
+	Cors struct {
+		Origin               any    `json:"origin,omitempty" mapstructure:"origin,omitempty" msgpack:"origin,omitempty"`
+		Methods              any    `json:"methods,omitempty" mapstructure:"methods,omitempty" msgpack:"methods,omitempty"`
+		AllowedHeaders       any    `json:"allowedHeaders,omitempty" mapstructure:"allowedHeaders,omitempty" msgpack:"allowedHeaders,omitempty"`
+		Headers              any    `json:"headers,omitempty" mapstructure:"headers,omitempty" msgpack:"headers,omitempty"`
+		ExposedHeaders       any    `json:"exposedHeaders,omitempty" mapstructure:"exposedHeaders,omitempty" msgpack:"exposedHeaders,omitempty"`
+		MaxAge               string `json:"maxAge,omitempty" mapstructure:"maxAge,omitempty" msgpack:"maxAge,omitempty"`
+		Credentials          bool   `json:"credentials,omitempty" mapstructure:"credentials,omitempty" msgpack:"credentials,omitempty"`
+		PreflightContinue    bool   `json:"preflightContinue,omitempty" mapstructure:"preflightContinue,omitempty" msgpack:"preflightContinue,omitempty"`
+		OptionsSuccessStatus int    `json:"optionsSuccessStatus,omitempty" mapstructure:"optionsSuccessStatus,omitempty" msgpack:"optionsSuccessStatus,omitempty"`
+	}
 
-type cors struct {
-	options *Cors
-	ctx     *HttpContext
-	headers []*Kv
-	varys   []string
-	mu      sync.RWMutex
-}
+	Kv struct {
+		Key   string
+		Value string
+	}
+
+	cors struct {
+		options *Cors
+		ctx     *HttpContext
+		headers []*Kv
+		varys   []string
+		mu      sync.RWMutex
+	}
+)
 
 func (c *cors) isOriginAllowed(origin string, allowedOrigin any) bool {
 	switch v := allowedOrigin.(type) {
@@ -236,7 +243,7 @@ func (c *cors) applyHeaders() *cors {
 	return c
 }
 
-func corsFunc(options *Cors, ctx *HttpContext, next func(error)) {
+func corsMiddleware(options *Cors, ctx *HttpContext, next func(error)) {
 	c := &cors{
 		options: options,
 		ctx:     ctx,
@@ -263,7 +270,7 @@ func corsFunc(options *Cors, ctx *HttpContext, next func(error)) {
 	}
 }
 
-var defaults = &Cors{
+var defaultCors = &Cors{
 	Origin:               `*`,
 	Methods:              `GET,HEAD,PUT,PATCH,POST,DELETE`,
 	PreflightContinue:    false,
@@ -272,7 +279,7 @@ var defaults = &Cors{
 
 func MiddlewareWrapper(options *Cors) func(*HttpContext, func(error)) {
 	if options == nil {
-		options = defaults
+		options = defaultCors
 	} else {
 		if options.Origin == nil {
 			options.Origin = "*"
@@ -291,7 +298,7 @@ func MiddlewareWrapper(options *Cors) func(*HttpContext, func(error)) {
 		if options.Origin == nil {
 			next(nil)
 		} else {
-			corsFunc(options, ctx, next)
+			corsMiddleware(options, ctx, next)
 		}
 	}
 }

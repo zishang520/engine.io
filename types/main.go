@@ -1,18 +1,22 @@
 package types
 
-type Void struct{}
+type (
+	Void struct{}
 
-type Kv struct {
-	Key   string
-	Value string
-}
+	Callable func()
 
-var NULL Void
+	HttpCompression struct {
+		Threshold int `json:"threshold,omitempty" mapstructure:"threshold,omitempty" msgpack:"threshold,omitempty"`
+	}
 
-type HttpCompression struct {
-	Threshold int `json:"threshold,omitempty" mapstructure:"threshold,omitempty" msgpack:"threshold,omitempty"`
-}
+	PerMessageDeflate struct {
+		Threshold int `json:"threshold,omitempty" mapstructure:"threshold,omitempty" msgpack:"threshold,omitempty"`
+	}
+)
 
-type PerMessageDeflate struct {
-	Threshold int `json:"threshold,omitempty" mapstructure:"threshold,omitempty" msgpack:"threshold,omitempty"`
-}
+var (
+	NULL Void
+
+	// Noop function.
+	Noop Callable = func() {}
+)

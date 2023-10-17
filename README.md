@@ -95,9 +95,9 @@ func main() {
         Credentials: true,
     })
 
-    http := types.CreateServer(nil).Listen("127.0.0.1:4444", nil)
+    httpServer := types.CreateServer(nil).Listen("127.0.0.1:4444", nil)
 
-    engineServer := engine.Attach(http, serverOptions)
+    engineServer := engine.Attach(httpServer, serverOptions)
 
     engineServer.On("connection", func(sockets ...any) {
         socket := sockets[0].(engine.Socket)
@@ -318,7 +318,7 @@ These are exposed by `import "github.com/zishang520/engine.io/engine"`:
       directly to the `Server` constructor.
     - **Parameters**
       - `*types.HttpServer`: optional, server to attach to.
-      - `any`: optional, options object (see `*config.Server#constructor` api docs below)
+      - `any`: can be nil, interface `config.ServerOptionsInterface` or `config.AttachOptionsInterface`
 
   The following are identical ways to instantiate a server and then attach it.
 
@@ -353,7 +353,7 @@ eioServer = engine.New(httpServer, c)
       to it. It returns `501 Not Implemented` for regular http requests.
     - **Parameters**
       - `string`: address to listen on.
-      - `any`: can be nil, interface config.ServerOptionsInterface or config.AttachOptionsInterface.
+      - `any`: can be nil, interface `config.ServerOptionsInterface` or `config.AttachOptionsInterface`.
       - `func()`: callback for `listen`.
     - **Options**
       - All options from `engine.Server.Attach` method, documented below.
@@ -366,7 +366,7 @@ import "github.com/zishang520/engine.io/config"
 
 c := &config.ServerOptions{}
 c.SetPingTimeout(2000)
-c.SetPingInterval(10000)
+c.SetPingInterval(10_000)
 
 const server = engine.Listen("127.0.0.1:3000", c);
 
@@ -443,10 +443,10 @@ to a single process.
       - `config.ServerOptionsInterface`: can be nil, interface config.ServerOptionsInterface
     - **Options**
       - `SetPingTimeout(time.Duration)`: how many ms without a pong packet to
-        consider the connection closed (`20000 * time.Millisecond`)
+        consider the connection closed (`20_000 * time.Millisecond`)
       - `SetPingInterval(time.Duration)`: how many ms before sending a new ping
-        packet (`25000 * time.Millisecond`)
-      - `SetUpgradeTimeout(time.Duration)`: how many ms before an uncompleted transport upgrade is cancelled (`10000 * time.Millisecond`)
+        packet (`25_000 * time.Millisecond`)
+      - `SetUpgradeTimeout(time.Duration)`: how many ms before an uncompleted transport upgrade is cancelled (`10_000 * time.Millisecond`)
       - `SetMaxHttpBufferSize(int64)`: how many bytes or characters a message
         can be, before closing the session (to avoid DoS). Default
         value is `1E6`.
@@ -487,7 +487,7 @@ to a single process.
       - `SetPath(string)`: name of the path to capture (`/engine.io`).
       - ~~`SetDestroyUpgrade(bool)`~~: destroy unhandled upgrade requests (`true`)
       - ~~`SetDestroyUpgradeTimeout(time.Duration)`~~: milliseconds after which unhandled requests are ended (`1000 * time.Millisecond`)
-      - ~~`SetAddTrailingSlash(bool)`~~: Whether we should add a trailing slash to the request path (`true`)
+      - `SetAddTrailingSlash(bool)`: Whether we should add a trailing slash to the request path (`true`)
 - `GenerateId`
     - Generate a socket id.
     - Overwrite this method to generate your custom socket id.

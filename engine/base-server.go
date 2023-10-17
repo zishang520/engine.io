@@ -281,7 +281,7 @@ func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, m
 
 	transport, err := s.CreateTransport(transportName, ctx)
 	if err != nil {
-		server_log.Debug(`error handshaking to transport "%s"`, transportName)
+		server_log.Debug(`handshaking client "%s" (%s)`, id, transportName)
 		s.Emit("connection_error", &types.ErrorMessage{
 			CodeMessage: &types.CodeMessage{
 				Code:    BAD_REQUEST,

@@ -11,68 +11,70 @@ import (
 	"github.com/zishang520/engine.io/types"
 )
 
-type Server interface {
-	events.EventEmitter
+type (
+	// Middleware functions are functions that have access to the *types.HttpContext
+	// and the next middleware function in the application's context cycle.
+	Middleware func(*types.HttpContext, func(error))
 
-	// Captures upgrade requests for a http.Handler, Need to handle server shutdown disconnecting client connections.
-	http.Handler
+	Server interface {
+		events.EventEmitter
 
-	SetHttpServer(*types.HttpServer)
+		// Captures upgrade requests for a http.Handler, Need to handle server shutdown disconnecting client connections.
+		http.Handler
 
-	HttpServer() *types.HttpServer
-	Opts() config.ServerOptionsInterface
-	Clients() *types.Map[string, Socket]
-	ClientsCount() uint64
+		SetHttpServer(*types.HttpServer)
 
-	// Returns a list of available transports for upgrade given a certain transport.
-	Upgrades(string) *types.Set[string]
+		HttpServer() *types.HttpServer
+		Opts() config.ServerOptionsInterface
+		Clients() *types.Map[string, Socket]
+		ClientsCount() uint64
 
-	// Adds a new middleware.
-	Use(Middleware)
+		// Returns a list of available transports for upgrade given a certain transport.
+		Upgrades(string) *types.Set[string]
 
-	// Closes all clients.
-	Close() Server
+		// Adds a new middleware.
+		Use(Middleware)
 
-	// Handles an Engine.IO HTTP request.
-	HandleRequest(*types.HttpContext)
+		// Closes all clients.
+		Close() Server
 
-	// Handles an Engine.IO HTTP Upgrade.
-	HandleUpgrade(*types.HttpContext)
+		// Handles an Engine.IO HTTP request.
+		HandleRequest(*types.HttpContext)
 
-	// Captures upgrade requests for a *types.HttpServer.
-	Attach(*types.HttpServer, any)
+		// Handles an Engine.IO HTTP Upgrade.
+		HandleUpgrade(*types.HttpContext)
 
-	// generate a socket id.
-	// Overwrite this method to generate your custom socket id
-	GenerateId(*types.HttpContext) (string, error)
-}
+		// Captures upgrade requests for a *types.HttpServer.
+		Attach(*types.HttpServer, any)
 
-type Socket interface {
-	events.EventEmitter
+		// generate a socket id.
+		// Overwrite this method to generate your custom socket id
+		GenerateId(*types.HttpContext) (string, error)
+	}
 
-	SetReadyState(string)
+	Socket interface {
+		events.EventEmitter
 
-	Id() string
-	ReadyState() string
-	Protocol() int
-	Server() Server
-	Request() *types.HttpContext
-	RemoteAddress() string
-	Upgraded() bool
-	Upgrading() bool
-	Transport() transports.Transport
+		SetReadyState(string)
 
-	// Upgrades socket to the given transport
-	MaybeUpgrade(transports.Transport)
+		Id() string
+		ReadyState() string
+		Protocol() int
+		Server() Server
+		Request() *types.HttpContext
+		RemoteAddress() string
+		Upgraded() bool
+		Upgrading() bool
+		Transport() transports.Transport
 
-	// Sends a message packet.
-	Send(io.Reader, *packet.Options, func(transports.Transport)) Socket
-	Write(io.Reader, *packet.Options, func(transports.Transport)) Socket
+		// Upgrades socket to the given transport
+		MaybeUpgrade(transports.Transport)
 
-	// Closes the socket and underlying transport.
-	Close(bool)
-}
+		// Sends a message packet.
+		Send(io.Reader, *packet.Options, func(transports.Transport)) Socket
+		Write(io.Reader, *packet.Options, func(transports.Transport)) Socket
 
-// Middleware functions are functions that have access to the *types.HttpContext
-// and the next middleware function in the application's context cycle.
-type Middleware func(*types.HttpContext, func(error))
+		// Closes the socket and underlying transport.
+		Close(bool)
+	}
+)

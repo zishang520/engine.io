@@ -69,17 +69,20 @@ func (s *server) HandleRequest(ctx *types.HttpContext) {
 
 // Handles an Engine.IO HTTP Upgrade.
 func (s *server) HandleUpgrade(ctx *types.HttpContext) {
+	emitError := func(errorCode int, errorContext map[string]any) {
+		s.Emit("connection_error", &types.ErrorMessage{
+			CodeMessage: &types.CodeMessage{
+				Code:    errorCode,
+				Message: errorMessages[errorCode],
+			},
+			Req:     ctx,
+			Context: errorContext,
+		})
+		abortUpgrade(ctx, errorCode, errorContext)
+	}
 	callback := func(errorCode int, errorContext map[string]any) {
 		if errorContext != nil {
-			s.Emit("connection_error", &types.ErrorMessage{
-				CodeMessage: &types.CodeMessage{
-					Code:    errorCode,
-					Message: errorMessages[errorCode],
-				},
-				Req:     ctx,
-				Context: errorContext,
-			})
-			abortUpgrade(ctx, errorCode, errorContext)
+			emitError(errorCode, errorContext)
 			return
 		}
 
@@ -97,11 +100,7 @@ func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 				}
 			},
 			CheckOrigin: func(*http.Request) bool {
-				if allowRequest := s.opts.AllowRequest(); allowRequest != nil {
-					if err := allowRequest(ctx); err != nil {
-						return false
-					}
-				}
+				// Verified in *server.Verify()
 				return true
 			},
 		}
@@ -112,6 +111,7 @@ func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 			wsc.Conn = conn
 			s.onWebSocket(ctx, wsc)
 		} else {
+			emitError(BAD_REQUEST, map[string]any{"name": "UPGRADE_FAILURE"})
 			server_log.Debug("websocket error before upgrade: %s", err)
 		}
 	}
@@ -225,18 +225,28 @@ func abortRequest(ctx *types.HttpContext, errorCode int, errorContext map[string
 	ctx.SetStatusCode(statusCode)
 	if b, err := json.Marshal(types.CodeMessage{Code: errorCode, Message: message}); err == nil {
 		ctx.Write(b)
-	} else {
-		io.WriteString(ctx, `{"code":400,"message":"Bad request"}`)
+		return
 	}
+	io.WriteString(ctx, `{"code":400,"message":"Bad request"}`)
 }
 
 // Close the WebSocket connection
 func abortUpgrade(ctx *types.HttpContext, errorCode int, errorContext map[string]any) {
+	ctx.On("error", func(...any) {
+		server_log.Debug("ignoring error from closed connection")
+	})
+
 	server_log.Debug("abortUpgrade %d", errorCode)
 	message := errorMessages[errorCode]
 	if m, ok := errorContext["message"]; ok {
 		message = m.(string)
 	}
-	ctx.SetStatusCode(http.StatusBadRequest)
-	io.WriteString(ctx, message)
+
+	if ctx.Websocket != nil {
+		defer ctx.Websocket.Close()
+		ctx.Websocket.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, message))
+	} else {
+		ctx.SetStatusCode(http.StatusBadRequest)
+		io.WriteString(ctx, message)
+	}
 }

@@ -33,7 +33,7 @@ type socket struct {
 	// This is the session identifier that the client will use in the subsequent HTTP requests. It must not be shared with
 	// others parties, as it might lead to session hijacking.
 	id                    string
-	server                Server
+	server                BaseServer
 	upgrading             bool
 	upgraded              bool
 	writeBuffer           []*packet.Packet
@@ -95,7 +95,7 @@ func (s *socket) Transport() transports.Transport {
 	return s.transport
 }
 
-func (s *socket) Server() Server {
+func (s *socket) Server() BaseServer {
 	return s.server
 }
 
@@ -115,7 +115,7 @@ func (s *socket) SetReadyState(state string) {
 }
 
 // Client class.
-func NewSocket(id string, server Server, transport transports.Transport, ctx *types.HttpContext, protocol int) Socket {
+func NewSocket(id string, server BaseServer, transport transports.Transport, ctx *types.HttpContext, protocol int) Socket {
 	s := &socket{
 		EventEmitter: events.New(),
 	}
@@ -123,7 +123,7 @@ func NewSocket(id string, server Server, transport transports.Transport, ctx *ty
 }
 
 // Client class.
-func (s *socket) New(id string, server Server, transport transports.Transport, ctx *types.HttpContext, protocol int) Socket {
+func (s *socket) New(id string, server BaseServer, transport transports.Transport, ctx *types.HttpContext, protocol int) Socket {
 	s.id = id
 
 	s.server = server

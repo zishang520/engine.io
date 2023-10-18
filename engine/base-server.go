@@ -6,7 +6,9 @@ import (
 	"sync/atomic"
 
 	"github.com/zishang520/engine.io/config"
+	"github.com/zishang520/engine.io/errors"
 	"github.com/zishang520/engine.io/events"
+	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/transports"
 	"github.com/zishang520/engine.io/types"
 	"github.com/zishang520/engine.io/utils"
@@ -23,47 +25,69 @@ const (
 	UNSUPPORTED_PROTOCOL_VERSION int = 5
 )
 
-var errorMessages map[int]string = map[int]string{
-	OK_REQUEST:                   `OK`,
-	UNKNOWN_TRANSPORT:            `Transport unknown`,
-	UNKNOWN_SID:                  `Session ID unknown`,
-	BAD_HANDSHAKE_METHOD:         `Bad handshake method`,
-	BAD_REQUEST:                  `Bad request`,
-	FORBIDDEN:                    `Forbidden`,
-	UNSUPPORTED_PROTOCOL_VERSION: "Unsupported protocol version",
-}
+var (
+	server_log = log.NewLog("engine")
 
-type server struct {
+	errorMessages map[int]string = map[int]string{
+		OK_REQUEST:                   `OK`,
+		UNKNOWN_TRANSPORT:            `Transport unknown`,
+		UNKNOWN_SID:                  `Session ID unknown`,
+		BAD_HANDSHAKE_METHOD:         `Bad handshake method`,
+		BAD_REQUEST:                  `Bad request`,
+		FORBIDDEN:                    `Forbidden`,
+		UNSUPPORTED_PROTOCOL_VERSION: "Unsupported protocol version",
+	}
+)
+
+type baseServer struct {
 	// clientsCount has to be first in the struct to guarantee alignment for atomic
 	// operations. http://golang.org/pkg/sync/atomic/#pkg-note-BUG
 	clientsCount uint64
 
 	events.EventEmitter
 
+	// Prototype interface, used to implement interface method rewriting
+	_proto_ BaseServer
+
 	clients     *types.Map[string, Socket]
 	middlewares []Middleware
 	opts        config.ServerOptionsInterface
-
-	httpServer *types.HttpServer
 }
 
-// Server New.
-func NewServer(opt any) *server {
-	s := &server{
-		EventEmitter: events.New(),
-	}
-
-	return s.New(opt)
+func NewBaseServer() BaseServer {
+	baseServer := &baseServer{EventEmitter: events.New()}
+	baseServer.Proto(baseServer)
+	return baseServer
 }
 
-// Server New.
-func (s *server) New(opt any) *server {
+func (bs *baseServer) Proto(server BaseServer) {
+	bs._proto_ = server
+}
+
+func (bs *baseServer) Opts() config.ServerOptionsInterface {
+	return bs.opts
+}
+
+func (bs *baseServer) Clients() *types.Map[string, Socket] {
+	return bs.clients
+}
+
+func (bs *baseServer) ClientsCount() uint64 {
+	return atomic.LoadUint64(&bs.clientsCount)
+}
+
+func (bs *baseServer) Middlewares() []Middleware {
+	return bs.middlewares
+}
+
+// BaseServer build.
+func (bs *baseServer) Construct(opt any) BaseServer {
 	opts, _ := opt.(config.ServerOptionsInterface)
 
-	s.clients = &types.Map[string, Socket]{}
-	atomic.StoreUint64(&s.clientsCount, 0)
+	bs.clients = &types.Map[string, Socket]{}
+	atomic.StoreUint64(&bs.clientsCount, 0)
 
-	s.opts = config.DefaultServerOptions().Assign(opts)
+	bs.opts = config.DefaultServerOptions().Assign(opts)
 
 	if opts != nil {
 		if cookie := opts.Cookie(); cookie != nil {
@@ -79,39 +103,25 @@ func (s *server) New(opt any) *server {
 			if cookie.SameSite == http.SameSiteDefaultMode {
 				cookie.SameSite = http.SameSiteLaxMode
 			}
-			s.opts.SetCookie(cookie)
+			bs.opts.SetCookie(cookie)
 		}
 
-		if cors := s.opts.Cors(); cors != nil {
-			s.Use(types.MiddlewareWrapper(cors))
+		if cors := bs.opts.Cors(); cors != nil {
+			bs.Use(types.MiddlewareWrapper(cors))
 		}
 	}
 
-	return s
+	bs._proto_.Init()
+
+	return bs
 }
 
-func (s *server) SetHttpServer(httpServer *types.HttpServer) {
-	s.httpServer = httpServer
-}
-
-func (s *server) HttpServer() *types.HttpServer {
-	return s.httpServer
-}
-
-func (s *server) Opts() config.ServerOptionsInterface {
-	return s.opts
-}
-
-func (s *server) Clients() *types.Map[string, Socket] {
-	return s.clients
-}
-
-func (s *server) ClientsCount() uint64 {
-	return atomic.LoadUint64(&s.clientsCount)
+// abstract
+func (bs *baseServer) Init() {
 }
 
 // Compute the pathname of the requests that are handled by the server
-func (s *server) _computePath(options config.AttachOptionsInterface) string {
+func (bs *baseServer) ComputePath(options config.AttachOptionsInterface) string {
 	path := "/engine.io"
 
 	if options != nil {
@@ -131,18 +141,18 @@ func (s *server) _computePath(options config.AttachOptionsInterface) string {
 }
 
 // Returns a list of available transports for upgrade given a certain transport.
-func (s *server) Upgrades(transport string) *types.Set[string] {
-	if !s.opts.AllowUpgrades() {
+func (bs *baseServer) Upgrades(transport string) *types.Set[string] {
+	if !bs.opts.AllowUpgrades() {
 		return types.NewSet[string]()
 	}
 	return transports.Transports()[transport].UpgradesTo
 }
 
 // Verifies a request.
-func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]any) {
+func (bs *baseServer) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]any) {
 	// transport check
 	transport := ctx.Query().Peek("transport")
-	if !s.opts.Transports().Has(transport) {
+	if !bs.opts.Transports().Has(transport) {
 		server_log.Debug(`unknown transport "%s"`, transport)
 		return UNKNOWN_TRANSPORT, map[string]any{"transport": transport}
 	}
@@ -157,7 +167,7 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]a
 	// sid check
 	sid := ctx.Query().Peek("sid")
 	if len(sid) > 0 {
-		scoket, ok := s.clients.Load(sid)
+		scoket, ok := bs.clients.Load(sid)
 		if !ok {
 			server_log.Debug(`unknown sid "%s"`, sid)
 			return UNKNOWN_SID, map[string]any{"sid": sid}
@@ -177,7 +187,7 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]a
 			return BAD_REQUEST, map[string]any{"name": "TRANSPORT_HANDSHAKE_ERROR"}
 		}
 
-		if allowRequest := s.opts.AllowRequest(); allowRequest != nil {
+		if allowRequest := bs.opts.AllowRequest(); allowRequest != nil {
 			if err := allowRequest(ctx); err != nil {
 				return FORBIDDEN, map[string]any{"message": err.Error()}
 			}
@@ -188,16 +198,16 @@ func (s *server) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]a
 }
 
 // Adds a new middleware.
-func (s *server) Use(fn Middleware) {
+func (bs *baseServer) Use(fn Middleware) {
 	// It seems that there is no need to lock? ? ?
-	s.middlewares = append(s.middlewares, fn)
+	bs.middlewares = append(bs.middlewares, fn)
 }
 
 /**
  * Apply the middlewares to the request.
  */
-func (s *server) _applyMiddlewares(ctx *types.HttpContext, callback func(error)) {
-	if len(s.middlewares) == 0 {
+func (bs *baseServer) ApplyMiddlewares(ctx *types.HttpContext, callback func(error)) {
+	if len(bs.middlewares) == 0 {
 		server_log.Debug("no middleware to apply, skipping")
 		callback(nil)
 		return
@@ -205,12 +215,12 @@ func (s *server) _applyMiddlewares(ctx *types.HttpContext, callback func(error))
 	var apply func(int)
 	apply = func(i int) {
 		server_log.Debug("applying middleware n°%d", i+1)
-		s.middlewares[i](ctx, func(err error) {
+		bs.middlewares[i](ctx, func(err error) {
 			if err != nil {
 				callback(err)
 				return
 			}
-			if i+1 < len(s.middlewares) {
+			if i+1 < len(bs.middlewares) {
 				apply(i + 1)
 			} else {
 				callback(nil)
@@ -222,32 +232,37 @@ func (s *server) _applyMiddlewares(ctx *types.HttpContext, callback func(error))
 }
 
 // Closes all clients.
-func (s *server) Close() Server {
+func (bs *baseServer) Close() BaseServer {
 	server_log.Debug("closing all open clients")
-	s.clients.Range(func(_ string, client Socket) bool {
+	bs.clients.Range(func(_ string, client Socket) bool {
 		client.Close(true)
 		return true
 	})
 
-	return s
+	bs._proto_.Cleanup()
+
+	return bs
+}
+
+func (bs *baseServer) Cleanup() {
 }
 
 // generate a socket id.
 // Overwrite this method to generate your custom socket id
-func (s *server) GenerateId(*types.HttpContext) (string, error) {
+func (bs *baseServer) GenerateId(*types.HttpContext) (string, error) {
 	return utils.Base64Id().GenerateId()
 }
 
 // Handshakes a new client.
-func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, map[string]any, transports.Transport) {
+func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (int, transports.Transport) {
 	protocol := 3 // 3rd revision by default
 	if ctx.Query().Peek("EIO") == "4" {
 		protocol = 4
 	}
 
-	if protocol == 3 && !s.opts.AllowEIO3() {
+	if protocol == 3 && !bs.opts.AllowEIO3() {
 		server_log.Debug("unsupported protocol version")
-		s.Emit("connection_error", &types.ErrorMessage{
+		bs.Emit("connection_error", &types.ErrorMessage{
 			CodeMessage: &types.CodeMessage{
 				Code:    UNSUPPORTED_PROTOCOL_VERSION,
 				Message: errorMessages[UNSUPPORTED_PROTOCOL_VERSION],
@@ -257,13 +272,13 @@ func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, m
 				"protocol": protocol,
 			},
 		})
-		return UNSUPPORTED_PROTOCOL_VERSION, map[string]any{"protocol": protocol}, nil
+		return UNSUPPORTED_PROTOCOL_VERSION, nil
 	}
 
-	id, err := s.GenerateId(ctx)
+	id, err := bs.GenerateId(ctx)
 	if err != nil {
 		server_log.Debug("error while generating an id")
-		s.Emit("connection_error", &types.ErrorMessage{
+		bs.Emit("connection_error", &types.ErrorMessage{
 			CodeMessage: &types.CodeMessage{
 				Code:    BAD_REQUEST,
 				Message: errorMessages[BAD_REQUEST],
@@ -274,15 +289,15 @@ func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, m
 				"error": err,
 			},
 		})
-		return BAD_REQUEST, map[string]any{"name": "ID_GENERATION_ERROR", "error": err}, nil
+		return BAD_REQUEST, nil
 	}
 
 	server_log.Debug(`handshaking client "%s"`, id)
 
-	transport, err := s.CreateTransport(transportName, ctx)
+	transport, err := bs._proto_.CreateTransport(transportName, ctx)
 	if err != nil {
 		server_log.Debug(`handshaking client "%s" (%s)`, id, transportName)
-		s.Emit("connection_error", &types.ErrorMessage{
+		bs.Emit("connection_error", &types.ErrorMessage{
 			CodeMessage: &types.CodeMessage{
 				Code:    BAD_REQUEST,
 				Message: errorMessages[BAD_REQUEST],
@@ -293,13 +308,13 @@ func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, m
 				"error": err,
 			},
 		})
-		return BAD_REQUEST, map[string]any{"name": "TRANSPORT_HANDSHAKE_ERROR", "error": err}, nil
+		return BAD_REQUEST, nil
 	}
 	if "polling" == transportName {
-		transport.SetMaxHttpBufferSize(s.opts.MaxHttpBufferSize())
-		transport.SetGttpCompression(s.opts.HttpCompression())
+		transport.SetMaxHttpBufferSize(bs.opts.MaxHttpBufferSize())
+		transport.SetGttpCompression(bs.opts.HttpCompression())
 	} else if "websocket" == transportName {
-		transport.SetPerMessageDeflate(s.opts.PerMessageDeflate())
+		transport.SetPerMessageDeflate(bs.opts.PerMessageDeflate())
 	}
 
 	if ctx.Query().Has("b64") {
@@ -308,30 +323,35 @@ func (s *server) Handshake(transportName string, ctx *types.HttpContext) (int, m
 		transport.SetSupportsBinary(true)
 	}
 
-	socket := NewSocket(id, s, transport, ctx, protocol)
+	socket := NewSocket(id, bs, transport, ctx, protocol)
 
 	transport.On("headers", func(args ...any) {
 		headers, req := args[0].(*utils.ParameterBag), args[1].(*types.HttpContext)
 		if !ctx.Query().Has("sid") {
-			if cookie := s.opts.Cookie(); cookie != nil {
+			if cookie := bs.opts.Cookie(); cookie != nil {
 				headers.Set("Set-Cookie", cookie.String())
 			}
-			s.Emit("initial_headers", headers, req)
+			bs.Emit("initial_headers", headers, req)
 		}
-		s.Emit("headers", headers, req)
+		bs.Emit("headers", headers, req)
 	})
 
 	transport.OnRequest(ctx)
 
-	s.clients.Store(id, socket)
-	atomic.AddUint64(&s.clientsCount, 1)
+	bs.clients.Store(id, socket)
+	atomic.AddUint64(&bs.clientsCount, 1)
 
 	socket.Once("close", func(...any) {
-		s.clients.Delete(id)
-		atomic.AddUint64(&s.clientsCount, ^uint64(0))
+		bs.clients.Delete(id)
+		atomic.AddUint64(&bs.clientsCount, ^uint64(0))
 	})
 
-	s.Emit("connection", socket)
+	bs.Emit("connection", socket)
 
-	return OK_REQUEST, nil, transport
+	return OK_REQUEST, transport
+}
+
+// abstract
+func (*baseServer) CreateTransport(string, *types.HttpContext) (transports.Transport, error) {
+	return nil, errors.New("CreateTransport interface is not implemented").Err()
 }

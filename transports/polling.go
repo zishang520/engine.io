@@ -22,40 +22,47 @@ import (
 var polling_log = log.NewLog("engine:polling")
 
 type polling struct {
-	*transport
+	Transport
+
+	closeTimeout time.Duration
 
 	dataCtx    *types.HttpContext
 	mu_dataCtx sync.RWMutex
 
 	shouldClose    types.Callable
 	mu_shouldClose sync.RWMutex
+	musend         sync.Mutex
 }
 
 // HTTP polling New.
-func NewPolling(ctx *types.HttpContext) *polling {
-	p := &polling{}
-	return p.New(ctx)
-}
+func MakePolling() Polling {
+	p := &polling{Transport: MakeTransport()}
 
-func (p *polling) New(ctx *types.HttpContext) *polling {
-	p.transport = &transport{}
-
-	p.supportsFraming = false
-
-	// Transport name
-	p.name = "polling"
-
-	p.transport.New(ctx)
-
-	p.onClose = p.PollingOnClose
-	p.onData = p.PollingOnData
-	p.doWrite = p.PollingDoWrite
-	p.doClose = p.PollingDoClose
-	p.send = p.PollingSend
-
-	p.closeTimeout = 30 * 1000 * time.Millisecond
+	p.Prototype(p)
 
 	return p
+}
+
+func NewPolling(ctx *types.HttpContext) Polling {
+	p := MakePolling()
+
+	p.Construct(ctx)
+
+	return p
+}
+
+func (p *polling) Construct(ctx *types.HttpContext) {
+	p.Transport.Construct(ctx)
+
+	p.closeTimeout = 30 * 1000 * time.Millisecond
+}
+
+func (p *polling) Name() string {
+	return "polling"
+}
+
+func (p *polling) SupportsFraming() bool {
+	return false
 }
 
 // Overrides onRequest.
@@ -74,9 +81,7 @@ func (p *polling) OnRequest(ctx *types.HttpContext) {
 
 // The client sends a request awaiting for us to send data.
 func (p *polling) onPollRequest(ctx *types.HttpContext) {
-	p.mu_req.RLock()
-	if p.req != nil {
-		defer p.mu_req.RUnlock()
+	if p.Req() != nil {
 		polling_log.Debug("request overlap")
 		// assert: p.res, '.req should be (un)set together'
 		p.OnError("overlap from client", nil)
@@ -84,7 +89,6 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 		ctx.Write(nil)
 		return
 	}
-	p.mu_req.RUnlock()
 
 	polling_log.Debug("setting request")
 
@@ -92,15 +96,11 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 		p.OnError("poll connection closed prematurely", nil)
 	})
 
-	p.mu_req.Lock()
-	p.req = ctx
-	p.mu_req.Unlock()
+	p.SetReq(ctx)
 
 	ctx.Cleanup = func() {
 		ctx.RemoveListener("close", onClose)
-		p.mu_req.Lock()
-		p.req = nil
-		p.mu_req.Unlock()
+		p.SetReq(nil)
 	}
 
 	ctx.On("close", onClose)
@@ -136,7 +136,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 
 	isBinary := "application/octet-stream" == ctx.Headers().Peek("Content-Type")
 
-	if isBinary && p.protocol == 4 {
+	if isBinary && p.Protocol() == 4 {
 		p.OnError("invalid content", nil)
 		return
 	}
@@ -161,7 +161,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 
 	ctx.On("close", onClose)
 
-	if ctx.Request().ContentLength > p.maxHttpBufferSize {
+	if ctx.Request().ContentLength > p.MaxHttpBufferSize() {
 		ctx.SetStatusCode(http.StatusRequestEntityTooLarge)
 		ctx.Write(nil)
 		cleanup()
@@ -178,7 +178,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		packet.ReadFrom(rc)
 		rc.Close()
 	}
-	p.OnData(packet)
+	p.Proto().OnData(packet)
 
 	headers := utils.NewParameterBag(map[string][]string{
 		// text/html is required instead of text/plain to avoid an
@@ -186,17 +186,17 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		"Content-Type":   {"text/html"},
 		"Content-Length": {"2"},
 	})
-	ctx.ResponseHeaders.With(p.Headers(ctx, headers).All())
+	ctx.ResponseHeaders.With(p.headers(ctx, headers).All())
 	ctx.SetStatusCode(http.StatusOK)
 	io.WriteString(ctx, "ok")
 	cleanup()
 }
 
 // Processes the incoming data payload.
-func (p *polling) PollingOnData(data _types.BufferInterface) {
+func (p *polling) OnData(data _types.BufferInterface) {
 	polling_log.Debug(`received "%s"`, data)
 
-	packets, _ := p.parser.DecodePayload(data)
+	packets, _ := p.Parser().DecodePayload(data)
 	for _, packetData := range packets {
 		if packet.CLOSE == packetData.Type {
 			polling_log.Debug("got xhr close packet")
@@ -209,7 +209,7 @@ func (p *polling) PollingOnData(data _types.BufferInterface) {
 }
 
 // Overrides onClose.
-func (p *polling) PollingOnClose() {
+func (p *polling) OnClose() {
 	if p.Writable() {
 		// close pending poll request
 		p.Send([]*packet.Packet{
@@ -218,17 +218,15 @@ func (p *polling) PollingOnClose() {
 			},
 		})
 	}
-	p.TransportOnClose()
+	p.Transport.OnClose()
 }
 
 // Writes a packet payload.
-func (p *polling) PollingSend(packets []*packet.Packet) {
+func (p *polling) Send(packets []*packet.Packet) {
 	p.musend.Lock()
 	defer p.musend.Unlock()
 
-	p.mu_req.RLock()
-	ctx := p.req
-	p.mu_req.RUnlock()
+	ctx := p.Req()
 
 	if ctx == nil {
 		return
@@ -254,11 +252,11 @@ func (p *polling) PollingSend(packets []*packet.Packet) {
 		}
 	}
 
-	if p.protocol == 3 {
-		data, _ := p.parser.EncodePayload(packets, p.supportsBinary)
+	if p.Protocol() == 3 {
+		data, _ := p.Parser().EncodePayload(packets, p.SupportsBinary())
 		p.write(ctx, data, option)
 	} else {
-		data, _ := p.parser.EncodePayload(packets)
+		data, _ := p.Parser().EncodePayload(packets)
 		p.write(ctx, data, option)
 	}
 }
@@ -266,11 +264,12 @@ func (p *polling) PollingSend(packets []*packet.Packet) {
 // Writes data as response to poll request.
 func (p *polling) write(ctx *types.HttpContext, data _types.BufferInterface, options *packet.Options) {
 	polling_log.Debug(`writing "%s"`, data)
-	p.DoWrite(ctx, data, options, func(ctx *types.HttpContext) { ctx.Cleanup() })
+	// Assert that the prototype is Polling.
+	p.Proto().(Polling).DoWrite(ctx, data, options, func(ctx *types.HttpContext) { ctx.Cleanup() })
 }
 
 // Performs the write.
-func (p *polling) PollingDoWrite(ctx *types.HttpContext, data _types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
+func (p *polling) DoWrite(ctx *types.HttpContext, data _types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
 	contentType := "application/octet-stream"
 	// explicit UTF-8 is required for pages not served under utf
 	switch data.(type) {
@@ -284,18 +283,18 @@ func (p *polling) PollingDoWrite(ctx *types.HttpContext, data _types.BufferInter
 
 	respond := func(data _types.BufferInterface, length string) {
 		headers.Set("Content-Length", length)
-		ctx.ResponseHeaders.With(p.Headers(ctx, headers).All())
+		ctx.ResponseHeaders.With(p.headers(ctx, headers).All())
 		ctx.SetStatusCode(http.StatusOK)
 		io.Copy(ctx, data)
 		callback(ctx)
 	}
 
-	if p.httpCompression == nil || options == nil || !options.Compress {
+	if p.HttpCompression() == nil || options == nil || !options.Compress {
 		respond(data, strconv.Itoa(data.Len()))
 		return
 	}
 
-	if data.Len() < p.httpCompression.Threshold {
+	if data.Len() < p.HttpCompression().Threshold {
 		respond(data, strconv.Itoa(data.Len()))
 		return
 	}
@@ -346,7 +345,7 @@ func (p *polling) compress(data _types.BufferInterface, encoding string) (_types
 }
 
 // Closes the transport.
-func (p *polling) PollingDoClose(fn ...types.Callable) {
+func (p *polling) DoClose(fn types.Callable) {
 	polling_log.Debug("closing")
 
 	p.mu_dataCtx.RLock()
@@ -361,8 +360,8 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 	}
 
 	onClose := func() {
-		if len(fn) > 0 {
-			(fn[0])()
+		if fn != nil {
+			fn()
 		}
 		p.OnClose()
 	}
@@ -375,12 +374,12 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 			},
 		})
 		onClose()
-	} else if p.GetDiscarded() {
+	} else if p.Discarded() {
 		polling_log.Debug("transport discarded - closing right away")
 		onClose()
 	} else {
 		polling_log.Debug("transport not writable - buffering orderly close")
-		closeTimeoutTimer := utils.SetTimeOut(onClose, p.closeTimeout)
+		closeTimeoutTimer := utils.SetTimeout(onClose, p.closeTimeout)
 		p.mu_shouldClose.Lock()
 		p.shouldClose = func() {
 			utils.ClearTimeout(closeTimeoutTimer)
@@ -391,7 +390,7 @@ func (p *polling) PollingDoClose(fn ...types.Callable) {
 }
 
 // Returns headers for a response.
-func (p *polling) Headers(ctx *types.HttpContext, headers *utils.ParameterBag) *utils.ParameterBag {
+func (p *polling) headers(ctx *types.HttpContext, headers *utils.ParameterBag) *utils.ParameterBag {
 	// prevent XSS warnings on IE
 	// https://github.com/socketio/socket.io/pull/1333
 	if ua := ctx.UserAgent(); (len(ua) > 0) && ((strings.Index(ua, ";MSIE") > -1) || (strings.Index(ua, "Trident/") > -1)) {

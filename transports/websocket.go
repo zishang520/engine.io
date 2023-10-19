@@ -2,6 +2,7 @@ package transports
 
 import (
 	"io"
+	"sync"
 
 	ws "github.com/gorilla/websocket"
 	"github.com/zishang520/engine.io-go-parser/packet"
@@ -13,37 +14,33 @@ import (
 var ws_log = log.NewLog("engine:ws")
 
 type websocket struct {
-	*transport
+	Transport
 
 	socket *types.WebSocketConn
+	musend sync.Mutex
 }
 
 // WebSocket transport
-func NewWebSocket(ctx *types.HttpContext) *websocket {
-	w := &websocket{}
-	return w.New(ctx)
+func MakeWebSocket() Websocket {
+	w := &websocket{Transport: MakeTransport()}
+
+	w.Prototype(w)
+
+	return w
 }
 
-func (w *websocket) New(ctx *types.HttpContext) *websocket {
-	w.transport = &transport{}
+func NewWebSocket(ctx *types.HttpContext) Websocket {
+	w := MakeWebSocket()
 
-	// Advertise framing support.
-	w.supportsFraming = true
+	w.Construct(ctx)
 
-	// Advertise upgrade support.
-	w.handlesUpgrades = true
+	return w
+}
 
-	// Transport name
-	w.name = "websocket"
-
-	w.transport.New(ctx)
+func (w *websocket) Construct(ctx *types.HttpContext) {
+	w.Transport.Construct(ctx)
 
 	w.socket = ctx.Websocket
-	w.SetWritable(true)
-	w.perMessageDeflate = nil
-
-	w.doClose = w.WebSocketDoClose
-	w.send = w.WebSocketSend
 
 	go w._init()
 
@@ -53,8 +50,23 @@ func (w *websocket) New(ctx *types.HttpContext) *websocket {
 	w.socket.On("close", func(...any) {
 		w.OnClose()
 	})
+	w.SetWritable(true)
+	w.SetPerMessageDeflate(nil)
+}
 
-	return w
+// Transport name
+func (w *websocket) Name() string {
+	return "websocket"
+}
+
+// Advertise upgrade support.
+func (w *websocket) HandlesUpgrades() bool {
+	return true
+}
+
+// Advertise framing support.
+func (w *websocket) SupportsFraming() bool {
+	return true
 }
 
 func (w *websocket) _init() {
@@ -75,14 +87,14 @@ func (w *websocket) _init() {
 			if _, err := read.ReadFrom(message); err != nil {
 				w.OnError("Error reading data", err)
 			} else {
-				w.WebSocketOnData(read)
+				w.onMessage(read)
 			}
 		case ws.TextMessage:
 			read := _types.NewStringBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
 				w.OnError("Error reading data", err)
 			} else {
-				w.WebSocketOnData(read)
+				w.onMessage(read)
 			}
 		case ws.CloseMessage:
 			w.OnClose()
@@ -99,13 +111,13 @@ func (w *websocket) _init() {
 	}
 }
 
-func (w *websocket) WebSocketOnData(data _types.BufferInterface) {
+func (w *websocket) onMessage(data _types.BufferInterface) {
 	ws_log.Debug(`websocket received "%s"`, data)
-	w.TransportOnData(data)
+	w.Transport.OnData(data)
 }
 
 // Writes a packet payload.
-func (w *websocket) WebSocketSend(packets []*packet.Packet) {
+func (w *websocket) Send(packets []*packet.Packet) {
 	w.SetWritable(false)
 	defer func() {
 		w.SetWritable(true)
@@ -126,7 +138,7 @@ func (w *websocket) _send(packet *packet.Packet) {
 		data = packet.WsPreEncoded
 	} else {
 		var err error
-		data, err = w.parser.EncodePacket(packet, w.supportsBinary)
+		data, err = w.Parser().EncodePacket(packet, w.SupportsBinary())
 		if err != nil {
 			ws_log.Debug(`Send Error "%s"`, err)
 			w.OnError("write error", err)
@@ -139,8 +151,8 @@ func (w *websocket) _send(packet *packet.Packet) {
 	if packet.Options != nil {
 		compress = packet.Options.Compress
 	}
-	if w.perMessageDeflate != nil {
-		if data.Len() < w.perMessageDeflate.Threshold {
+	if w.PerMessageDeflate() != nil {
+		if data.Len() < w.PerMessageDeflate().Threshold {
 			compress = false
 		}
 	}
@@ -173,10 +185,10 @@ func (w *websocket) write(data _types.BufferInterface, compress bool) {
 }
 
 // Closes the transport.
-func (w *websocket) WebSocketDoClose(fn ...types.Callable) {
+func (w *websocket) DoClose(fn types.Callable) {
 	ws_log.Debug(`closing`)
 	w.socket.Close()
-	if len(fn) > 0 {
-		(fn[0])()
+	if fn != nil {
+		fn()
 	}
 }

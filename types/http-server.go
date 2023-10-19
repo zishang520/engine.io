@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/zishang520/engine.io/events"
-	"golang.org/x/net/http2"
 )
 
 type HttpServer struct {
@@ -18,12 +17,17 @@ type HttpServer struct {
 	mu      sync.RWMutex
 }
 
-func CreateServer(defaultHandler http.Handler) *HttpServer {
+func NewWebServer(defaultHandler http.Handler) *HttpServer {
 	s := &HttpServer{
 		EventEmitter: events.New(),
 		ServeMux:     NewServeMux(defaultHandler),
 	}
 	return s
+}
+
+// Deprecated: this method will be removed in the next major release, please use NewWebServer.ListenTLS instead.
+func CreateServer(defaultHandler http.Handler) *HttpServer {
+	return NewWebServer(defaultHandler)
 }
 
 func (s *HttpServer) httpServer(addr string, handler http.Handler) *http.Server {
@@ -77,28 +81,6 @@ func (s *HttpServer) Listen(addr string, fn Callable) *HttpServer {
 func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn Callable) *HttpServer {
 	go func() {
 		if err := s.httpServer(addr, s).ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
-			panic(err)
-		}
-	}()
-
-	if fn != nil {
-		defer fn()
-	}
-	s.Emit("listening")
-
-	return s
-}
-
-// Starting with Go 1.6, the http package has transparent support for the HTTP/2 protocol when using HTTPS.
-//
-// Deprecated: this method will be removed in the next major release, please use *HttpServer.ListenTLS instead.
-func (s *HttpServer) ListenHTTP2TLS(addr string, certFile string, keyFile string, conf *http2.Server, fn Callable) *HttpServer {
-	go func() {
-		server := s.httpServer(addr, s)
-		if err := http2.ConfigureServer(server, conf); err != nil {
-			panic(err)
-		}
-		if err := server.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()

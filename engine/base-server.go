@@ -54,14 +54,18 @@ type baseServer struct {
 	opts        config.ServerOptionsInterface
 }
 
-func NewBaseServer() BaseServer {
+func MakeBaseServer() BaseServer {
 	baseServer := &baseServer{EventEmitter: events.New()}
-	baseServer.Proto(baseServer)
+	baseServer.Prototype(baseServer)
 	return baseServer
 }
 
-func (bs *baseServer) Proto(server BaseServer) {
+func (bs *baseServer) Prototype(server BaseServer) {
 	bs._proto_ = server
+}
+
+func (bs *baseServer) Proto() BaseServer {
+	return bs._proto_
 }
 
 func (bs *baseServer) Opts() config.ServerOptionsInterface {
@@ -81,7 +85,7 @@ func (bs *baseServer) Middlewares() []Middleware {
 }
 
 // BaseServer build.
-func (bs *baseServer) Construct(opt any) BaseServer {
+func (bs *baseServer) Construct(opt any) {
 	opts, _ := opt.(config.ServerOptionsInterface)
 
 	bs.clients = &types.Map[string, Socket]{}
@@ -112,8 +116,6 @@ func (bs *baseServer) Construct(opt any) BaseServer {
 	}
 
 	bs._proto_.Init()
-
-	return bs
 }
 
 // abstract
@@ -312,7 +314,7 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 	}
 	if "polling" == transportName {
 		transport.SetMaxHttpBufferSize(bs.opts.MaxHttpBufferSize())
-		transport.SetGttpCompression(bs.opts.HttpCompression())
+		transport.SetHttpCompression(bs.opts.HttpCompression())
 	} else if "websocket" == transportName {
 		transport.SetPerMessageDeflate(bs.opts.PerMessageDeflate())
 	}

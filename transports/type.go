@@ -8,54 +8,106 @@ import (
 	"github.com/zishang520/engine.io/types"
 )
 
-type Transport interface {
-	events.EventEmitter
+type (
+	Transport interface {
+		// #extends
 
-	SetSid(string)
-	SetSupportsBinary(bool)
-	SetMaxHttpBufferSize(int64)
-	SetGttpCompression(*types.HttpCompression)
-	SetPerMessageDeflate(*types.PerMessageDeflate)
-	SetReadyState(string)
-	SetWritable(bool)
+		events.EventEmitter
 
-	Parser() parser.Parser
-	Sid() string
-	Protocol() int
-	Name() string
-	SupportsFraming() bool
-	HandlesUpgrades() bool
-	MaxHttpBufferSize() int64
-	HttpCompression() *types.HttpCompression
-	PerMessageDeflate() *types.PerMessageDeflate
-	ReadyState() string
-	Writable() bool
+		// #prototype
 
-	// Flags the transport as discarded.
-	Discard()
-	GetDiscarded() bool
+		Prototype(Transport)
+		Proto() Transport
 
-	// Called with an incoming HTTP request.
-	OnRequest(*types.HttpContext)
+		// #setters
 
-	// Closes the transport.
-	DoClose(types.Callable)
+		SetSid(string)
+		SetWritable(bool)
+		SetReq(*types.HttpContext)
+		SetSupportsBinary(bool)
+		SetReadyState(string)
+		SetHttpCompression(*types.HttpCompression)
+		SetPerMessageDeflate(*types.PerMessageDeflate)
+		SetMaxHttpBufferSize(int64)
 
-	// Called with a transport error.
-	OnError(string, error)
+		// #getters
 
-	// Called with parsed out a packets from the data stream.
-	OnPacket(*packet.Packet)
+		Sid() string
+		Writable() bool
+		Protocol() int
+		// @protected
+		Discarded() bool
+		// @protected
+		Parser() parser.Parser
+		// @protected
+		Req() *types.HttpContext
+		// @protected
+		SupportsBinary() bool
+		ReadyState() string
+		HttpCompression() *types.HttpCompression
+		PerMessageDeflate() *types.PerMessageDeflate
+		MaxHttpBufferSize() int64
+		// @abstract
+		HandlesUpgrades() bool
+		// @abstract
+		SupportsFraming() bool
+		// @abstract
+		Name() string
 
-	// Called with the encoded packet data.
-	OnData(_types.BufferInterface)
+		// #methods
 
-	// Called upon transport close.
-	OnClose()
+		// Construct() should be called after calling Prototype()
+		Construct(*types.HttpContext)
+		// @private
+		// Flags the transport as discarded.
+		Discard()
+		// @protected
+		// Called with an incoming HTTP request.
+		OnRequest(*types.HttpContext)
+		// @private
+		// Closes the transport.
+		Close(...types.Callable)
+		// @protected
+		// Called with a transport error.
+		OnError(string, error)
+		// @protected
+		// Called with parsed out a packets from the data stream.
+		OnPacket(*packet.Packet)
+		// @protected
+		// Called with the encoded packet data.
+		OnData(_types.BufferInterface)
+		// @protected
+		// Called upon transport close.
+		OnClose()
+		// @protected
+		// @abstract
+		// Writes a packet payload.
+		Send([]*packet.Packet)
+		// @protected
+		// @abstract
+		// Closes the transport.
+		DoClose(types.Callable)
+	}
 
-	// Writes a packet payload.
-	Send([]*packet.Packet)
+	Polling interface {
+		// #extends
 
-	// Closes the transport.
-	Close(...types.Callable)
-}
+		Transport
+
+		// #methods
+
+		DoWrite(*types.HttpContext, _types.BufferInterface, *packet.Options, func(*types.HttpContext))
+	}
+
+	Jsonp interface {
+		// #extends
+
+		Polling
+	}
+
+	Websocket interface {
+		// #extends
+
+		Transport
+	}
+)

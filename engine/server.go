@@ -22,12 +22,18 @@ type server struct {
 	httpServer *types.HttpServer
 }
 
-// Server New.
+// new server.
+func MakeServer(opt any) Server {
+	s := &server{BaseServer: MakeBaseServer()}
+
+	s.Prototype(s)
+
+	return s
+}
+
+// create server.
 func NewServer(opt any) Server {
-	s := &server{
-		BaseServer: NewBaseServer(),
-	}
-	s.Proto(s)
+	s := MakeServer(opt)
 
 	s.Construct(opt)
 

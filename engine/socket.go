@@ -115,15 +115,22 @@ func (s *socket) SetReadyState(state string) {
 }
 
 // Client class.
-func NewSocket(id string, server BaseServer, transport transports.Transport, ctx *types.HttpContext, protocol int) Socket {
-	s := &socket{
-		EventEmitter: events.New(),
-	}
-	return s.New(id, server, transport, ctx, protocol)
+func MakeSocket() Socket {
+	s := &socket{EventEmitter: events.New()}
+
+	return s
 }
 
 // Client class.
-func (s *socket) New(id string, server BaseServer, transport transports.Transport, ctx *types.HttpContext, protocol int) Socket {
+func NewSocket(id string, server BaseServer, transport transports.Transport, ctx *types.HttpContext, protocol int) Socket {
+	s := MakeSocket()
+
+	s.Construct(id, server, transport, ctx, protocol)
+
+	return s
+}
+
+func (s *socket) Construct(id string, server BaseServer, transport transports.Transport, ctx *types.HttpContext, protocol int) {
 	s.id = id
 
 	s.server = server
@@ -159,8 +166,6 @@ func (s *socket) New(id string, server BaseServer, transport transports.Transpor
 
 	s.setTransport(transport)
 	s.onOpen()
-
-	return s
 }
 
 // Called upon transport considered open.
@@ -263,7 +268,7 @@ func (s *socket) schedulePing() {
 	s.mupingIntervalTimer.Lock()
 	defer s.mupingIntervalTimer.Unlock()
 
-	s.pingIntervalTimer = utils.SetTimeOut(func() {
+	s.pingIntervalTimer = utils.SetTimeout(func() {
 		socket_log.Debug("writing ping packet - expecting pong within %dms", int64(s.server.Opts().PingTimeout()/time.Millisecond))
 		s.sendPacket(packet.PING, nil, nil, nil)
 		s.resetPingTimeout(s.server.Opts().PingTimeout())
@@ -276,7 +281,7 @@ func (s *socket) resetPingTimeout(timeout time.Duration) {
 	defer s.mupingTimeoutTimer.Unlock()
 
 	utils.ClearTimeout(s.pingTimeoutTimer)
-	s.pingTimeoutTimer = utils.SetTimeOut(func() {
+	s.pingTimeoutTimer = utils.SetTimeout(func() {
 		if s.ReadyState() == "closed" {
 			return
 		}
@@ -421,7 +426,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 
 	// set transport upgrade timer
 	s.muupgradeTimeoutTimer.Lock()
-	s.upgradeTimeoutTimer = utils.SetTimeOut(func() {
+	s.upgradeTimeoutTimer = utils.SetTimeout(func() {
 		socket_log.Debug("client did not complete upgrade - closing transport")
 		cleanup()
 		if transport != nil {

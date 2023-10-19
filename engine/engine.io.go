@@ -20,7 +20,7 @@ func New(server any, args ...any) Server {
 
 // Creates an http.Server exclusively used for WS upgrades.
 func Listen(addr string, options any, fn types.Callable) Server {
-	server := types.CreateServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := types.NewWebServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "Not Implemented", http.StatusNotImplemented)
 	}))
 

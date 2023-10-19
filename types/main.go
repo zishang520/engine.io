@@ -16,7 +16,4 @@ type (
 
 var (
 	NULL Void
-
-	// Noop function.
-	Noop Callable = func() {}
 )

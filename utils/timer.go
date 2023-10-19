@@ -31,7 +31,7 @@ func (t *Timer) Unref() {
 	})
 }
 
-func SetTimeOut(fn func(), sleep time.Duration) *Timer {
+func SetTimeout(fn func(), sleep time.Duration) *Timer {
 	timeout := &Timer{
 		t:     make(chan struct{}),
 		stop:  make(chan struct{}),

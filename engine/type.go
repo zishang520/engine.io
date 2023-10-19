@@ -23,7 +23,8 @@ type (
 
 		// #prototype
 
-		Proto(BaseServer)
+		Prototype(BaseServer)
+		Proto() BaseServer
 
 		// #getters
 
@@ -36,8 +37,8 @@ type (
 
 		// #methods
 
-		// Construct() should be called after calling Proto()
-		Construct(any) BaseServer
+		// Construct() should be called after calling Prototype()
+		Construct(any)
 		// @protected
 		// @abstract
 		Init()
@@ -107,18 +108,21 @@ type (
 
 		// #getters
 
-		Id() string
-		ReadyState() string
 		Protocol() int
-		Server() BaseServer
 		Request() *types.HttpContext
 		RemoteAddress() string
-		Upgraded() bool
-		Upgrading() bool
 		Transport() transports.Transport
+		Id() string
+		ReadyState() string
+		// @private
+		Upgraded() bool
+		// @private
+		Upgrading() bool
 
 		// #methods
 
+		Construct(string, BaseServer, transports.Transport, *types.HttpContext, int)
+		// @private
 		// Upgrades socket to the given transport
 		MaybeUpgrade(transports.Transport)
 		// Sends a message packet.

@@ -186,10 +186,13 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		"Content-Type":   {"text/html"},
 		"Content-Length": {"2"},
 	})
+	// After writing the data, close will be triggered, so it needs to be executed first.
+	cleanup()
+
+	// The following process in nodejs is asynchronous.
 	ctx.ResponseHeaders.With(p.Headers(ctx, headers).All())
 	ctx.SetStatusCode(http.StatusOK)
 	io.WriteString(ctx, "ok")
-	cleanup()
 }
 
 // Processes the incoming data payload.

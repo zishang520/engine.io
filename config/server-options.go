@@ -243,7 +243,12 @@ func (s *ServerOptions) AllowRequest() AllowRequest {
 	return s.allowRequest
 }
 
-// the low-level transports that are enabled
+// The low-level transports that are enabled. WebTransport is disabled by default and must be manually enabled:
+//
+//	opts := &ServerOptions{}
+//	opts.SetTransports(types.NewSet("polling", "websocket", "webtransport"))
+//	NewServer(opts)
+//
 // @default ["polling", "websocket"]
 func (s *ServerOptions) SetTransports(transports *types.Set[string]) {
 	s.transports = transports

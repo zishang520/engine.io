@@ -20,12 +20,20 @@ var _transports map[string]*transports = map[string]*transports{
 			return NewPolling(ctx)
 		},
 		HandlesUpgrades: false,
-		UpgradesTo:      types.NewSet("websocket"),
+		UpgradesTo:      types.NewSet("websocket", "webtransport"),
 	},
 
 	"websocket": {
 		New: func(ctx *types.HttpContext) Transport {
 			return NewWebSocket(ctx)
+		},
+		HandlesUpgrades: true,
+		UpgradesTo:      types.NewSet[string](),
+	},
+
+	"webtransport": {
+		New: func(ctx *types.HttpContext) Transport {
+			return NewWebTransport(ctx)
 		},
 		HandlesUpgrades: true,
 		UpgradesTo:      types.NewSet[string](),

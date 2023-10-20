@@ -153,8 +153,10 @@ func (s *socket) Construct(id string, server BaseServer, transport transports.Tr
 	s.protocol = protocol
 
 	// Cache IP since it might not be in the req later
-	if ctx.Websocket != nil && ctx.Websocket.Conn != nil {
-		s.remoteAddress = ctx.Websocket.Conn.RemoteAddr().String()
+	if ctx.WebTransport != nil && ctx.WebTransport.Session != nil {
+		s.remoteAddress = ctx.WebTransport.RemoteAddr().String()
+	} else if ctx.Websocket != nil && ctx.Websocket.Conn != nil {
+		s.remoteAddress = ctx.Websocket.RemoteAddr().String()
 	} else {
 		s.remoteAddress = ctx.Request().RemoteAddr
 	}

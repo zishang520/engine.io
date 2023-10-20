@@ -154,7 +154,7 @@ func (bs *baseServer) Upgrades(transport string) *types.Set[string] {
 func (bs *baseServer) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]any) {
 	// transport check
 	transport := ctx.Query().Peek("transport")
-	if !bs.opts.Transports().Has(transport) {
+	if !bs.opts.Transports().Has(transport) || transport == "webtransport" {
 		server_log.Debug(`unknown transport "%s"`, transport)
 		return UNKNOWN_TRANSPORT, map[string]any{"transport": transport}
 	}
@@ -294,7 +294,7 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 		return BAD_REQUEST, nil
 	}
 
-	server_log.Debug(`handshaking client "%s"`, id)
+	server_log.Debug(`handshaking client "%s" (%s)`, id, transportName)
 
 	transport, err := bs._proto_.CreateTransport(transportName, ctx)
 	if err != nil {
@@ -317,6 +317,8 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 		transport.SetHttpCompression(bs.opts.HttpCompression())
 	} else if "websocket" == transportName {
 		transport.SetPerMessageDeflate(bs.opts.PerMessageDeflate())
+	} else if "webtransport" == transportName {
+		transport.SetMaxHttpBufferSize(bs.opts.MaxHttpBufferSize())
 	}
 
 	if ctx.Query().Has("b64") {

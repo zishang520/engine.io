@@ -110,4 +110,10 @@ type (
 
 		Transport
 	}
+
+	WebTransport interface {
+		// #extends
+
+		Transport
+	}
 )

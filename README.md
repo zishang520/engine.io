@@ -95,7 +95,7 @@ func main() {
         Credentials: true,
     })
 
-    httpServer := types.CreateServer(nil).Listen("127.0.0.1:4444", nil)
+    httpServer := types.NewWebServer(nil).Listen("127.0.0.1:4444", nil)
 
     engineServer := engine.Attach(httpServer, serverOptions)
 
@@ -155,7 +155,7 @@ func main() {
         Credentials: true,
     })
 
-    httpServer := types.CreateServer(nil).Listen("127.0.0.1:4444", nil)
+    httpServer := types.NewWebServer(nil).Listen("127.0.0.1:4444", nil)
 
     engineServer := engine.New(serverOptions)
 
@@ -327,7 +327,7 @@ import "github.com/zishang520/engine.io/config"
 import "github.com/zishang520/engine.io/engine"
 import "github.com/zishang520/engine.io/types"
 
-var httpServer *types.HttpServer // previously created with `types.CreateServer(nil);`.
+var httpServer *types.HttpServer // previously created with `types.NewWebServer(nil);`.
 var eioServer engine.Server
 
 // create a server first, and then attach

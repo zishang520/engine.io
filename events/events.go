@@ -98,7 +98,7 @@ func New() EventEmitter {
 	return &emmiter{maxListeners: DefaultMaxListeners, evtListeners: events{}}
 }
 
-func (e *emmiter) addlistener(evt EventName, listeners ...*listener) error {
+func (e *emmiter) addlistener(evt EventName, listeners []*listener) error {
 	if len(listeners) == 0 {
 		return nil
 	}
@@ -130,11 +130,11 @@ func (e *emmiter) AddListener(evt EventName, listeners ...Listener) error {
 	if len(listeners) == 0 {
 		return nil
 	}
-	var events []*listener
-	for _, event := range listeners {
-		events = append(events, &listener{listener: event, ptr: reflect.ValueOf(event).Pointer()})
+	events := make([]*listener, len(listeners))
+	for i, event := range listeners {
+		events[i] = &listener{listener: event, ptr: reflect.ValueOf(event).Pointer()}
 	}
-	return e.addlistener(evt, events...)
+	return e.addlistener(evt, events)
 }
 
 func (e *emmiter) Emit(evt EventName, data ...any) {
@@ -216,10 +216,9 @@ type oneTimelistener struct {
 	// operations. http://golang.org/pkg/sync/atomic/#pkg-note-BUG
 	fired int32
 
-	evt        EventName
-	emitter    *emmiter
-	listener   Listener
-	executeRef Listener
+	evt      EventName
+	emitter  *emmiter
+	listener Listener
 }
 
 func (l *oneTimelistener) execute(vals ...any) {
@@ -234,13 +233,12 @@ func (e *emmiter) Once(evt EventName, listeners ...Listener) error {
 		return nil
 	}
 
-	var events []*listener
-	for _, event := range listeners {
+	events := make([]*listener, len(listeners))
+	for i, event := range listeners {
 		oneTime := &oneTimelistener{evt: evt, emitter: e, listener: event}
-		oneTime.executeRef = oneTime.execute
-		events = append(events, &listener{listener: oneTime.executeRef, ptr: reflect.ValueOf(event).Pointer()})
+		events[i] = &listener{listener: oneTime.execute, ptr: reflect.ValueOf(event).Pointer()}
 	}
-	return e.addlistener(evt, events...)
+	return e.addlistener(evt, events)
 }
 
 func (e *emmiter) RemoveAllListeners(evt EventName) bool {

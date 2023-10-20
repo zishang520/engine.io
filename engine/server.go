@@ -101,6 +101,7 @@ func (s *server) HandleRequest(ctx *types.HttpContext) {
 		}
 	})
 
+	// Wait for data to be written to the client.
 	<-ctx.Done()
 }
 

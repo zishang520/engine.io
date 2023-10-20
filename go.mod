@@ -14,12 +14,10 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/vmihailenco/msgpack/v5 v5.4.0
 	github.com/zishang520/engine.io-go-parser v1.2.2
-	golang.org/x/net v0.17.0
 )
 
 require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	golang.org/x/sys v0.13.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
 )

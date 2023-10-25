@@ -1,6 +1,6 @@
 module github.com/zishang520/engine.io
 
-go 1.20
+go 1.21
 
 retract (
 	v1.4.0
@@ -12,10 +12,10 @@ require (
 	github.com/andybalholm/brotli v1.0.6
 	github.com/gookit/color v1.5.4
 	github.com/gorilla/websocket v1.5.0
-	github.com/quic-go/quic-go v0.39.1
+	github.com/quic-go/quic-go v0.39.2
 	github.com/quic-go/webtransport-go v0.6.0
 	github.com/vmihailenco/msgpack/v5 v5.4.0
-	github.com/zishang520/engine.io-go-parser v1.2.2
+	github.com/zishang520/engine.io-go-parser v1.2.3
 )
 
 require (

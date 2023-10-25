@@ -126,31 +126,49 @@ func (w *websocket) Send(packets []*packet.Packet) {
 
 	w.musend.Lock()
 	defer w.musend.Unlock()
+
 	for _, packet := range packets {
-		w._send(packet)
-	}
-}
+		// always creates a new object since ws modifies it
+		compress := false
+		if packet.Options != nil {
+			compress = packet.Options.Compress
 
-func (w *websocket) _send(packet *packet.Packet) {
-	var data _types.BufferInterface
+			if packet.Options.WsPreEncoded != nil {
+				w.write(packet.Options.WsPreEncoded, compress)
+				return
 
-	if packet.WsPreEncoded != nil {
-		data = packet.WsPreEncoded
-	} else {
-		var err error
-		data, err = w.Parser().EncodePacket(packet, w.SupportsBinary())
+			} else if w.PerMessageDeflate() == nil && packet.Options.WsPreEncodedFrame != nil {
+				mt := ws.BinaryMessage
+				if _, ok := packet.Options.WsPreEncodedFrame.(*_types.StringBuffer); ok {
+					mt = ws.TextMessage
+				}
+				pm, err := ws.NewPreparedMessage(mt, packet.Options.WsPreEncodedFrame.Bytes())
+				if err != nil {
+					ws_log.Debug(`Send Error "%s"`, err.Error())
+					w.OnError("write error", err)
+					return
+				}
+				if err := w.socket.WritePreparedMessage(pm); err != nil {
+					ws_log.Debug(`Send Error "%s"`, err.Error())
+					w.OnError("write error", err)
+					return
+				}
+				return
+
+			}
+		}
+
+		data, err := w.Parser().EncodePacket(packet, w.SupportsBinary())
 		if err != nil {
-			ws_log.Debug(`Send Error "%s"`, err)
+			ws_log.Debug(`Send Error "%s"`, err.Error())
 			w.OnError("write error", err)
 			return
 		}
+		w.write(data, compress)
 	}
+}
 
-	// always creates a new object since ws modifies it
-	compress := false
-	if packet.Options != nil {
-		compress = packet.Options.Compress
-	}
+func (w *websocket) write(data _types.BufferInterface, compress bool) {
 	if w.PerMessageDeflate() != nil {
 		if data.Len() < w.PerMessageDeflate().Threshold {
 			compress = false
@@ -158,10 +176,6 @@ func (w *websocket) _send(packet *packet.Packet) {
 	}
 	ws_log.Debug(`writing "%s"`, data)
 
-	w.write(data, compress)
-}
-
-func (w *websocket) write(data _types.BufferInterface, compress bool) {
 	w.socket.EnableWriteCompression(compress)
 	mt := ws.BinaryMessage
 	if _, ok := data.(*_types.StringBuffer); ok {

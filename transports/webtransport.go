@@ -8,6 +8,7 @@ import (
 	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/log"
 	"github.com/zishang520/engine.io/types"
+	"github.com/zishang520/engine.io/webtransport"
 )
 
 var (
@@ -19,7 +20,7 @@ var (
 type webTransport struct {
 	Transport
 
-	session *types.WebTransportConn
+	session *webtransport.Conn
 	musend  sync.Mutex
 }
 
@@ -44,14 +45,8 @@ func (w *webTransport) Construct(ctx *types.HttpContext) {
 	w.Transport.Construct(ctx)
 
 	w.session = ctx.WebTransport
-	go w._init(ctx)
+	go w._init()
 
-	w.session.On("error", func(errors ...any) {
-		w.OnError("webTransport error", errors[0].(error))
-	})
-	w.session.On("close", func(...any) {
-		w.OnClose()
-	})
 	w.SetWritable(true)
 	w.SetPerMessageDeflate(nil)
 }
@@ -71,50 +66,45 @@ func (w *webTransport) SupportsFraming() bool {
 	return true
 }
 
-func (w *webTransport) _init(ctx *types.HttpContext) {
-	defer w.session.Stream.Close()
-
-	binaryFlag := false
-LOOP:
+func (w *webTransport) _init() {
 	for {
-		var data _types.BufferInterface
-		if binaryFlag {
-			data = _types.NewBytesBuffer(nil)
-		} else {
-			data = _types.NewStringBuffer(nil)
-		}
-		// Read data from the stream
-		buf := make([]byte, 1024)
-		for {
-			n, err := w.session.Stream.Read(buf)
-			if err != nil {
-				if err == io.EOF {
-					w.OnClose()
-					wt_log.Debug(`session is closed`)
-				} else {
-					w.OnError("Error reading data", err)
-				}
-				return
-			}
-			wt_log.Debug("received chunk: %v", buf[:n])
-
-			if !binaryFlag && n == 1 && buf[0] == byte(0x36) {
-				binaryFlag = true
-				data.Reset() // clean
-				goto LOOP
-			}
-
-			if _, err := data.Write(buf[:n]); err != nil {
+		mt, message, err := w.session.NextReader()
+		if err != nil {
+			if webtransport.IsUnexpectedCloseError(err) {
+				w.OnClose()
+			} else {
 				w.OnError("Error reading data", err)
-				return
 			}
-			buf = buf[:0]
-			if n < 1024 {
-				break
-			}
+			return
 		}
-		w.onMessage(data)
-		binaryFlag = false
+
+		switch mt {
+		case webtransport.BinaryMessage:
+			read := _types.NewBytesBuffer(nil)
+			if _, err := read.ReadFrom(message); err != nil {
+				w.OnError("Error reading data", err)
+			} else {
+				w.onMessage(read)
+			}
+		case webtransport.TextMessage:
+			read := _types.NewStringBuffer(nil)
+			if _, err := read.ReadFrom(message); err != nil {
+				w.OnError("Error reading data", err)
+			} else {
+				w.onMessage(read)
+			}
+		case webtransport.CloseMessage:
+			w.OnClose()
+			if c, ok := message.(io.Closer); ok {
+				c.Close()
+			}
+			return
+		case webtransport.PingMessage:
+		case webtransport.PongMessage:
+		}
+		if c, ok := message.(io.Closer); ok {
+			c.Close()
+		}
 	}
 }
 
@@ -135,27 +125,71 @@ func (w *webTransport) Send(packets []*packet.Packet) {
 	defer w.musend.Unlock()
 
 	for _, packet := range packets {
-		w.write(packet)
-	}
-}
+		// always creates a new object since ws modifies it
+		compress := false
+		if packet.Options != nil {
+			compress = packet.Options.Compress
 
-func (w *webTransport) write(packet *packet.Packet) {
-	data, err := w.Parser().EncodePacket(packet, w.SupportsBinary())
-	if err != nil {
-		wt_log.Debug(`Send Error "%s"`, err)
-		return
-	}
+			if packet.Options.WsPreEncoded != nil {
+				w.write(packet.Options.WsPreEncoded, compress)
+				return
 
-	if _, ok := data.(*_types.BytesBuffer); ok {
-		wt_log.Debug("writing binary header")
-		if _, err := w.session.Stream.Write(BINARY_HEADER); err != nil {
+			} else if w.PerMessageDeflate() == nil && packet.Options.WsPreEncodedFrame != nil {
+				mt := webtransport.BinaryMessage
+				if _, ok := packet.Options.WsPreEncodedFrame.(*_types.StringBuffer); ok {
+					mt = webtransport.TextMessage
+				}
+				pm, err := webtransport.NewPreparedMessage(mt, packet.Options.WsPreEncodedFrame.Bytes())
+				if err != nil {
+					ws_log.Debug(`Send Error "%s"`, err.Error())
+					w.OnError("write error", err)
+					return
+				}
+				if err := w.session.WritePreparedMessage(pm); err != nil {
+					ws_log.Debug(`Send Error "%s"`, err.Error())
+					w.OnError("write error", err)
+					return
+				}
+				return
+
+			}
+		}
+
+		data, err := w.Parser().EncodePacket(packet, w.SupportsBinary())
+		if err != nil {
+			ws_log.Debug(`Send Error "%s"`, err.Error())
 			w.OnError("write error", err)
 			return
 		}
+		w.write(data, compress)
 	}
+}
 
-	wt_log.Debug(`writing chunk: "%s"`, data)
-	if _, err := io.Copy(w.session.Stream, data); err != nil {
+func (w *webTransport) write(data _types.BufferInterface, compress bool) {
+	if w.PerMessageDeflate() != nil {
+		if data.Len() < w.PerMessageDeflate().Threshold {
+			compress = false
+		}
+	}
+	ws_log.Debug(`writing "%s"`, data)
+
+	w.session.EnableWriteCompression(compress)
+	mt := webtransport.BinaryMessage
+	if _, ok := data.(*_types.StringBuffer); ok {
+		mt = webtransport.TextMessage
+	}
+	write, err := w.session.NextWriter(mt)
+	if err != nil {
+		w.OnError("write error", err)
+		return
+	}
+	defer func() {
+		if err := write.Close(); err != nil {
+			w.OnError("write error", err)
+			return
+		}
+	}()
+	if _, err := io.Copy(write, data); err != nil {
 		w.OnError("write error", err)
 		return
 	}

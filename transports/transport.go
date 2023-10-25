@@ -238,14 +238,17 @@ func (t *transport) HandlesUpgrades() bool {
 	return false
 }
 
+// Advertise framing support.
 func (t *transport) SupportsFraming() bool {
 	return false
 }
 
+// The name of the transport.
 func (t *transport) Name() string {
 	return ""
 }
 
+// Sends an array of packets.
 func (t *transport) Send([]*packet.Packet) {
 	transport_log.Debug("Not implemented")
 }

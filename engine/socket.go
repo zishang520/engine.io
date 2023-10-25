@@ -153,7 +153,7 @@ func (s *socket) Construct(id string, server BaseServer, transport transports.Tr
 	s.protocol = protocol
 
 	// Cache IP since it might not be in the req later
-	if ctx.WebTransport != nil && ctx.WebTransport.Session != nil {
+	if ctx.WebTransport != nil {
 		s.remoteAddress = ctx.WebTransport.RemoteAddr().String()
 	} else if ctx.Websocket != nil && ctx.Websocket.Conn != nil {
 		s.remoteAddress = ctx.Websocket.RemoteAddr().String()
@@ -233,8 +233,6 @@ func (s *socket) onPacket(data *packet.Packet) {
 		socket_log.Debug("got ping")
 		s.sendPacket(packet.PONG, nil, nil, nil)
 		s.Emit("heartbeat")
-		break
-
 	case packet.PONG:
 		if s.Transport().Protocol() == 3 {
 			s.onError("invalid heartbeat direction")
@@ -245,16 +243,11 @@ func (s *socket) onPacket(data *packet.Packet) {
 		s.pingIntervalTimer.Refresh()
 		s.mupingIntervalTimer.RUnlock()
 		s.Emit("heartbeat")
-		break
-
 	case packet.ERROR:
 		s.OnClose("parse error")
-		break
-
 	case packet.MESSAGE:
 		s.Emit("data", data.Data)
 		s.Emit("message", data.Data)
-		break
 	}
 }
 

@@ -30,7 +30,7 @@ func NewWebServer(defaultHandler http.Handler) *HttpServer {
 	return s
 }
 
-// Deprecated: this method will be removed in the next major release, please use NewWebServer.ListenTLS instead.
+// Deprecated: this method will be removed in the next major release, please use [NewWebServer] instead.
 func CreateServer(defaultHandler http.Handler) *HttpServer {
 	return NewWebServer(defaultHandler)
 }

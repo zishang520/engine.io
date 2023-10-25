@@ -65,7 +65,7 @@ func (j *jsonp) OnData(data _types.BufferInterface) {
 			j.Polling.OnData(_types.NewStringBufferString(rDoubleSlashes.ReplaceAllString(_data, "\\n")))
 		}
 	} else {
-		jsonp_log.Debug(`jsonp OnData error "%v"`, err)
+		jsonp_log.Debug(`jsonp OnData error "%s"`, err.Error())
 	}
 }
 
@@ -82,6 +82,6 @@ func (j *jsonp) DoWrite(ctx *types.HttpContext, data _types.BufferInterface, opt
 		res.WriteString(j.foot)
 		j.Polling.DoWrite(ctx, res, options, callback)
 	} else {
-		jsonp_log.Debug(`jsonp DoWrite error "%v"`, err)
+		jsonp_log.Debug(`jsonp DoWrite error "%s"`, err.Error())
 	}
 }

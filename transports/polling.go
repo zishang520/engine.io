@@ -400,6 +400,7 @@ func (p *polling) headers(ctx *types.HttpContext, headers *utils.ParameterBag) *
 	if ua := ctx.UserAgent(); (len(ua) > 0) && ((strings.Index(ua, ";MSIE") > -1) || (strings.Index(ua, "Trident/") > -1)) {
 		headers.Set("X-XSS-Protection", "0")
 	}
+	headers.Set("Cache-Control", "no-store")
 	p.Emit("headers", headers, ctx)
 	return headers
 }

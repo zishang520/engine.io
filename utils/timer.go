@@ -31,6 +31,10 @@ func (t *Timer) Unref() {
 	})
 }
 
+// Deprecated: this method will be removed in the next major release, please use [SetTimeout] instead.
+func SetTimeOut(fn func(), sleep time.Duration) *Timer {
+	return SetTimeout(fn, sleep)
+}
 func SetTimeout(fn func(), sleep time.Duration) *Timer {
 	timeout := &Timer{
 		t:     make(chan struct{}),

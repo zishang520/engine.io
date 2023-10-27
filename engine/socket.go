@@ -404,8 +404,8 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 
 	onError = func(err ...any) {
 		socket_log.Debug("client did not complete upgrade - %v", err[0])
+		cleanup()
 		if transport != nil {
-			cleanup()
 			transport.Close()
 			transport = nil
 		}

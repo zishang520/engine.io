@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -225,14 +226,14 @@ func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.
 
 	session, err := wt.Upgrade(ctx.Response(), ctx.Request())
 	if err != nil {
-		utils.Log().Debug("upgrading failed: %s", err.Error())
+		server_log.Debug("upgrading failed: %s", err.Error())
 		s.emitAbortRequest(ctx, BAD_REQUEST, map[string]any{"name": "UPGRADE_FAILURE"})
 		return
 	}
 
-	stream, err := session.AcceptStream(ctx.Context())
+	stream, err := session.AcceptStream(context.Background())
 	if err != nil {
-		utils.Log().Debug("session is closed")
+		server_log.Debug("session is closed")
 		abortUpgrade(ctx, BAD_REQUEST, nil)
 		return
 	}
@@ -242,48 +243,38 @@ func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.
 		session.CloseWithError(0, "")
 	}, s.Opts().UpgradeTimeout())
 
-	wtc := webtrans.NewConn(session, stream, true, 1024, 1024, nil, nil, nil)
+	wtc := webtrans.NewConn(session, stream, true, 0, 0, nil, nil, nil)
 	wtc.SetReadLimit(s.Opts().MaxHttpBufferSize())
+
+	ctx.WebTransport = wtc
 
 	mt, message, err := wtc.NextReader()
 	if err != nil {
-		utils.Log().Debug("stream is closed")
+		server_log.Debug("stream is closed: %s", err.Error())
 		abortUpgrade(ctx, BAD_REQUEST, nil)
 		return
 	}
 
 	var data _types.BufferInterface
 
-LOOP:
-	for {
-		switch mt {
-		case webtrans.BinaryMessage:
-			data = _types.NewBytesBuffer(nil)
-			if _, err := data.ReadFrom(message); err != nil {
-				utils.Log().Debug("WebTransport handshake data read failed: %s", err.Error())
-				abortUpgrade(ctx, BAD_REQUEST, nil)
-				return
-			}
-			break LOOP
-		case webtrans.TextMessage:
-			data = _types.NewStringBuffer(nil)
-			if _, err := data.ReadFrom(message); err != nil {
-				utils.Log().Debug("WebTransport handshake data read failed: %s", err.Error())
-				abortUpgrade(ctx, BAD_REQUEST, nil)
-				return
-			}
-			break LOOP
-		case webtrans.CloseMessage:
-			utils.Log().Debug("stream is closed")
-			if c, ok := message.(io.Closer); ok {
-				c.Close()
-			}
+	switch mt {
+	case webtrans.BinaryMessage:
+		data = _types.NewBytesBuffer(nil)
+		if _, err := data.ReadFrom(message); err != nil {
+			server_log.Debug("WebTransport handshake data read failed: %s", err.Error())
+			abortUpgrade(ctx, BAD_REQUEST, nil)
 			return
-		case webtrans.PingMessage, webtrans.PongMessage:
 		}
-		if c, ok := message.(io.Closer); ok {
-			c.Close()
+	case webtrans.TextMessage:
+		data = _types.NewStringBuffer(nil)
+		if _, err := data.ReadFrom(message); err != nil {
+			server_log.Debug("WebTransport handshake data read failed: %s", err.Error())
+			abortUpgrade(ctx, BAD_REQUEST, nil)
+			return
 		}
+	}
+	if c, ok := message.(io.Closer); ok {
+		c.Close()
 	}
 
 	utils.ClearTimeout(timeout)
@@ -308,13 +299,12 @@ LOOP:
 		return
 	}
 
-	var wth webTransportHandshake
+	var wth *webTransportHandshake
 	if json.NewDecoder(value.Data).Decode(&wth) != nil {
 		server_log.Debug("invalid WebTransport handshake")
 		abortUpgrade(ctx, BAD_REQUEST, nil)
 		return
 	}
-	ctx.WebTransport = wtc
 
 	if len(wth.Sid) == 0 {
 		server_log.Debug("invalid WebTransport handshake")
@@ -416,7 +406,6 @@ func abortUpgrade(ctx *types.HttpContext, errorCode int, errorContext map[string
 		server_log.Debug("ignoring error from closed connection")
 	})
 
-	server_log.Debug("abortUpgrade %d, %v", errorCode, errorContext)
 	message := errorMessages[errorCode]
 	if errorContext != nil {
 		if m, ok := errorContext["message"]; ok {

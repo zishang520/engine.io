@@ -34,7 +34,7 @@ func MakeWebTransport() WebTransport {
 }
 
 func NewWebTransport(ctx *types.HttpContext) WebTransport {
-	w := MakeWebSocket()
+	w := MakeWebTransport()
 
 	w.Construct(ctx)
 
@@ -93,14 +93,6 @@ func (w *webTransport) _init() {
 			} else {
 				w.onMessage(read)
 			}
-		case webtransport.CloseMessage:
-			w.OnClose()
-			if c, ok := message.(io.Closer); ok {
-				c.Close()
-			}
-			return
-		case webtransport.PingMessage:
-		case webtransport.PongMessage:
 		}
 		if c, ok := message.(io.Closer); ok {
 			c.Close()
@@ -141,12 +133,12 @@ func (w *webTransport) Send(packets []*packet.Packet) {
 				}
 				pm, err := webtransport.NewPreparedMessage(mt, packet.Options.WsPreEncodedFrame.Bytes())
 				if err != nil {
-					ws_log.Debug(`Send Error "%s"`, err.Error())
+					wt_log.Debug(`Send Error "%s"`, err.Error())
 					w.OnError("write error", err)
 					return
 				}
 				if err := w.session.WritePreparedMessage(pm); err != nil {
-					ws_log.Debug(`Send Error "%s"`, err.Error())
+					wt_log.Debug(`Send Error "%s"`, err.Error())
 					w.OnError("write error", err)
 					return
 				}
@@ -157,7 +149,7 @@ func (w *webTransport) Send(packets []*packet.Packet) {
 
 		data, err := w.Parser().EncodePacket(packet, w.SupportsBinary())
 		if err != nil {
-			ws_log.Debug(`Send Error "%s"`, err.Error())
+			wt_log.Debug(`Send Error "%s"`, err.Error())
 			w.OnError("write error", err)
 			return
 		}
@@ -171,9 +163,9 @@ func (w *webTransport) write(data _types.BufferInterface, compress bool) {
 			compress = false
 		}
 	}
-	ws_log.Debug(`writing "%s"`, data)
+	wt_log.Debug(`writing "%s"`, data)
 
-	w.session.EnableWriteCompression(compress)
+	// w.session.EnableWriteCompression(compress)
 	mt := webtransport.BinaryMessage
 	if _, ok := data.(*_types.StringBuffer); ok {
 		mt = webtransport.TextMessage

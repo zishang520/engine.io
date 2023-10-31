@@ -11,13 +11,13 @@ import (
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io-go-parser/parser"
 	_types "github.com/zishang520/engine.io-go-parser/types"
-	"github.com/zishang520/engine.io/config"
-	"github.com/zishang520/engine.io/errors"
-	"github.com/zishang520/engine.io/events"
-	"github.com/zishang520/engine.io/transports"
-	"github.com/zishang520/engine.io/types"
-	"github.com/zishang520/engine.io/utils"
-	webtrans "github.com/zishang520/engine.io/webtransport"
+	"github.com/zishang520/engine.io/v2/config"
+	"github.com/zishang520/engine.io/v2/errors"
+	"github.com/zishang520/engine.io/v2/events"
+	"github.com/zishang520/engine.io/v2/transports"
+	"github.com/zishang520/engine.io/v2/types"
+	"github.com/zishang520/engine.io/v2/utils"
+	webtrans "github.com/zishang520/engine.io/v2/webtransport"
 )
 
 type server struct {

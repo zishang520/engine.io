@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/zishang520/engine.io/utils"
+	"github.com/zishang520/engine.io/v2/utils"
 )
 
 type (

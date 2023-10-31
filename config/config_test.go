@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zishang520/engine.io/types"
+	"github.com/zishang520/engine.io/v2/types"
 )
 
 func TestAttachOptionsDefauleValue(t *testing.T) {

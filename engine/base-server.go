@@ -5,13 +5,13 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/zishang520/engine.io/config"
-	"github.com/zishang520/engine.io/errors"
-	"github.com/zishang520/engine.io/events"
-	"github.com/zishang520/engine.io/log"
-	"github.com/zishang520/engine.io/transports"
-	"github.com/zishang520/engine.io/types"
-	"github.com/zishang520/engine.io/utils"
+	"github.com/zishang520/engine.io/v2/config"
+	"github.com/zishang520/engine.io/v2/errors"
+	"github.com/zishang520/engine.io/v2/events"
+	"github.com/zishang520/engine.io/v2/log"
+	"github.com/zishang520/engine.io/v2/transports"
+	"github.com/zishang520/engine.io/v2/types"
+	"github.com/zishang520/engine.io/v2/utils"
 )
 
 // Protocol errors mappings.

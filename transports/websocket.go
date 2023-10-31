@@ -7,8 +7,8 @@ import (
 	ws "github.com/gorilla/websocket"
 	"github.com/zishang520/engine.io-go-parser/packet"
 	_types "github.com/zishang520/engine.io-go-parser/types"
-	"github.com/zishang520/engine.io/log"
-	"github.com/zishang520/engine.io/types"
+	"github.com/zishang520/engine.io/v2/log"
+	"github.com/zishang520/engine.io/v2/types"
 )
 
 var ws_log = log.NewLog("engine:ws")

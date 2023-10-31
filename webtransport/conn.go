@@ -21,9 +21,7 @@ import (
 )
 
 const (
-	maxFrameHeaderSize = 1 + 8 // Fixed header + length + mask
-
-	writeWait = time.Second
+	maxFrameHeaderSize = 1 + 8 // Fixed header + length
 
 	defaultReadBufferSize  = 4096
 	defaultWriteBufferSize = 4096

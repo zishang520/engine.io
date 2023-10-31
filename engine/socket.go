@@ -9,11 +9,11 @@ import (
 
 	"github.com/zishang520/engine.io-go-parser/packet"
 	_types "github.com/zishang520/engine.io-go-parser/types"
-	"github.com/zishang520/engine.io/events"
-	"github.com/zishang520/engine.io/log"
-	"github.com/zishang520/engine.io/transports"
-	"github.com/zishang520/engine.io/types"
-	"github.com/zishang520/engine.io/utils"
+	"github.com/zishang520/engine.io/v2/events"
+	"github.com/zishang520/engine.io/v2/log"
+	"github.com/zishang520/engine.io/v2/transports"
+	"github.com/zishang520/engine.io/v2/types"
+	"github.com/zishang520/engine.io/v2/utils"
 )
 
 var socket_log = log.NewLog("engine:socket")

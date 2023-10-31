@@ -4,8 +4,8 @@ import (
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io-go-parser/parser"
 	_types "github.com/zishang520/engine.io-go-parser/types"
-	"github.com/zishang520/engine.io/events"
-	"github.com/zishang520/engine.io/types"
+	"github.com/zishang520/engine.io/v2/events"
+	"github.com/zishang520/engine.io/v2/types"
 )
 
 type (

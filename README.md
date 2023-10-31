@@ -1,7 +1,7 @@
 # Engine.IO: the realtime engine for golang
 
 [![Build Status](https://github.com/zishang520/engine.io/workflows/Go/badge.svg?branch=main)](https://github.com/zishang520/engine.io/actions)
-[![GoDoc](https://pkg.go.dev/badge/github.com/zishang520/engine.io?utm_source=godoc)](https://pkg.go.dev/github.com/zishang520/engine.io)
+[![GoDoc](https://pkg.go.dev/badge/github.com/zishang520/engine.io/v2?utm_source=godoc)](https://pkg.go.dev/github.com/zishang520/engine.io/v2)
 
 `Engine.IO` is the implementation of transport-based
 cross-browser/cross-device bi-directional communication layer for
@@ -23,10 +23,10 @@ import (
     "syscall"
 
     _types "github.com/zishang520/engine.io-go-parser/types"
-    "github.com/zishang520/engine.io/config"
-    "github.com/zishang520/engine.io/engine"
-    "github.com/zishang520/engine.io/types"
-    "github.com/zishang520/engine.io/utils"
+    "github.com/zishang520/engine.io/v2/config"
+    "github.com/zishang520/engine.io/v2/engine"
+    "github.com/zishang520/engine.io/v2/types"
+    "github.com/zishang520/engine.io/v2/utils"
 )
 
 func main() {
@@ -81,10 +81,10 @@ import (
     "os/signal"
     "syscall"
 
-    "github.com/zishang520/engine.io/config"
-    "github.com/zishang520/engine.io/engine"
-    "github.com/zishang520/engine.io/types"
-    "github.com/zishang520/engine.io/utils"
+    "github.com/zishang520/engine.io/v2/config"
+    "github.com/zishang520/engine.io/v2/engine"
+    "github.com/zishang520/engine.io/v2/types"
+    "github.com/zishang520/engine.io/v2/utils"
 )
 
 func main() {
@@ -141,10 +141,10 @@ import (
     "syscall"
 
     "github.com/gorilla/websocket"
-    "github.com/zishang520/engine.io/config"
-    "github.com/zishang520/engine.io/engine"
-    "github.com/zishang520/engine.io/types"
-    "github.com/zishang520/engine.io/utils"
+    "github.com/zishang520/engine.io/v2/config"
+    "github.com/zishang520/engine.io/v2/engine"
+    "github.com/zishang520/engine.io/v2/types"
+    "github.com/zishang520/engine.io/v2/utils"
 )
 
 func main() {
@@ -210,10 +210,10 @@ import (
     "os/signal"
     "syscall"
 
-    "github.com/zishang520/engine.io/config"
-    "github.com/zishang520/engine.io/engine"
-    "github.com/zishang520/engine.io/types"
-    "github.com/zishang520/engine.io/utils"
+    "github.com/zishang520/engine.io/v2/config"
+    "github.com/zishang520/engine.io/v2/engine"
+    "github.com/zishang520/engine.io/v2/types"
+    "github.com/zishang520/engine.io/v2/utils"
 )
 
 func main() {
@@ -262,6 +262,84 @@ func main() {
 }
 ```
 
+#### (E) Passing in requests (WebTransport)
+
+```go
+package main
+
+import (
+    "net/http"
+    "os"
+    "os/signal"
+    "syscall"
+
+    "github.com/gorilla/websocket"
+    "github.com/zishang520/engine.io/v2/config"
+    "github.com/zishang520/engine.io/v2/engine"
+    "github.com/zishang520/engine.io/v2/types"
+    "github.com/zishang520/engine.io/v2/utils"
+    "github.com/zishang520/engine.io/v2/webtransport"
+)
+
+func main() {
+    serverOptions := &config.ServerOptions{}
+    serverOptions.SetAllowEIO3(true)
+    serverOptions.SetCors(&types.Cors{
+        Origin:      "*",
+        Credentials: true,
+    })
+    // serverOptions.SetTransports(types.NewSet("polling", "webtransport"))
+    serverOptions.SetTransports(types.NewSet("polling", "websocket", "webtransport"))
+
+    httpServer := types.NewWebServer(nil)
+    httpServer.ListenTLS(":443", "server.crt", "server.key", nil)
+    wts := httpServer.ListenWebTransportTLS(":443", "server.crt", "server.key", nil, nil)
+
+    engineServer := engine.New(serverOptions)
+
+    httpServer.HandleFunc("/engine.io/", func(w http.ResponseWriter, r *http.Request) {
+        if webtransport.IsWebTransportUpgrade(r) {
+            engineServer.OnWebTransportSession(types.NewHttpContext(w, r), wts)
+        } else if !websocket.IsWebSocketUpgrade(r) {
+            engineServer.HandleRequest(types.NewHttpContext(w, r))
+        } else if engineServer.Opts().Transports().Has("websocket") {
+            engineServer.HandleUpgrade(types.NewHttpContext(w, r))
+        } else {
+            httpServer.DefaultHandler.ServeHTTP(w, r)
+        }
+    })
+
+    engineServer.On("connection", func(sockets ...any) {
+        socket := sockets[0].(engine.Socket)
+        socket.On("message", func(...any) {
+        })
+        socket.On("close", func(...any) {
+            utils.Log().Println("client close.")
+        })
+    })
+    utils.Log().Println("%v", engineServer)
+
+    exit := make(chan struct{})
+    SignalC := make(chan os.Signal)
+
+    signal.Notify(SignalC, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+    go func() {
+        for s := range SignalC {
+            switch s {
+            case os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
+                close(exit)
+                return
+            }
+        }
+    }()
+
+    <-exit
+    engineServer.Close()
+    httpServer.Close(nil)
+    os.Exit(0)
+}
+```
+
 ### Client
 
 ```html
@@ -290,7 +368,7 @@ For more information on the client refer to the
 
 #### Top-level
 
-These are exposed by `import "github.com/zishang520/engine.io/engine"`:
+These are exposed by `import "github.com/zishang520/engine.io/v2/engine"`:
 
 ##### Events
 
@@ -323,9 +401,9 @@ These are exposed by `import "github.com/zishang520/engine.io/engine"`:
   The following are identical ways to instantiate a server and then attach it.
 
 ```go
-import "github.com/zishang520/engine.io/config"
-import "github.com/zishang520/engine.io/engine"
-import "github.com/zishang520/engine.io/types"
+import "github.com/zishang520/engine.io/v2/config"
+import "github.com/zishang520/engine.io/v2/engine"
+import "github.com/zishang520/engine.io/v2/types"
 
 var httpServer *types.HttpServer // previously created with `types.NewWebServer(nil);`.
 var eioServer engine.Server
@@ -361,8 +439,8 @@ eioServer = engine.New(httpServer, c)
     - **Returns** `engine.Server`
 
 ```go
-import "github.com/zishang520/engine.io/engine"
-import "github.com/zishang520/engine.io/config"
+import "github.com/zishang520/engine.io/v2/engine"
+import "github.com/zishang520/engine.io/v2/config"
 
 c := &config.ServerOptions{}
 c.SetPingTimeout(2000)
@@ -462,7 +540,7 @@ to a single process.
       - `SetCookie(*http.Cookie)`: configuration of the cookie that
         contains the client sid to send as part of handshake response
         headers. This cookie might be used for sticky-session. Defaults to not sending any cookie (`nil`).
-      - `SetCors(*types.Cors)`: the options that will be forwarded to the cors module. See [there](https://pkg.go.dev/github.com/zishang520/engine.io/types#Cors) for all available options. Defaults to no CORS allowed.
+      - `SetCors(*types.Cors)`: the options that will be forwarded to the cors module. See [there](https://pkg.go.dev/github.com/zishang520/engine.io/v2/types#Cors) for all available options. Defaults to no CORS allowed.
       - `SetInitialPacket(io.Reader)`: an optional packet which will be concatenated to the handshake packet emitted by Engine.IO.
       - `SetAllowEIO3(bool)`: whether to support v3 Engine.IO clients (defaults to `false`)
 - `Close`
@@ -583,6 +661,7 @@ DEBUG=engine*
 
 - `polling`: XHR / JSONP polling transport.
 - `websocket`: WebSocket transport.
+- `webtransport`: WebTransport transport.
 
 ## Tests
 
@@ -593,7 +672,7 @@ Tests run with `make test`.
 
 MIT License
 
-Copyright (c) 2022 luoyy
+Copyright (c) 2023 luoyy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/zishang520/engine.io/log"
+	"github.com/zishang520/engine.io/v2/log"
 )
 
 var _log = log.NewLog("")

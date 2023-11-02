@@ -3,14 +3,15 @@ package types
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/webtransport-go"
+	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
 )
 
@@ -75,37 +76,40 @@ func (s *HttpServer) webtransportServer(addr string, handler http.Handler) *webt
 	return server
 }
 
-func (s *HttpServer) Close(fn Callable) error {
+func (s *HttpServer) Close(fn func(error)) (err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	s.Emit("close")
+
 	if s.servers != nil {
-		s.Emit("close")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
+		var closingErr, serverErr error
 		for _, server := range s.servers {
-			switch s := server.(type) {
+			switch srv := server.(type) {
 			case *http.Server:
-				if err := s.Shutdown(ctx); err != nil {
-					return err
-				}
+				serverErr = srv.Shutdown(context.Background())
 			case *http3.Server:
-				if err := s.Close(); err != nil {
-					return err
-				}
+				serverErr = srv.Close()
 			case *webtransport.Server:
-				if err := s.Close(); err != nil {
-					return err
-				}
+				serverErr = srv.Close()
+			default:
+				serverErr = errors.New("unknown server type")
+			}
+			if serverErr != nil && closingErr == nil {
+				closingErr = serverErr
 			}
 		}
-		if fn != nil {
-			defer fn()
+
+		if closingErr != nil {
+			err = fmt.Errorf("error occurred while closing servers: %v", closingErr)
 		}
 	}
-	return nil
+
+	if fn != nil {
+		defer fn(err)
+	}
+
+	return err
 }
 
 func (s *HttpServer) Listen(addr string, fn Callable) *http.Server {

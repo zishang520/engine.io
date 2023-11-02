@@ -243,7 +243,7 @@ func (c *cors) applyHeaders() *cors {
 	return c
 }
 
-func corsMiddleware(options *Cors, ctx *HttpContext, next func(error)) {
+func CorsMiddleware(options *Cors, ctx *HttpContext, next func(error)) {
 	c := &cors{
 		options: options,
 		ctx:     ctx,
@@ -298,7 +298,7 @@ func MiddlewareWrapper(options *Cors) func(*HttpContext, func(error)) {
 		if options.Origin == nil {
 			next(nil)
 		} else {
-			corsMiddleware(options, ctx, next)
+			CorsMiddleware(options, ctx, next)
 		}
 	}
 }

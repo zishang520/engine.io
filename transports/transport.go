@@ -171,10 +171,6 @@ func (t *transport) SetMaxHttpBufferSize(maxHttpBufferSize int64) {
 func (t *transport) Construct(ctx *types.HttpContext) {
 	t.SetReadyState("open")
 
-	t.mu_discarded.Lock()
-	t._discarded = false
-	t.mu_discarded.Unlock()
-
 	if eio, ok := ctx.Query().Get("EIO"); ok && eio == "4" {
 		t.parser = parser.Parserv4()
 	} else {

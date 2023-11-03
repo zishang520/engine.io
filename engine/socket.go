@@ -116,7 +116,14 @@ func (s *socket) SetReadyState(state string) {
 
 // Client class.
 func MakeSocket() Socket {
-	s := &socket{EventEmitter: events.New()}
+	s := &socket{
+		EventEmitter: events.New(),
+
+		writeBuffer:    []*packet.Packet{},
+		packetsFn:      []func(transports.Transport){},
+		sentCallbackFn: []any{},
+		cleanupFn:      []types.Callable{},
+	}
 
 	return s
 }
@@ -132,23 +139,8 @@ func NewSocket(id string, server BaseServer, transport transports.Transport, ctx
 
 func (s *socket) Construct(id string, server BaseServer, transport transports.Transport, ctx *types.HttpContext, protocol int) {
 	s.id = id
-
 	s.server = server
-
-	s.muupgrading.Lock()
-	s.upgrading = false
-	s.muupgrading.Unlock()
-
-	s.muupgraded.Lock()
-	s.upgraded = false
-	s.muupgraded.Unlock()
-
 	s.SetReadyState("opening")
-
-	s.writeBuffer = []*packet.Packet{}
-	s.packetsFn = []func(transports.Transport){}
-	s.sentCallbackFn = []any{}
-	s.cleanupFn = []types.Callable{}
 	s.request = ctx
 	s.protocol = protocol
 
@@ -160,11 +152,6 @@ func (s *socket) Construct(id string, server BaseServer, transport transports.Tr
 	} else {
 		s.remoteAddress = ctx.Request().RemoteAddr
 	}
-
-	s.checkIntervalTimer = nil
-	s.upgradeTimeoutTimer = nil
-	s.pingTimeoutTimer = nil
-	s.pingIntervalTimer = nil
 
 	s.setTransport(transport)
 	s.onOpen()

@@ -55,8 +55,15 @@ type baseServer struct {
 }
 
 func MakeBaseServer() BaseServer {
-	baseServer := &baseServer{EventEmitter: events.New()}
+	baseServer := &baseServer{
+		EventEmitter: events.New(),
+
+		clientsCount: 0,
+		clients:      &types.Map[string, Socket]{},
+	}
+
 	baseServer.Prototype(baseServer)
+
 	return baseServer
 }
 
@@ -87,10 +94,6 @@ func (bs *baseServer) Middlewares() []Middleware {
 // BaseServer build.
 func (bs *baseServer) Construct(opt any) {
 	opts, _ := opt.(config.ServerOptionsInterface)
-
-	bs.clients = &types.Map[string, Socket]{}
-	atomic.StoreUint64(&bs.clientsCount, 0)
-
 	bs.opts = config.DefaultServerOptions().Assign(opts)
 
 	if opts != nil {

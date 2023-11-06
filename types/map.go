@@ -153,6 +153,26 @@ func (m *Map[TKey, TValue]) Store(key TKey, value TValue) {
 	_, _ = m.Swap(key, value)
 }
 
+// Clear deletes all the keys.
+func (m *Map[TKey, TValue]) Clear() {
+	read := m.loadReadOnly()
+	if len(read.m) == 0 && !read.amended {
+		// Avoid allocating a new readOnly when the map is already clear.
+		return
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	read = m.loadReadOnly()
+	if len(read.m) > 0 || read.amended {
+		m.read.Store(&readOnly[TKey, TValue]{})
+	}
+
+	clear(m.dirty)
+	m.misses = 0 // Don't immediately promote the newly-cleared dirty map on the next operation
+}
+
 // tryCompareAndSwap compare the entry with the given old value and swaps
 // it with a new value if the entry is equal to the old value, and the entry
 // has not been expunged.

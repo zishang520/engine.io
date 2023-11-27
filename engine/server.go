@@ -29,7 +29,7 @@ type server struct {
 }
 
 // new server.
-func MakeServer(opt any) Server {
+func MakeServer() Server {
 	s := &server{BaseServer: MakeBaseServer()}
 
 	s.Prototype(s)
@@ -39,7 +39,7 @@ func MakeServer(opt any) Server {
 
 // create server.
 func NewServer(opt any) Server {
-	s := MakeServer(opt)
+	s := MakeServer()
 
 	s.Construct(opt)
 

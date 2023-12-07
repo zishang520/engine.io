@@ -32,22 +32,18 @@ type socket struct {
 
 	// This is the session identifier that the client will use in the subsequent HTTP requests. It must not be shared with
 	// others parties, as it might lead to session hijacking.
-	id                    string
-	server                BaseServer
-	upgrading             bool
-	upgraded              bool
-	writeBuffer           []*packet.Packet
-	packetsFn             []func(transports.Transport)
-	sentCallbackFn        []any
-	cleanupFn             []types.Callable
-	checkIntervalTimer    *utils.Timer
-	mucheckIntervalTimer  sync.Mutex
-	upgradeTimeoutTimer   *utils.Timer
-	muupgradeTimeoutTimer sync.RWMutex
-	pingTimeoutTimer      *utils.Timer
-	mupingTimeoutTimer    sync.RWMutex
-	pingIntervalTimer     *utils.Timer
-	mupingIntervalTimer   sync.RWMutex
+	id                  string
+	server              BaseServer
+	upgrading           bool
+	upgraded            bool
+	writeBuffer         []*packet.Packet
+	packetsFn           []func(transports.Transport)
+	sentCallbackFn      []any
+	cleanupFn           []types.Callable
+	pingTimeoutTimer    *utils.Timer
+	mupingTimeoutTimer  sync.RWMutex
+	pingIntervalTimer   *utils.Timer
+	mupingIntervalTimer sync.RWMutex
 
 	mureadyState     sync.RWMutex
 	muupgrading      sync.RWMutex
@@ -119,6 +115,8 @@ func MakeSocket() Socket {
 	s := &socket{
 		EventEmitter: events.New(),
 
+		readyState: "opening",
+
 		writeBuffer:    []*packet.Packet{},
 		packetsFn:      []func(transports.Transport){},
 		sentCallbackFn: []any{},
@@ -140,7 +138,6 @@ func NewSocket(id string, server BaseServer, transport transports.Transport, ctx
 func (s *socket) Construct(id string, server BaseServer, transport transports.Transport, ctx *types.HttpContext, protocol int) {
 	s.id = id
 	s.server = server
-	s.SetReadyState("opening")
 	s.request = ctx
 	s.protocol = protocol
 
@@ -319,6 +316,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 
 	var check, cleanup func()
 	var onPacket, onError, onTransportClose, onClose events.Listener
+	var upgradeTimeoutTimer, checkIntervalTimer *utils.Timer
 
 	onPacket = func(datas ...any) {
 		data := datas[0].(*packet.Packet)
@@ -329,10 +327,8 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 			transport.Send([]*packet.Packet{{Type: packet.PONG, Data: strings.NewReader("probe")}})
 			s.Emit("upgrading", transport)
 
-			s.mucheckIntervalTimer.Lock()
-			utils.ClearInterval(s.checkIntervalTimer)
-			s.checkIntervalTimer = utils.SetInterval(check, 100*time.Millisecond)
-			s.mucheckIntervalTimer.Unlock()
+			utils.ClearInterval(checkIntervalTimer)
+			checkIntervalTimer = utils.SetInterval(check, 100*time.Millisecond)
 
 		} else if packet.UPGRADE == data.Type && s.ReadyState() != "closed" {
 			socket_log.Debug("got upgrade packet - upgrading")
@@ -371,15 +367,8 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		s.upgrading = false
 		s.muupgrading.Unlock()
 
-		s.mucheckIntervalTimer.Lock()
-		utils.ClearInterval(s.checkIntervalTimer)
-		s.checkIntervalTimer = nil
-		s.mucheckIntervalTimer.Unlock()
-
-		s.muupgradeTimeoutTimer.Lock()
-		utils.ClearTimeout(s.upgradeTimeoutTimer)
-		s.upgradeTimeoutTimer = nil
-		s.muupgradeTimeoutTimer.Unlock()
+		utils.ClearInterval(checkIntervalTimer)
+		utils.ClearTimeout(upgradeTimeoutTimer)
 
 		if transport != nil {
 			transport.RemoveListener("packet", onPacket)
@@ -407,8 +396,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	}
 
 	// set transport upgrade timer
-	s.muupgradeTimeoutTimer.Lock()
-	s.upgradeTimeoutTimer = utils.SetTimeout(func() {
+	upgradeTimeoutTimer = utils.SetTimeout(func() {
 		socket_log.Debug("client did not complete upgrade - closing transport")
 		cleanup()
 		if transport != nil {
@@ -417,7 +405,6 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 			}
 		}
 	}, s.server.Opts().UpgradeTimeout())
-	s.muupgradeTimeoutTimer.Unlock()
 
 	transport.On("packet", onPacket)
 	transport.Once("close", onTransportClose)
@@ -464,15 +451,6 @@ func (s *socket) OnClose(reason string, description ...any) {
 		s.mupingTimeoutTimer.RLock()
 		utils.ClearTimeout(s.pingTimeoutTimer)
 		s.mupingTimeoutTimer.RUnlock()
-
-		s.mucheckIntervalTimer.Lock()
-		utils.ClearInterval(s.checkIntervalTimer)
-		s.checkIntervalTimer = nil
-		s.mucheckIntervalTimer.Unlock()
-
-		s.muupgradeTimeoutTimer.RLock()
-		utils.ClearTimeout(s.upgradeTimeoutTimer)
-		s.muupgradeTimeoutTimer.RUnlock()
 
 		// clean writeBuffer in defer, so developers can still
 		// grab the writeBuffer on 'close' event

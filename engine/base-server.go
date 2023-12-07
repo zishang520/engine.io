@@ -324,12 +324,6 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 		transport.SetMaxHttpBufferSize(bs.opts.MaxHttpBufferSize())
 	}
 
-	if ctx.Query().Has("b64") {
-		transport.SetSupportsBinary(false)
-	} else {
-		transport.SetSupportsBinary(true)
-	}
-
 	socket := NewSocket(id, bs, transport, ctx, protocol)
 
 	transport.On("headers", func(args ...any) {

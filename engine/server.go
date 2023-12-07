@@ -201,11 +201,6 @@ func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 			server_log.Debug("upgrading not existing transport")
 			wsc.Close()
 		} else {
-			if ctx.Query().Has("b64") {
-				transport.SetSupportsBinary(false)
-			} else {
-				transport.SetSupportsBinary(true)
-			}
 			transport.SetPerMessageDeflate(s.Opts().PerMessageDeflate())
 			client.MaybeUpgrade(transport)
 		}
@@ -331,11 +326,6 @@ func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.
 			server_log.Debug("upgrading not existing transport")
 			session.CloseWithError(0, "")
 		} else {
-			if ctx.Query().Has("b64") {
-				transport.SetSupportsBinary(false)
-			} else {
-				transport.SetSupportsBinary(true)
-			}
 			transport.SetPerMessageDeflate(s.Opts().PerMessageDeflate())
 			client.MaybeUpgrade(transport)
 		}

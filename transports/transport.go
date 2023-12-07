@@ -45,7 +45,11 @@ type transport struct {
 }
 
 func MakeTransport() Transport {
-	t := &transport{EventEmitter: events.New()}
+	t := &transport{
+		EventEmitter: events.New(),
+
+		_readyState: "open",
+	}
 
 	t.Prototype(t)
 
@@ -169,8 +173,6 @@ func (t *transport) SetMaxHttpBufferSize(maxHttpBufferSize int64) {
 
 // Transport Construct.
 func (t *transport) Construct(ctx *types.HttpContext) {
-	t.SetReadyState("open")
-
 	if eio, ok := ctx.Query().Get("EIO"); ok && eio == "4" {
 		t.parser = parser.Parserv4()
 	} else {
@@ -178,6 +180,7 @@ func (t *transport) Construct(ctx *types.HttpContext) {
 	}
 
 	t.protocol = t.parser.Protocol()
+	t.supportsBinary = !ctx.Query().Has("b64")
 }
 
 // Flags the transport as discarded.

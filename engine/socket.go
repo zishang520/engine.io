@@ -317,6 +317,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	var check, cleanup func()
 	var onPacket, onError, onTransportClose, onClose events.Listener
 	var upgradeTimeoutTimer, checkIntervalTimer *utils.Timer
+	var mu_upgradeTimeoutTimer, mu_checkIntervalTimer sync.RWMutex
 
 	onPacket = func(datas ...any) {
 		data := datas[0].(*packet.Packet)
@@ -327,8 +328,10 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 			transport.Send([]*packet.Packet{{Type: packet.PONG, Data: strings.NewReader("probe")}})
 			s.Emit("upgrading", transport)
 
+			mu_checkIntervalTimer.Lock()
 			utils.ClearInterval(checkIntervalTimer)
 			checkIntervalTimer = utils.SetInterval(check, 100*time.Millisecond)
+			mu_checkIntervalTimer.Unlock()
 
 		} else if packet.UPGRADE == data.Type && s.ReadyState() != "closed" {
 			socket_log.Debug("got upgrade packet - upgrading")
@@ -367,8 +370,12 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		s.upgrading = false
 		s.muupgrading.Unlock()
 
+		mu_checkIntervalTimer.RLock()
 		utils.ClearInterval(checkIntervalTimer)
+		mu_checkIntervalTimer.RUnlock()
+		mu_upgradeTimeoutTimer.RLock()
 		utils.ClearTimeout(upgradeTimeoutTimer)
+		mu_upgradeTimeoutTimer.RUnlock()
 
 		if transport != nil {
 			transport.RemoveListener("packet", onPacket)
@@ -395,6 +402,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		onError("socket closed")
 	}
 
+	mu_upgradeTimeoutTimer.Lock()
 	// set transport upgrade timer
 	upgradeTimeoutTimer = utils.SetTimeout(func() {
 		socket_log.Debug("client did not complete upgrade - closing transport")
@@ -405,6 +413,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 			}
 		}
 	}, s.server.Opts().UpgradeTimeout())
+	mu_upgradeTimeoutTimer.Unlock()
 
 	transport.On("packet", onPacket)
 	transport.Once("close", onTransportClose)

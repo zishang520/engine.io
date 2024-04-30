@@ -174,7 +174,7 @@ func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string
 
 	server := s.h3Server(s)
 	server.TLSConfig = config
-	server.QuicConfig = quicConfig
+	server.QUICConfig = quicConfig
 
 	go func() {
 		defer udpConn.Close()
@@ -215,7 +215,7 @@ func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string
 
 func (s *HttpServer) ListenWebTransportTLS(addr string, certFile string, keyFile string, quicConfig *quic.Config, fn Callable) *webtransport.Server {
 	server := s.webtransportServer(addr, s)
-	server.H3.QuicConfig = quicConfig
+	server.H3.QUICConfig = quicConfig
 
 	go func() {
 		if err := server.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {

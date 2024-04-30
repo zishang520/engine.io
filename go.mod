@@ -9,7 +9,7 @@ require (
 	github.com/quic-go/quic-go v0.43.0
 	github.com/quic-go/webtransport-go v0.8.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
-	github.com/zishang520/engine.io-go-parser v1.2.3
+	github.com/zishang520/engine.io-go-parser v1.2.4
 )
 
 require (

@@ -74,9 +74,9 @@ func (w *websocket) _init() {
 		mt, message, err := w.socket.NextReader()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err) {
-				w.OnClose()
+				w.socket.Emit("close")
 			} else {
-				w.OnError("Error reading data", err)
+				w.socket.Emit("error", err)
 			}
 			return
 		}
@@ -85,19 +85,19 @@ func (w *websocket) _init() {
 		case ws.BinaryMessage:
 			read := _types.NewBytesBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
-				w.OnError("Error reading data", err)
+				w.socket.Emit("error", err)
 			} else {
 				w.onMessage(read)
 			}
 		case ws.TextMessage:
 			read := _types.NewStringBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
-				w.OnError("Error reading data", err)
+				w.socket.Emit("error", err)
 			} else {
 				w.onMessage(read)
 			}
 		case ws.CloseMessage:
-			w.OnClose()
+			w.socket.Emit("close")
 			if c, ok := message.(io.Closer); ok {
 				c.Close()
 			}
@@ -145,12 +145,12 @@ func (w *websocket) Send(packets []*packet.Packet) {
 				pm, err := ws.NewPreparedMessage(mt, packet.Options.WsPreEncodedFrame.Bytes())
 				if err != nil {
 					ws_log.Debug(`Send Error "%s"`, err.Error())
-					w.OnError("write error", err)
+					w.socket.Emit("error", err)
 					return
 				}
 				if err := w.socket.WritePreparedMessage(pm); err != nil {
 					ws_log.Debug(`Send Error "%s"`, err.Error())
-					w.OnError("write error", err)
+					w.socket.Emit("error", err)
 					return
 				}
 				return
@@ -161,7 +161,7 @@ func (w *websocket) Send(packets []*packet.Packet) {
 		data, err := w.Parser().EncodePacket(packet, w.SupportsBinary())
 		if err != nil {
 			ws_log.Debug(`Send Error "%s"`, err.Error())
-			w.OnError("write error", err)
+			w.socket.Emit("error", err)
 			return
 		}
 		w.write(data, compress)
@@ -183,17 +183,17 @@ func (w *websocket) write(data _types.BufferInterface, compress bool) {
 	}
 	write, err := w.socket.NextWriter(mt)
 	if err != nil {
-		w.OnError("write error", err)
+		w.socket.Emit("error", err)
 		return
 	}
 	defer func() {
 		if err := write.Close(); err != nil {
-			w.OnError("write error", err)
+			w.socket.Emit("error", err)
 			return
 		}
 	}()
 	if _, err := io.Copy(write, data); err != nil {
-		w.OnError("write error", err)
+		w.socket.Emit("error", err)
 		return
 	}
 }

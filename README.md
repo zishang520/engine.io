@@ -13,7 +13,7 @@ cross-browser/cross-device bi-directional communication layer for
 
 #### (A) Listening on a port
 
-```go
+```golang
 package main
 
 import (
@@ -73,7 +73,7 @@ func main() {
 
 #### (B) Intercepting requests for a `*types.HttpServer`
 
-```go
+```golang
 package main
 
 import (
@@ -95,7 +95,8 @@ func main() {
         Credentials: true,
     })
 
-    httpServer := types.NewWebServer(nil).Listen("127.0.0.1:4444", nil)
+    httpServer := types.NewWebServer(nil)
+    httpServer.Listen("127.0.0.1:4444", nil)
 
     engineServer := engine.Attach(httpServer, serverOptions)
 
@@ -126,12 +127,11 @@ func main() {
     <-exit
     os.Exit(0)
 }
-
 ```
 
 #### (C) Passing in requests
 
-```go
+```golang
 package main
 
 import (
@@ -155,7 +155,8 @@ func main() {
         Credentials: true,
     })
 
-    httpServer := types.NewWebServer(nil).Listen("127.0.0.1:4444", nil)
+    httpServer := types.NewWebServer(nil)
+    httpServer.Listen("127.0.0.1:4444", nil)
 
     engineServer := engine.New(serverOptions)
 
@@ -197,11 +198,12 @@ func main() {
     httpServer.Close(nil)
     os.Exit(0)
 }
+
 ```
 
 #### (D) Passing in requests (http.Handler interface)
 
-```go
+```golang
 package main
 
 import (
@@ -264,7 +266,7 @@ func main() {
 
 #### (E) Passing in requests (WebTransport)
 
-```go
+```golang
 package main
 
 import (
@@ -400,7 +402,7 @@ These are exposed by `import "github.com/zishang520/engine.io/v2/engine"`:
 
   The following are identical ways to instantiate a server and then attach it.
 
-```go
+```golang
 import "github.com/zishang520/engine.io/v2/config"
 import "github.com/zishang520/engine.io/v2/engine"
 import "github.com/zishang520/engine.io/v2/types"
@@ -438,7 +440,7 @@ eioServer = engine.New(httpServer, c)
       - **Additionally** See Server `New` below for options you can pass for creating the new Server
     - **Returns** `engine.Server`
 
-```go
+```golang
 import "github.com/zishang520/engine.io/v2/engine"
 import "github.com/zishang520/engine.io/v2/config"
 

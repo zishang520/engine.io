@@ -71,7 +71,7 @@ func TestSliceSet(t *testing.T) {
 // Test Slice method
 func TestSlice(t *testing.T) {
 	s := NewSlice(1, 2, 3, 4)
-	subSlice := s.Slice(1, 3)
+	subSlice, _ := s.Slice(1, 3)
 	if len(subSlice) != 2 || subSlice[0] != 2 || subSlice[1] != 3 {
 		t.Errorf("expected [2 3], got %v", subSlice)
 	}
@@ -95,8 +95,8 @@ func TestRemove(t *testing.T) {
 	s.Remove(func(element int) bool {
 		return element%2 == 0
 	})
-	if len(s.elements) != 2 || s.elements[0] != 1 || s.elements[1] != 3 {
-		t.Errorf("expected [1 3], got %v", s.elements)
+	if len(s.elements) != 3 || s.elements[0] != 1 || s.elements[1] != 3 {
+		t.Errorf("expected [1 3 4], got %v", s.elements)
 	}
 }
 

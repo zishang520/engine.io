@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
@@ -19,14 +18,15 @@ type HttpServer struct {
 	events.EventEmitter
 	*ServeMux
 
-	servers []any
-	mu      sync.RWMutex
+	servers *Slice[any]
 }
 
 func NewWebServer(defaultHandler http.Handler) *HttpServer {
 	s := &HttpServer{
 		EventEmitter: events.New(),
 		ServeMux:     NewServeMux(defaultHandler),
+
+		servers: NewSlice[any](),
 	}
 	return s
 }
@@ -37,32 +37,23 @@ func CreateServer(defaultHandler http.Handler) *HttpServer {
 }
 
 func (s *HttpServer) httpServer(addr string, handler http.Handler) *http.Server {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	server := &http.Server{Addr: addr, Handler: handler}
 
-	s.servers = append(s.servers, server)
+	s.servers.Push(server)
 
 	return server
 }
 
 func (s *HttpServer) h3Server(handler http.Handler) *http3.Server {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	// Start the servers
 	server := &http3.Server{Handler: handler}
 
-	s.servers = append(s.servers, server)
+	s.servers.Push(server)
 
 	return server
 }
 
 func (s *HttpServer) webtransportServer(addr string, handler http.Handler) *webtransport.Server {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	// Start the servers
 	server := &webtransport.Server{
 		H3: http3.Server{Addr: addr, Handler: handler},
@@ -71,38 +62,34 @@ func (s *HttpServer) webtransportServer(addr string, handler http.Handler) *webt
 		},
 	}
 
-	s.servers = append(s.servers, server)
+	s.servers.Push(server)
 
 	return server
 }
 
 func (s *HttpServer) Close(fn func(error)) (err error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	s.Emit("close")
 
-	if s.servers != nil {
-		var closingErr, serverErr error
-		for _, server := range s.servers {
-			switch srv := server.(type) {
-			case *http.Server:
-				serverErr = srv.Shutdown(context.Background())
-			case *http3.Server:
-				serverErr = srv.Close()
-			case *webtransport.Server:
-				serverErr = srv.Close()
-			default:
-				serverErr = errors.New("unknown server type")
-			}
-			if serverErr != nil && closingErr == nil {
-				closingErr = serverErr
-			}
+	var closingErr, serverErr error
+	s.servers.Range(func(server any, _ int) bool {
+		switch srv := server.(type) {
+		case *http.Server:
+			serverErr = srv.Shutdown(context.Background())
+		case *http3.Server:
+			serverErr = srv.Close()
+		case *webtransport.Server:
+			serverErr = srv.Close()
+		default:
+			serverErr = errors.New("unknown server type")
 		}
+		if serverErr != nil && closingErr == nil {
+			closingErr = serverErr
+		}
+		return true
+	})
 
-		if closingErr != nil {
-			err = fmt.Errorf("error occurred while closing servers: %v", closingErr)
-		}
+	if closingErr != nil {
+		err = fmt.Errorf("error occurred while closing servers: %v", closingErr)
 	}
 
 	if fn != nil {
@@ -183,7 +170,7 @@ func (s *HttpServer) ListenHTTP3TLS(addr string, certFile string, keyFile string
 		qErr := make(chan error)
 		go func() {
 			hErr <- s.httpServer(addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				server.SetQuicHeaders(w.Header())
+				server.SetQUICHeaders(w.Header())
 				s.ServeHTTP(w, r)
 			})).ListenAndServeTLS(certFile, keyFile)
 		}()

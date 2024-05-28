@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/andybalholm/brotli"
@@ -26,12 +27,10 @@ type polling struct {
 
 	closeTimeout time.Duration
 
-	dataCtx    *types.HttpContext
-	mu_dataCtx sync.RWMutex
+	dataCtx atomic.Pointer[types.HttpContext]
 
-	shouldClose    types.Callable
-	mu_shouldClose sync.RWMutex
-	musend         sync.Mutex
+	shouldClose atomic.Pointer[types.Callable]
+	mu          sync.Mutex
 }
 
 // HTTP polling New.
@@ -108,9 +107,8 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 	p.SetWritable(true)
 	p.Emit("drain")
 
-	p.mu_shouldClose.RLock()
 	// if we're still writable but had a pending close, trigger an empty send
-	if p.Writable() && p.shouldClose != nil {
+	if p.Writable() && p.shouldClose.Load() != nil {
 		polling_log.Debug("triggering empty send to append close packet")
 		p.Send([]*packet.Packet{
 			{
@@ -118,21 +116,17 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 			},
 		})
 	}
-	p.mu_shouldClose.RUnlock()
 }
 
 // The client sends a request with data.
 func (p *polling) onDataRequest(ctx *types.HttpContext) {
-	p.mu_dataCtx.RLock()
-	if p.dataCtx != nil {
-		defer p.mu_dataCtx.RUnlock()
+	if p.dataCtx.Load() != nil {
 		// assert: p.dataRes, '.dataCtx should be (un)set together'
 		p.OnError("data request overlap from client", nil)
 		ctx.SetStatusCode(http.StatusBadRequest)
 		ctx.Write(nil)
 		return
 	}
-	p.mu_dataCtx.RUnlock()
 
 	isBinary := "application/octet-stream" == ctx.Headers().Peek("Content-Type")
 
@@ -141,17 +135,13 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		return
 	}
 
-	p.mu_dataCtx.Lock()
-	p.dataCtx = ctx
-	p.mu_dataCtx.Unlock()
+	p.dataCtx.Store(ctx)
 
 	var onClose events.Listener
 
 	cleanup := func() {
 		ctx.RemoveListener("close", onClose)
-		p.mu_dataCtx.Lock()
-		p.dataCtx = nil
-		p.mu_dataCtx.Unlock()
+		p.dataCtx.Store(nil)
 	}
 
 	onClose = func(...any) {
@@ -227,8 +217,8 @@ func (p *polling) OnClose() {
 
 // Writes a packet payload.
 func (p *polling) Send(packets []*packet.Packet) {
-	p.musend.Lock()
-	defer p.musend.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	ctx := p.Req()
 
@@ -237,16 +227,14 @@ func (p *polling) Send(packets []*packet.Packet) {
 	}
 
 	p.SetWritable(false)
-	p.mu_shouldClose.Lock()
-	if p.shouldClose != nil {
+	if shouldClose := p.shouldClose.Load(); shouldClose != nil {
 		polling_log.Debug("appending close packet to payload")
 		packets = append(packets, &packet.Packet{
 			Type: packet.CLOSE,
 		})
-		p.shouldClose()
-		p.shouldClose = nil
+		(*shouldClose)()
+		p.shouldClose.Store(nil)
 	}
-	p.mu_shouldClose.Unlock()
 
 	option := &packet.Options{Compress: false}
 	for _, packetData := range packets {
@@ -352,11 +340,7 @@ func (p *polling) compress(data _types.BufferInterface, encoding string) (_types
 func (p *polling) DoClose(fn types.Callable) {
 	polling_log.Debug("closing")
 
-	p.mu_dataCtx.RLock()
-	dataCtx := p.dataCtx
-	p.mu_dataCtx.RUnlock()
-
-	if dataCtx != nil && !dataCtx.IsDone() {
+	if dataCtx := p.dataCtx.Load(); dataCtx != nil && !dataCtx.IsDone() {
 		polling_log.Debug("aborting ongoing data request")
 		dataCtx.ResponseHeaders.Set("Connection", "close")
 		dataCtx.SetStatusCode(http.StatusTooManyRequests)
@@ -384,12 +368,11 @@ func (p *polling) DoClose(fn types.Callable) {
 	} else {
 		polling_log.Debug("transport not writable - buffering orderly close")
 		closeTimeoutTimer := utils.SetTimeout(onClose, p.closeTimeout)
-		p.mu_shouldClose.Lock()
-		p.shouldClose = func() {
+		shouldClose := types.Callable(func() {
 			utils.ClearTimeout(closeTimeoutTimer)
 			onClose()
-		}
-		p.mu_shouldClose.Unlock()
+		})
+		p.shouldClose.Store(&shouldClose)
 	}
 }
 

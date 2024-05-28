@@ -40,9 +40,7 @@ var (
 )
 
 type baseServer struct {
-	// clientsCount has to be first in the struct to guarantee alignment for atomic
-	// operations. http://golang.org/pkg/sync/atomic/#pkg-note-BUG
-	clientsCount uint64
+	clientsCount atomic.Uint64
 
 	events.EventEmitter
 
@@ -58,8 +56,7 @@ func MakeBaseServer() BaseServer {
 	baseServer := &baseServer{
 		EventEmitter: events.New(),
 
-		clientsCount: 0,
-		clients:      &types.Map[string, Socket]{},
+		clients: &types.Map[string, Socket]{},
 	}
 
 	baseServer.Prototype(baseServer)
@@ -84,7 +81,7 @@ func (bs *baseServer) Clients() *types.Map[string, Socket] {
 }
 
 func (bs *baseServer) ClientsCount() uint64 {
-	return atomic.LoadUint64(&bs.clientsCount)
+	return bs.clientsCount.Load()
 }
 
 func (bs *baseServer) Middlewares() []Middleware {
@@ -340,11 +337,11 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 	transport.OnRequest(ctx)
 
 	bs.clients.Store(id, socket)
-	atomic.AddUint64(&bs.clientsCount, 1)
+	bs.clientsCount.Add(1)
 
 	socket.Once("close", func(...any) {
 		bs.clients.Delete(id)
-		atomic.AddUint64(&bs.clientsCount, ^uint64(0))
+		bs.clientsCount.Add(^uint64(0))
 	})
 
 	bs.Emit("connection", socket)

@@ -3,11 +3,9 @@
 package events
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"sync"
-	"sync/atomic"
 )
 
 const (
@@ -75,19 +73,19 @@ type (
 	events map[EventName][]*listener
 
 	emmiter struct {
+		mu           sync.RWMutex
 		maxListeners uint
 		evtListeners events
-		mu           sync.RWMutex
 	}
 )
 
 // CopyTo copies the event listeners to an EventEmitter
-func (e Events) CopyTo(emmiter EventEmitter) {
+func (e Events) CopyTo(emitter EventEmitter) {
 	if e != nil && len(e) > 0 {
 		// register the events to/with their listeners
 		for evt, listeners := range e {
 			if len(listeners) > 0 {
-				emmiter.AddListener(evt, listeners...)
+				emitter.AddListener(evt, listeners...)
 			}
 		}
 	}
@@ -98,7 +96,7 @@ func New() EventEmitter {
 	return &emmiter{maxListeners: DefaultMaxListeners, evtListeners: events{}}
 }
 
-func (e *emmiter) addlistener(evt EventName, listeners []*listener) error {
+func (e *emmiter) addListeners(evt EventName, listeners []*listener) error {
 	if len(listeners) == 0 {
 		return nil
 	}
@@ -113,13 +111,7 @@ func (e *emmiter) addlistener(evt EventName, listeners []*listener) error {
 	evts := e.evtListeners[evt]
 
 	if e.maxListeners > 0 && len(evts) >= int(e.maxListeners) {
-		return errors.New(fmt.Sprintf(`(events) warning: possible EventEmitter memory '
-                    leak detected. %d listeners added. '
-                    Use emitter.SetMaxListeners(n int) to increase limit.`, len(evts)))
-	}
-
-	if evts == nil {
-		evts = make([]*listener, 0, e.maxListeners)
+		return fmt.Errorf("(events) warning: possible EventEmitter memory leak detected. %d listeners added. Use emitter.SetMaxListeners(n int) to increase limit.", len(evts))
 	}
 
 	e.evtListeners[evt] = append(evts, listeners...)
@@ -134,24 +126,24 @@ func (e *emmiter) AddListener(evt EventName, listeners ...Listener) error {
 	for i, event := range listeners {
 		events[i] = &listener{listener: event, ptr: reflect.ValueOf(event).Pointer()}
 	}
-	return e.addlistener(evt, events)
+	return e.addListeners(evt, events)
 }
 
 func (e *emmiter) Emit(evt EventName, data ...any) {
 	e.mu.RLock()
-	if e.evtListeners == nil {
-		defer e.mu.RUnlock() // RUnlock
-		return               // has no listeners to emit/speak yet
+	listeners, ok := e.evtListeners[evt]
+	if !ok || len(listeners) == 0 {
+		e.mu.RUnlock()
+		return
 	}
-	listeners := make([]*listener, len(e.evtListeners[evt]))
-	copy(listeners, e.evtListeners[evt])
+
+	listenersCopy := make([]*listener, len(listeners))
+	copy(listenersCopy, listeners)
 	e.mu.RUnlock()
 
-	if len(listeners) > 0 {
-		for _, event := range listeners {
-			if event != nil {
-				event.listener(data...)
-			}
+	for _, event := range listenersCopy {
+		if event != nil {
+			event.listener(data...)
 		}
 	}
 }
@@ -167,7 +159,6 @@ func (e *emmiter) EventNames() (names []EventName) {
 	for k := range e.evtListeners {
 		names = append(names, k)
 	}
-
 	return names
 }
 
@@ -177,15 +168,12 @@ func (e *emmiter) GetMaxListeners() uint {
 
 func (e *emmiter) ListenerCount(evt EventName) int {
 	e.mu.RLock()
+	defer e.mu.RUnlock()
+
 	if e.evtListeners == nil {
-		defer e.mu.RUnlock()
 		return 0
 	}
-
-	evtlen := len(e.evtListeners[evt])
-	e.mu.RUnlock()
-
-	return evtlen
+	return len(e.evtListeners[evt])
 }
 
 func (e *emmiter) Listeners(evt EventName) (listeners []Listener) {
@@ -193,39 +181,35 @@ func (e *emmiter) Listeners(evt EventName) (listeners []Listener) {
 	defer e.mu.RUnlock()
 
 	if e.evtListeners == nil {
-		return
+		return nil
 	}
-	if evtListeners := e.evtListeners[evt]; evtListeners != nil {
-		// do not pass any inactive/removed listeners(nil)
-		for _, event := range evtListeners {
-			if event != nil {
-				listeners = append(listeners, event.listener)
-			}
+
+	// do not pass any inactive/removed listeners(nil)
+	for _, event := range e.evtListeners[evt] {
+		if event != nil {
+			listeners = append(listeners, event.listener)
 		}
 	}
-
-	return
+	return listeners
 }
 
-func (e *emmiter) On(evt EventName, listener ...Listener) error {
-	return e.AddListener(evt, listener...)
+func (e *emmiter) On(evt EventName, listeners ...Listener) error {
+	return e.AddListener(evt, listeners...)
 }
 
-type oneTimelistener struct {
-	// fired has to be first in the struct to guarantee alignment for atomic
-	// operations. http://golang.org/pkg/sync/atomic/#pkg-note-BUG
-	fired int32
+type oneTimeListener struct {
+	fired *sync.Once
 
 	evt      EventName
 	emitter  *emmiter
 	listener Listener
 }
 
-func (l *oneTimelistener) execute(vals ...any) {
-	if atomic.CompareAndSwapInt32(&l.fired, 0, 1) {
+func (l *oneTimeListener) execute(vals ...any) {
+	l.fired.Do(func() {
 		defer l.emitter.RemoveListener(l.evt, l.listener)
 		l.listener(vals...)
-	}
+	})
 }
 
 func (e *emmiter) Once(evt EventName, listeners ...Listener) error {
@@ -235,10 +219,10 @@ func (e *emmiter) Once(evt EventName, listeners ...Listener) error {
 
 	events := make([]*listener, len(listeners))
 	for i, event := range listeners {
-		oneTime := &oneTimelistener{evt: evt, emitter: e, listener: event}
+		oneTime := &oneTimeListener{fired: &sync.Once{}, evt: evt, emitter: e, listener: event}
 		events[i] = &listener{listener: oneTime.execute, ptr: reflect.ValueOf(event).Pointer()}
 	}
-	return e.addlistener(evt, events)
+	return e.addListeners(evt, events)
 }
 
 func (e *emmiter) RemoveAllListeners(evt EventName) bool {
@@ -253,7 +237,6 @@ func (e *emmiter) RemoveAllListeners(evt EventName) bool {
 		delete(e.evtListeners, evt)
 		return true
 	}
-
 	return false
 }
 
@@ -262,36 +245,28 @@ func (e *emmiter) RemoveListener(evt EventName, listener Listener) bool {
 	if listener == nil {
 		return false
 	}
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if e.evtListeners == nil {
 		return false
 	}
-	listeners := e.evtListeners[evt]
 
-	if listeners == nil || len(listeners) == 0 {
+	listeners, ok := e.evtListeners[evt]
+	if !ok || len(listeners) == 0 {
 		return false
 	}
 
-	idx := -1
 	listenerPointer := reflect.ValueOf(listener).Pointer()
-
-	for index, event := range listeners {
+	for i, event := range listeners {
 		if event.ptr == listenerPointer {
-			idx = index
-			break
+			copy(listeners[i:], listeners[i+1:])
+			e.evtListeners[evt] = listeners[:len(listeners)-1]
+			return true
 		}
 	}
-
-	if idx < 0 {
-		return false
-	}
-
-	copy(listeners[idx:], listeners[idx+1:])
-	e.evtListeners[evt] = listeners[:len(listeners)-1]
-
-	return true
+	return false
 }
 
 func (e *emmiter) Clear() {

@@ -21,7 +21,7 @@ type webTransport struct {
 	Transport
 
 	session *webtransport.Conn
-	musend  sync.Mutex
+	mu      sync.Mutex
 }
 
 // WebTransport transport
@@ -113,8 +113,8 @@ func (w *webTransport) Send(packets []*packet.Packet) {
 		w.Emit("drain")
 	}()
 
-	w.musend.Lock()
-	defer w.musend.Unlock()
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
 	for _, packet := range packets {
 		// always creates a new object since ws modifies it

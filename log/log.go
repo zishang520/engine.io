@@ -5,7 +5,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
+	"sync/atomic"
 
 	"github.com/gookit/color"
 )
@@ -15,8 +15,7 @@ var DEBUG bool = false
 type Log struct {
 	*_log.Logger
 
-	mu              sync.RWMutex // ensures atomic writes; protects the following fields
-	prefix          string
+	prefix          atomic.Pointer[string]
 	namespaceRegexp *regexp.Regexp
 }
 
@@ -97,18 +96,16 @@ func (d *Log) Fatal(message string, args ...any) {
 
 // Prefix returns the output prefix for the logger.
 func (d *Log) Prefix() string {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
+	if v := d.prefix.Load(); v != nil {
+		return *v
+	}
 
-	return d.prefix
+	return ""
 }
 
 // SetPrefix sets the output prefix for the logger.
 func (d *Log) SetPrefix(prefix string) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	d.prefix = prefix
+	d.prefix.Store(&prefix)
 
 	d.Logger.SetPrefix(prefix + " ")
 }

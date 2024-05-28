@@ -1,63 +1,49 @@
 package types
 
 import (
+	"reflect"
 	"testing"
 )
 
 func TestSet(t *testing.T) {
-	set := NewSet("test", "string")
 
-	t.Run("Add", func(t *testing.T) {
-		if b := set.Add("Add"); b != true {
-			t.Fatalf(`*Set.Add("Add") = %t, want match for %t`, b, true)
-		}
-	})
+	s := NewSet[int](1, 2, 3)
 
-	t.Run("Has", func(t *testing.T) {
-		if b := set.Has("Add"); b != true {
-			t.Fatalf(`*Set.Has("Add") = %t, want match for %t`, b, true)
-		}
-	})
+	s.Add(4, 5)
+	expectedLen := 5
+	if len := s.Len(); len != expectedLen {
+		t.Errorf("Add method failed, expected length %d, got %d", expectedLen, len)
+	}
 
-	t.Run("Len", func(t *testing.T) {
-		if l := set.Len(); l != 3 {
-			t.Fatalf(`*Set.Len() = %d, want match for %d`, l, 3)
-		}
-	})
+	s.Delete(3)
+	expectedLen = 4
+	if len := s.Len(); len != expectedLen {
+		t.Errorf("Delete method failed, expected length %d, got %d", expectedLen, len)
+	}
 
-	t.Run("Delete", func(t *testing.T) {
-		if b := set.Delete("Add"); b != true {
-			t.Fatalf(`*Set.Delete("Add") = %t, want match for %t`, b, true)
-		}
+	s.Clear()
+	if len := s.Len(); len != 0 {
+		t.Errorf("Clear method failed, expected length 0, got %d", len)
+	}
 
-		if l := set.Len(); l != 2 {
-			t.Fatalf(`*Set.Len() = %d, want match for %d`, l, 2)
+	s.Add(1, 2, 3)
+	tests := []struct {
+		key      int
+		expected bool
+	}{
+		{key: 1, expected: true},
+		{key: 4, expected: false},
+	}
+	for _, test := range tests {
+		if has := s.Has(test.key); has != test.expected {
+			t.Errorf("Has method failed for key %d, expected %t, got %t", test.key, test.expected, has)
 		}
-	})
+	}
 
-	t.Run("Keys", func(t *testing.T) {
-		if l := len(set.Keys()); l != 2 {
-			t.Fatalf(`len(*Set.Keys()) = %d, want match for %d`, l, 2)
-		}
-	})
-
-	t.Run("All", func(t *testing.T) {
-		_tmp := set.All()
-		if l := len(_tmp); l != 2 {
-			t.Fatalf(`len(*Set.All()) = %d, want match for %d`, l, 2)
-		}
-		delete(_tmp, "test")
-		if b := set.Has("test"); b != true {
-			t.Fatalf(`*Set.Has("test") = %t, want match for %t`, b, true)
-		}
-	})
-
-	t.Run("Clear", func(t *testing.T) {
-		set.Clear()
-		if l := set.Len(); l != 0 {
-			t.Fatalf(`*Set.Len() = %d, want match for %d`, l, 0)
-		}
-	})
+	expectedMap := map[int]Void{1: NULL, 2: NULL, 3: NULL}
+	if all := s.All(); !reflect.DeepEqual(all, expectedMap) {
+		t.Errorf("All method failed, expected %v, got %v", expectedMap, all)
+	}
 }
 
 func TestMap(t *testing.T) {

@@ -1,7 +1,7 @@
 package transports
 
 import (
-	"sync"
+	"sync/atomic"
 
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io-go-parser/parser"
@@ -27,29 +27,24 @@ type transport struct {
 	sid      string
 	protocol int // 3
 
-	_readyState   string //"open";
-	mu_readyState sync.RWMutex
+	_readyState atomic.Value //"open";
 
-	_discarded   bool // false;
-	mu_discarded sync.RWMutex
+	_discarded atomic.Bool // false;
 
 	parser parser.Parser // parser.PaserV3;
 
-	req    *types.HttpContext
-	mu_req sync.RWMutex
+	req atomic.Pointer[types.HttpContext]
 
 	supportsBinary bool
 
-	_writable   bool
-	mu_writable sync.RWMutex
+	_writable atomic.Bool
 }
 
 func MakeTransport() Transport {
 	t := &transport{
 		EventEmitter: events.New(),
-
-		_readyState: "open",
 	}
+	t._readyState.Store("open")
 
 	t.Prototype(t)
 
@@ -81,17 +76,11 @@ func (t *transport) SetSid(sid string) {
 }
 
 func (t *transport) Writable() bool {
-	t.mu_writable.RLock()
-	defer t.mu_writable.RUnlock()
-
-	return t._writable
+	return t._writable.Load()
 }
 
 func (t *transport) SetWritable(writable bool) {
-	t.mu_writable.Lock()
-	defer t.mu_writable.Unlock()
-
-	t._writable = writable
+	t._writable.Store(writable)
 }
 
 func (t *transport) Protocol() int {
@@ -99,10 +88,7 @@ func (t *transport) Protocol() int {
 }
 
 func (t *transport) Discarded() bool {
-	t.mu_discarded.RLock()
-	defer t.mu_discarded.RUnlock()
-
-	return t._discarded
+	return t._discarded.Load()
 }
 
 func (t *transport) Parser() parser.Parser {
@@ -110,17 +96,11 @@ func (t *transport) Parser() parser.Parser {
 }
 
 func (t *transport) Req() *types.HttpContext {
-	t.mu_req.RLock()
-	defer t.mu_req.RUnlock()
-
-	return t.req
+	return t.req.Load()
 }
 
 func (t *transport) SetReq(req *types.HttpContext) {
-	t.mu_req.Lock()
-	defer t.mu_req.Unlock()
-
-	t.req = req
+	t.req.Store(req)
 }
 
 func (t *transport) SupportsBinary() bool {
@@ -132,19 +112,16 @@ func (t *transport) SetSupportsBinary(supportsBinary bool) {
 }
 
 func (t *transport) ReadyState() string {
-	t.mu_readyState.RLock()
-	defer t.mu_readyState.RUnlock()
-
-	return t._readyState
+	if v, ok := t._readyState.Load().(string); ok {
+		return v
+	}
+	return ""
 }
 
 func (t *transport) SetReadyState(state string) {
-	t.mu_readyState.Lock()
-	defer t.mu_readyState.Unlock()
+	transport_log.Debug(`readyState updated from %s to %s (%s)`, t.ReadyState(), state, t._proto_.Name())
 
-	transport_log.Debug(`readyState updated from %s to %s (%s)`, t._readyState, state, t._proto_.Name())
-
-	t._readyState = state
+	t._readyState.Store(state)
 }
 
 func (t *transport) HttpCompression() *types.HttpCompression {
@@ -185,10 +162,7 @@ func (t *transport) Construct(ctx *types.HttpContext) {
 
 // Flags the transport as discarded.
 func (t *transport) Discard() {
-	t.mu_discarded.Lock()
-	defer t.mu_discarded.Unlock()
-
-	t._discarded = true
+	t._discarded.Store(true)
 }
 
 // Called with an incoming HTTP request.

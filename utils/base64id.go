@@ -8,10 +8,10 @@ import (
 )
 
 type base64Id struct {
-	sequenceNumber uint64
+	sequenceNumber atomic.Uint64
 }
 
-var bid = &base64Id{0}
+var bid = &base64Id{}
 
 func Base64Id() *base64Id {
 	return bid
@@ -22,6 +22,6 @@ func (b *base64Id) GenerateId() (string, error) {
 	if _, err := rand.Read(r); err != nil {
 		return "", err
 	}
-	binary.BigEndian.PutUint64(r[10:], atomic.AddUint64(&b.sequenceNumber, 1)-1)
+	binary.BigEndian.PutUint64(r[10:], b.sequenceNumber.Add(1)-1)
 	return base64.RawURLEncoding.EncodeToString(r), nil
 }

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
@@ -34,33 +35,28 @@ type HttpContext struct {
 
 	ctx context.Context
 
-	isDone bool
+	isDone atomic.Bool
 	done   chan Void
-	mu     sync.RWMutex
 
-	statusCode      int
-	mu_wh           sync.RWMutex
+	statusCode      atomic.Value
 	ResponseHeaders *utils.ParameterBag
 
-	mu_w sync.Mutex
+	mu sync.Mutex
 }
 
 func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
-	c := &HttpContext{}
-	c.EventEmitter = events.New()
-	c.ctx = r.Context()
-	c.done = make(chan Void)
-
-	c.request = r
-	c.response = w
-
-	c.headers = utils.NewParameterBag(r.Header)
-	c.query = utils.NewParameterBag(r.URL.Query())
-
-	c.isHostValid = true
-
-	c.ResponseHeaders = utils.NewParameterBag(nil)
-	c.ResponseHeaders.With(c.response.Header())
+	c := &HttpContext{
+		EventEmitter:    events.New(),
+		ctx:             r.Context(),
+		done:            make(chan Void),
+		request:         r,
+		response:        w,
+		headers:         utils.NewParameterBag(r.Header),
+		query:           utils.NewParameterBag(r.URL.Query()),
+		isHostValid:     true,
+		ResponseHeaders: utils.NewParameterBag(nil),
+	}
+	c.ResponseHeaders.With(w.Header())
 
 	go func() {
 		select {
@@ -71,16 +67,13 @@ func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
 			c.Emit("close")
 		}
 	}()
+
 	return c
 }
 
 func (c *HttpContext) Flush() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if !c.isDone {
+	if c.isDone.CompareAndSwap(false, true) {
 		close(c.done)
-		c.isDone = true
 	}
 }
 
@@ -89,41 +82,35 @@ func (c *HttpContext) Done() <-chan Void {
 }
 
 func (c *HttpContext) IsDone() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	return c.isDone
+	return c.isDone.Load()
 }
 
 func (c *HttpContext) SetStatusCode(statusCode int) {
-	c.mu_wh.Lock()
-	defer c.mu_wh.Unlock()
-
-	c.statusCode = statusCode
+	c.statusCode.Store(statusCode)
 }
 
 func (c *HttpContext) GetStatusCode() int {
-	c.mu_wh.RLock()
-	defer c.mu_wh.RUnlock()
-
-	return c.statusCode
+	if v, ok := c.statusCode.Load().(int); ok {
+		return v
+	}
+	return http.StatusOK
 }
 
 func (c *HttpContext) Write(wb []byte) (int, error) {
-	c.mu_w.Lock()
-	defer c.mu_w.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	if !c.IsDone() {
-		defer c.Flush()
-
-		for k, v := range c.ResponseHeaders.All() {
-			c.response.Header().Set(k, v[0])
-		}
-		c.response.WriteHeader(c.GetStatusCode())
-
-		return c.response.Write(wb)
+	if c.IsDone() {
+		return 0, errors.New("you cannot write data repeatedly").Err()
 	}
-	return 0, errors.New("You cannot write data repeatedly.").Err()
+	defer c.Flush()
+
+	for k, v := range c.ResponseHeaders.All() {
+		c.response.Header().Set(k, v[0])
+	}
+	c.response.WriteHeader(c.GetStatusCode())
+
+	return c.response.Write(wb)
 }
 
 func (c *HttpContext) Request() *http.Request {
@@ -150,7 +137,6 @@ func (c *HttpContext) GetPathInfo() string {
 	if c.pathInfo == "" {
 		c.pathInfo = c.request.URL.Path
 	}
-
 	return c.pathInfo
 }
 
@@ -169,11 +155,9 @@ func (c *HttpContext) Method() string {
 }
 
 func (c *HttpContext) GetMethod() string {
-	if c.method != "" {
-		return c.method
+	if c.method == "" {
+		c.method = strings.ToUpper(c.request.Method)
 	}
-
-	c.method = strings.ToUpper(c.request.Method)
 	return c.method
 }
 
@@ -185,22 +169,18 @@ func (c *HttpContext) Path() string {
 }
 
 func (c *HttpContext) GetHost() (string, error) {
-	host := c.request.Host
-	// trim and remove port number from host
-	// host is lowercase as per RFC 952/2181
-	host = regexp.MustCompile(`:\d+$`).ReplaceAllString(strings.TrimSpace(host), "")
-	// as the host can come from the user (HTTP_HOST and depending on the configuration, SERVER_NAME too can come from the user)
-	// check that it does not contain forbidden characters (see RFC 952 and RFC 2181)
+	host := strings.TrimSpace(c.request.Host)
+	host = regexp.MustCompile(`:\d+$`).ReplaceAllString(host, "")
+
 	if host != "" {
 		if host = regexp.MustCompile(`(?:^\[)?[a-zA-Z0-9-:\]_]+\.?`).ReplaceAllString(host, ""); host != "" {
 			if !c.isHostValid {
 				return "", nil
 			}
 			c.isHostValid = false
-			return "", errors.New(fmt.Sprintf(`Invalid Host "%s".`, host)).Err()
+			return "", errors.New(fmt.Sprintf(`Invalid host "%s".`, host)).Err()
 		}
 	}
-
 	return host, nil
 }
 

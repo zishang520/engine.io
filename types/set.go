@@ -5,17 +5,20 @@ import (
 )
 
 type Set[T comparable] struct {
+	mu    sync.RWMutex
 	cache map[T]Void
-	// mu
-	mu sync.RWMutex
 }
 
+// NewSet creates a new Set and initializes it with the provided keys.
 func NewSet[T comparable](keys ...T) *Set[T] {
-	s := &Set[T]{cache: map[T]Void{}}
-	s.Add(keys...)
+	s := &Set[T]{cache: make(map[T]Void, len(keys))}
+	for _, key := range keys {
+		s.cache[key] = NULL
+	}
 	return s
 }
 
+// Add adds the provided keys to the set.
 func (s *Set[T]) Add(keys ...T) bool {
 	if len(keys) == 0 {
 		return false
@@ -30,6 +33,7 @@ func (s *Set[T]) Add(keys ...T) bool {
 	return true
 }
 
+// Delete removes the provided keys from the set.
 func (s *Set[T]) Delete(keys ...T) bool {
 	if len(keys) == 0 {
 		return false
@@ -44,6 +48,7 @@ func (s *Set[T]) Delete(keys ...T) bool {
 	return true
 }
 
+// Clear removes all items from the set.
 func (s *Set[T]) Clear() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -52,6 +57,7 @@ func (s *Set[T]) Clear() bool {
 	return true
 }
 
+// Has checks if the set contains the provided key.
 func (s *Set[T]) Has(key T) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -60,6 +66,7 @@ func (s *Set[T]) Has(key T) bool {
 	return exists
 }
 
+// Len returns the number of items in the set.
 func (s *Set[T]) Len() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -67,11 +74,12 @@ func (s *Set[T]) Len() int {
 	return len(s.cache)
 }
 
+// All returns a copy of the set's internal map.
 func (s *Set[T]) All() map[T]Void {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	_tmp := map[T]Void{}
+	_tmp := make(map[T]Void, len(s.cache))
 	for k := range s.cache {
 		_tmp[k] = NULL
 	}
@@ -79,10 +87,12 @@ func (s *Set[T]) All() map[T]Void {
 	return _tmp
 }
 
-func (s *Set[T]) Keys() (list []T) {
+// Keys returns a slice containing all keys in the set.
+func (s *Set[T]) Keys() []T {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	list := make([]T, 0, len(s.cache))
 	for k := range s.cache {
 		list = append(list, k)
 	}

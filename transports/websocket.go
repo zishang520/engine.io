@@ -17,7 +17,7 @@ type websocket struct {
 	Transport
 
 	socket *types.WebSocketConn
-	musend sync.Mutex
+	mu     sync.Mutex
 }
 
 // WebSocket transport
@@ -124,8 +124,8 @@ func (w *websocket) Send(packets []*packet.Packet) {
 		w.Emit("drain")
 	}()
 
-	w.musend.Lock()
-	defer w.musend.Unlock()
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
 	for _, packet := range packets {
 		// always creates a new object since ws modifies it

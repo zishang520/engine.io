@@ -6,11 +6,10 @@ import (
 )
 
 type Timer struct {
-	t     chan struct{}
-	stop  chan struct{}
-	timer *time.Timer
-	sleep time.Duration
-	fn    func()
+	timer  *time.Timer
+	sleep  time.Duration
+	fn     func()
+	stopCh chan struct{}
 }
 
 func (t *Timer) Refresh() *Timer {
@@ -26,66 +25,67 @@ func (t *Timer) Refresh() *Timer {
 func (t *Timer) Unref() {
 	runtime.SetFinalizer(t, func(t *Timer) {
 		if t.timer.Stop() {
-			t.stop <- struct{}{}
+			close(t.stopCh)
 		}
 	})
 }
 
-// Deprecated: this method will be removed in the next major release, please use [SetTimeout] instead.
+// Deprecated: this method will be removed in the next major release, please use SetTimeout instead.
 func SetTimeOut(fn func(), sleep time.Duration) *Timer {
 	return SetTimeout(fn, sleep)
 }
+
 func SetTimeout(fn func(), sleep time.Duration) *Timer {
-	timeout := &Timer{
-		t:     make(chan struct{}),
-		stop:  make(chan struct{}),
-		timer: time.NewTimer(sleep),
-		sleep: sleep,
+	timer := &Timer{
+		timer:  time.NewTimer(sleep),
+		sleep:  sleep,
+		stopCh: make(chan struct{}),
 	}
-	timeout.fn = func() {
+	timer.fn = func() {
 		select {
-		case <-timeout.timer.C:
-			go fn()
-		case <-timeout.t:
-			return
-		case <-timeout.stop:
+		case <-timer.timer.C:
+			fn()
+		case <-timer.stopCh:
 			return
 		}
 	}
-	go timeout.fn()
-	return timeout
+	go timer.fn()
+	return timer
 }
 
-func ClearTimeout(timeout *Timer) {
-	if timeout != nil && timeout.timer.Stop() {
-		timeout.t <- struct{}{}
+func ClearTimeout(timer *Timer) {
+	if timer != nil {
+		timer.Stop()
+	}
+}
+
+func (t *Timer) Stop() {
+	if t.timer.Stop() {
+		t.stopCh <- struct{}{}
 	}
 }
 
 func SetInterval(fn func(), sleep time.Duration) *Timer {
-	timeout := &Timer{
-		t:     make(chan struct{}),
-		stop:  make(chan struct{}),
-		timer: time.NewTimer(sleep),
-		sleep: sleep,
+	timer := &Timer{
+		timer:  time.NewTimer(sleep),
+		sleep:  sleep,
+		stopCh: make(chan struct{}),
 	}
-	timeout.fn = func() {
+	timer.fn = func() {
 		for {
 			select {
-			case <-timeout.timer.C:
-				timeout.timer.Reset(timeout.sleep)
+			case <-timer.timer.C:
+				timer.timer.Reset(timer.sleep)
 				go fn()
-			case <-timeout.t:
-				return
-			case <-timeout.stop:
+			case <-timer.stopCh:
 				return
 			}
 		}
 	}
-	go timeout.fn()
-	return timeout
+	go timer.fn()
+	return timer
 }
 
-func ClearInterval(timeout *Timer) {
-	ClearTimeout(timeout)
+func ClearInterval(timer *Timer) {
+	ClearTimeout(timer)
 }

@@ -174,7 +174,7 @@ func (w *websocket) write(data _types.BufferInterface, compress bool) {
 			compress = false
 		}
 	}
-	ws_log.Debug(`writing "%s"`, data)
+	ws_log.Debug(`writing %#v`, data)
 
 	w.socket.EnableWriteCompression(compress)
 	mt := ws.BinaryMessage

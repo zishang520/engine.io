@@ -455,7 +455,7 @@ func (s *socket) Send(
 	return s
 }
 
-// Alias of {@link send}.
+// Alias of [Send]
 func (s *socket) Write(
 	data io.Reader,
 	options *packet.Options,
@@ -474,7 +474,7 @@ func (s *socket) sendPacket(
 ) {
 
 	if "closing" != s.ReadyState() && "closed" != s.ReadyState() {
-		socket_log.Debug(`sending packet "%s" (%v)`, packetType, data)
+		socket_log.Debug(`sending packet "%s" (%p)`, packetType, data)
 
 		if options == nil {
 			options = &packet.Options{Compress: true}

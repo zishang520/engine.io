@@ -255,7 +255,7 @@ func (p *polling) Send(packets []*packet.Packet) {
 
 // Writes data as response to poll request.
 func (p *polling) write(ctx *types.HttpContext, data _types.BufferInterface, options *packet.Options) {
-	polling_log.Debug(`writing "%s"`, data)
+	polling_log.Debug(`writing %#v`, data)
 	// Assert that the prototype is Polling.
 	p.Proto().(Polling).DoWrite(ctx, data, options, func(ctx *types.HttpContext) { ctx.Cleanup() })
 }

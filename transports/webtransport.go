@@ -163,7 +163,7 @@ func (w *webTransport) write(data _types.BufferInterface, compress bool) {
 			compress = false
 		}
 	}
-	wt_log.Debug(`writing "%s"`, data)
+	wt_log.Debug(`writing %#s`, data)
 
 	// w.session.EnableWriteCompression(compress)
 	mt := webtransport.BinaryMessage

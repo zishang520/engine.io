@@ -358,7 +358,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Close the HTTP long-polling request
 func abortRequest(ctx *types.HttpContext, errorCode int, errorContext map[string]any) {
-	server_log.Debug("abortRequest %d, %v", errorCode, errorContext)
+	server_log.Debug("abortRequest %d, %+v", errorCode, errorContext)
 	statusCode := http.StatusBadRequest
 	if errorCode == FORBIDDEN {
 		statusCode = http.StatusForbidden

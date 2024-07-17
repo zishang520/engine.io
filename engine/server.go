@@ -241,7 +241,7 @@ func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.
 	wtc := webtrans.NewConn(session, stream, true, 0, 0, nil, nil, nil)
 	wtc.SetReadLimit(s.Opts().MaxHttpBufferSize())
 
-	ctx.WebTransport = wtc
+	ctx.WebTransport = &types.WebTransportConn{EventEmitter: events.New(), Conn: wtc}
 
 	mt, message, err := wtc.NextReader()
 	if err != nil {

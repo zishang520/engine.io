@@ -23,7 +23,7 @@ type (
 
 		SetSid(string)
 		SetWritable(bool)
-		SetReq(*types.HttpContext)
+
 		SetSupportsBinary(bool)
 		SetReadyState(string)
 		SetHttpCompression(*types.HttpCompression)
@@ -32,25 +32,40 @@ type (
 
 		// #getters
 
+		// The session ID.
 		Sid() string
+		// Whether the transport is currently ready to send packets.
 		Writable() bool
+		// The revision of the protocol:
+		//
+		// - 3 is used in Engine.IO v3 / Socket.IO v2
+		// - 4 is used in Engine.IO v4 and above / Socket.IO v3 and above
+		//
+		// It is found in the `EIO` query parameters of the HTTP requests.
+		//
+		// @see https://github.com/socketio/engine.io-protocol
 		Protocol() int
+		// Whether the transport is discarded and can be safely closed (used during upgrade).
+		//
 		// @protected
 		Discarded() bool
+		// The parser to use (depends on the revision of the {@link Transport#protocol}.
+		//
 		// @protected
 		Parser() parser.Parser
-		// @protected
-		Req() *types.HttpContext
+		// Whether the transport supports binary payloads (else it will be base64-encoded)
+		//
 		// @protected
 		SupportsBinary() bool
+		// The current state of the transport.
+		//
+		// @protected
 		ReadyState() string
 		HttpCompression() *types.HttpCompression
 		PerMessageDeflate() *types.PerMessageDeflate
 		MaxHttpBufferSize() int64
 		// @abstract
 		HandlesUpgrades() bool
-		// @abstract
-		SupportsFraming() bool
 		// @abstract
 		Name() string
 
@@ -95,6 +110,10 @@ type (
 		Transport
 
 		// #methods
+		SetReq(*types.HttpContext)
+
+		// @protected
+		Req() *types.HttpContext
 
 		DoWrite(*types.HttpContext, _types.BufferInterface, *packet.Options, func(*types.HttpContext))
 	}

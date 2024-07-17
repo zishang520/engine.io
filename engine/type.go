@@ -13,6 +13,8 @@ import (
 )
 
 type (
+	SendCallback func(transports.Transport)
+
 	// Middleware functions are functions that have access to the *types.HttpContext
 	// and the next middleware function in the application's context cycle.
 	Middleware func(*types.HttpContext, func(error))
@@ -128,8 +130,8 @@ type (
 		// Upgrades socket to the given transport
 		MaybeUpgrade(transports.Transport)
 		// Sends a message packet.
-		Send(io.Reader, *packet.Options, func(transports.Transport)) Socket
-		Write(io.Reader, *packet.Options, func(transports.Transport)) Socket
+		Send(io.Reader, *packet.Options, SendCallback) Socket
+		Write(io.Reader, *packet.Options, SendCallback) Socket
 		// Closes the socket and underlying transport.
 		Close(bool)
 	}

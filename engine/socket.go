@@ -9,6 +9,7 @@ import (
 
 	"github.com/zishang520/engine.io-go-parser/packet"
 	_types "github.com/zishang520/engine.io-go-parser/types"
+	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/log"
 	"github.com/zishang520/engine.io/v2/transports"
@@ -21,13 +22,26 @@ var socket_log = log.NewLog("engine:socket")
 type socket struct {
 	events.EventEmitter
 
+	// The revision of the protocol:
+	//
+	// - 3rd is used in Engine.IO v3 / Socket.IO v2
+	// - 4th is used in Engine.IO v4 and above / Socket.IO v3 and above
+	//
+	// It is found in the `EIO` query parameters of the HTTP requests.
+	//
+	// @see https://github.com/socketio/engine.io-protocol
 	protocol int
-	// TODO for the next major release: do not keep the reference to the first HTTP request, as it stays in memory
-	request       *types.HttpContext
+	// A reference to the first HTTP request of the session
+	//
+	// TODO for the next major release: remove it
+	request *types.HttpContext
+	// The IP address of the client.
 	remoteAddress string
 
+	// The current state of the socket.
 	readyState atomic.Value
-	transport  atomic.Pointer[transports.Transport]
+	// The current low-level transport.
+	transport atomic.Pointer[transports.Transport]
 
 	// This is the session identifier that the client will use in the subsequent HTTP requests. It must not be shared with
 	// others parties, as it might lead to session hijacking.
@@ -36,8 +50,8 @@ type socket struct {
 	upgrading         atomic.Bool
 	upgraded          atomic.Bool
 	writeBuffer       *types.Slice[*packet.Packet]
-	packetsFn         *types.Slice[func(transports.Transport)]
-	sentCallbackFn    *types.Slice[any]
+	packetsFn         *types.Slice[SendCallback]
+	sentCallbackFn    *types.Slice[[]SendCallback]
 	cleanupFn         *types.Slice[types.Callable]
 	pingTimeoutTimer  atomic.Pointer[utils.Timer]
 	pingIntervalTimer atomic.Pointer[utils.Timer]
@@ -97,8 +111,8 @@ func MakeSocket() Socket {
 		EventEmitter: events.New(),
 
 		writeBuffer:    types.NewSlice[*packet.Packet](),
-		packetsFn:      types.NewSlice[func(transports.Transport)](),
-		sentCallbackFn: types.NewSlice[any](),
+		packetsFn:      types.NewSlice[SendCallback](),
+		sentCallbackFn: types.NewSlice[[]SendCallback](),
 		cleanupFn:      types.NewSlice[types.Callable](),
 	}
 	s.readyState.Store("opening")
@@ -166,7 +180,7 @@ func (s *socket) onOpen() {
 
 	if s.protocol == 3 {
 		// in protocol v3, the client sends a ping, and the server answers with a pong
-		s.resetPingTimeout(s.server.Opts().PingInterval() + s.server.Opts().PingTimeout())
+		s.resetPingTimeout()
 	} else {
 		// in protocol v4, the server sends a ping, and the client answers with a pong
 		s.schedulePing()
@@ -184,25 +198,23 @@ func (s *socket) onPacket(data *packet.Packet) {
 	socket_log.Debug(`received packet %s`, data.Type)
 	s.Emit("packet", data)
 
-	// Reset ping timeout on any packet, incoming data is a good sign of
-	// other side's liveness
-	s.resetPingTimeout(s.server.Opts().PingInterval() + s.server.Opts().PingTimeout())
-
 	switch data.Type {
 	case packet.PING:
 		if s.Transport().Protocol() != 3 {
-			s.onError("invalid heartbeat direction")
+			s.onError(errors.New("invalid heartbeat direction").Err())
 			return
 		}
 		socket_log.Debug("got ping")
+		s.pingTimeoutTimer.Load().Refresh()
 		s.sendPacket(packet.PONG, nil, nil, nil)
 		s.Emit("heartbeat")
 	case packet.PONG:
 		if s.Transport().Protocol() == 3 {
-			s.onError("invalid heartbeat direction")
+			s.onError(errors.New("invalid heartbeat direction").Err())
 			return
 		}
 		socket_log.Debug("got pong")
+		utils.ClearTimeout(s.pingTimeoutTimer.Load())
 		s.pingIntervalTimer.Load().Refresh()
 		s.Emit("heartbeat")
 	case packet.ERROR:
@@ -214,7 +226,7 @@ func (s *socket) onPacket(data *packet.Packet) {
 }
 
 // Called upon transport error.
-func (s *socket) onError(err any) {
+func (s *socket) onError(err error) {
 	socket_log.Debug("transport error %v", err)
 	s.OnClose("transport error", err)
 }
@@ -225,51 +237,68 @@ func (s *socket) schedulePing() {
 	s.pingIntervalTimer.Store(utils.SetTimeout(func() {
 		socket_log.Debug("writing ping packet - expecting pong within %dms", int64(s.server.Opts().PingTimeout()/time.Millisecond))
 		s.sendPacket(packet.PING, nil, nil, nil)
-		s.resetPingTimeout(s.server.Opts().PingTimeout())
+		s.resetPingTimeout()
 	}, s.server.Opts().PingInterval()))
 }
 
 // Resets ping timeout.
-func (s *socket) resetPingTimeout(timeout time.Duration) {
+func (s *socket) resetPingTimeout() {
 	utils.ClearTimeout(s.pingTimeoutTimer.Load())
 	s.pingTimeoutTimer.Store(utils.SetTimeout(func() {
 		if s.ReadyState() == "closed" {
 			return
 		}
 		s.OnClose("ping timeout")
-	}, timeout))
+	}, s.resetPingTimeoutDuration()))
+}
+func (s *socket) resetPingTimeoutDuration() time.Duration {
+	if s.protocol == 3 {
+		return s.server.Opts().PingInterval() + s.server.Opts().PingTimeout()
+	}
+	return s.server.Opts().PingTimeout()
 }
 
 // Attaches handlers for the given transport.
 func (s *socket) setTransport(transport transports.Transport) {
 	onError := func(err ...any) {
-		err = append(err, nil)
-		s.onError(err[0])
+		s.onError(err[0].(error))
 	}
+	onReady := func(...any) { s.flush() }
 	onPacket := func(packets ...any) {
 		if len(packets) > 0 {
 			s.onPacket(packets[0].(*packet.Packet))
 		}
 	}
-	flush := func(...any) { s.flush() }
+	onDrain := func(...any) { s.onDrain() }
 	onClose := func(...any) { s.OnClose("transport close") }
 
 	s.transport.Store(&transport)
 
 	transport.Once("error", onError)
+	transport.On("ready", onReady)
 	transport.On("packet", onPacket)
-	transport.On("drain", flush)
+	transport.On("drain", onDrain)
 	transport.Once("close", onClose)
-
-	// s function will manage packet events (also message callbacks)
-	s.setupSendCallback()
 
 	s.cleanupFn.Push(func() {
 		transport.RemoveListener("error", onError)
+		transport.RemoveListener("ready", onReady)
 		transport.RemoveListener("packet", onPacket)
-		transport.RemoveListener("drain", flush)
+		transport.RemoveListener("drain", onDrain)
 		transport.RemoveListener("close", onClose)
 	})
+}
+
+// Upon transport "drain" event
+func (s *socket) onDrain() {
+	if seqFn, err := s.sentCallbackFn.Shift(); err == nil {
+		socket_log.Debug("executing batch send callback")
+		if seqFn != nil {
+			for _, fn := range seqFn {
+				fn(s.Transport())
+			}
+		}
+	}
 }
 
 // Upgrades socket to the given transport
@@ -420,36 +449,11 @@ func (s *socket) OnClose(reason string, description ...any) {
 	}
 }
 
-// Setup and manage send callback
-func (s *socket) setupSendCallback() {
-	// the message was sent successfully, execute the callback
-	onDrain := func(...any) {
-		if seqFn, err := s.sentCallbackFn.Shift(); err == nil {
-			switch fns := seqFn.(type) {
-			case func(transports.Transport):
-				socket_log.Debug("executing send callback")
-				fns(s.Transport())
-			case []func(transports.Transport):
-				socket_log.Debug("executing batch send callback")
-				for _, fn := range fns {
-					fn(s.Transport())
-				}
-			}
-		}
-	}
-
-	s.Transport().On("drain", onDrain)
-
-	s.cleanupFn.Push(func() {
-		s.Transport().RemoveListener("drain", onDrain)
-	})
-}
-
 // Sends a message packet.
 func (s *socket) Send(
 	data io.Reader,
 	options *packet.Options,
-	callback func(transports.Transport),
+	callback SendCallback,
 ) Socket {
 	s.sendPacket(packet.MESSAGE, data, options, callback)
 	return s
@@ -459,7 +463,7 @@ func (s *socket) Send(
 func (s *socket) Write(
 	data io.Reader,
 	options *packet.Options,
-	callback func(transports.Transport),
+	callback SendCallback,
 ) Socket {
 	s.sendPacket(packet.MESSAGE, data, options, callback)
 	return s
@@ -470,7 +474,7 @@ func (s *socket) sendPacket(
 	packetType packet.Type,
 	data io.Reader,
 	options *packet.Options,
-	callback func(transports.Transport),
+	callback SendCallback,
 ) {
 
 	if "closing" != s.ReadyState() && "closed" != s.ReadyState() {
@@ -507,17 +511,11 @@ func (s *socket) flush() {
 			socket_log.Debug("flushing buffer to transport")
 			s.Emit("flush", wbuf)
 			s.server.Emit("flush", s, wbuf)
-			if !s.Transport().SupportsFraming() {
-				s.sentCallbackFn.Push(s.packetsFn.AllAndClear())
+			if packetsFn := s.packetsFn.AllAndClear(); len(packetsFn) > 0 {
+				s.sentCallbackFn.Push(packetsFn)
 			} else {
-				s.sentCallbackFn.Push((func(inputs []func(transports.Transport)) (outputs []any) {
-					for _, fn := range inputs {
-						outputs = append(outputs, fn)
-					}
-					return outputs
-				})(s.packetsFn.AllAndClear())...)
+				s.sentCallbackFn.Push(nil)
 			}
-
 			s.Transport().Send(wbuf)
 			s.Emit("drain")
 			s.server.Emit("drain", s)
@@ -526,8 +524,7 @@ func (s *socket) flush() {
 }
 
 // Get available upgrades for this socket.
-func (s *socket) getAvailableUpgrades() []string {
-	availableUpgrades := []string{}
+func (s *socket) getAvailableUpgrades() (availableUpgrades []string) {
 	for _, upg := range s.server.Upgrades(s.Transport().Name()).Keys() {
 		if s.server.Opts().Transports().Has(upg) {
 			availableUpgrades = append(availableUpgrades, upg)

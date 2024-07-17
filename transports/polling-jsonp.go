@@ -49,8 +49,6 @@ func (j *jsonp) Construct(ctx *types.HttpContext) {
 	j.foot = ");"
 }
 
-// Handles incoming data.
-// Due to a bug in \n handling by browsers, we expect a escaped string.
 func (j *jsonp) OnData(data _types.BufferInterface) {
 	if data, err := url.ParseQuery(data.String()); err == nil {
 		if data.Has("d") {
@@ -69,7 +67,6 @@ func (j *jsonp) OnData(data _types.BufferInterface) {
 	}
 }
 
-// Performs the write.
 func (j *jsonp) DoWrite(ctx *types.HttpContext, data _types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
 	// prepare response
 	res := _types.NewStringBufferString(j.head)

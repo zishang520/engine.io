@@ -12,14 +12,13 @@ import (
 	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/utils"
-	"github.com/zishang520/engine.io/v2/webtransport"
 )
 
 type HttpContext struct {
 	events.EventEmitter
 
 	Websocket    *WebSocketConn
-	WebTransport *webtransport.Conn
+	WebTransport *WebTransportConn
 
 	Cleanup Callable
 

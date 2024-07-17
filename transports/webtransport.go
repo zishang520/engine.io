@@ -20,7 +20,7 @@ var (
 type webTransport struct {
 	Transport
 
-	session *webtransport.Conn
+	session *types.WebTransportConn
 	mu      sync.Mutex
 }
 
@@ -58,11 +58,6 @@ func (w *webTransport) Name() string {
 
 // Advertise upgrade support.
 func (w *webTransport) HandlesUpgrades() bool {
-	return true
-}
-
-// Advertise framing support.
-func (w *webTransport) SupportsFraming() bool {
 	return true
 }
 
@@ -109,8 +104,9 @@ func (w *webTransport) onMessage(data _types.BufferInterface) {
 func (w *webTransport) Send(packets []*packet.Packet) {
 	w.SetWritable(false)
 	defer func() {
-		w.SetWritable(true)
 		w.Emit("drain")
+		w.SetWritable(true)
+		w.Emit("ready")
 	}()
 
 	w.mu.Lock()
@@ -122,11 +118,7 @@ func (w *webTransport) Send(packets []*packet.Packet) {
 		if packet.Options != nil {
 			compress = packet.Options.Compress
 
-			if packet.Options.WsPreEncoded != nil {
-				w.write(packet.Options.WsPreEncoded, compress)
-				return
-
-			} else if w.PerMessageDeflate() == nil && packet.Options.WsPreEncodedFrame != nil {
+			if w.PerMessageDeflate() == nil && packet.Options.WsPreEncodedFrame != nil {
 				mt := webtransport.BinaryMessage
 				if _, ok := packet.Options.WsPreEncodedFrame.(*_types.StringBuffer); ok {
 					mt = webtransport.TextMessage

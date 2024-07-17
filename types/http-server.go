@@ -80,7 +80,7 @@ func (s *HttpServer) Close(fn func(error)) (err error) {
 		case *webtransport.Server:
 			serverErr = srv.Close()
 		default:
-			serverErr = errors.New("unknown server type")
+			serverErr = errors.New("unknown server type").Err()
 		}
 		if serverErr != nil && closingErr == nil {
 			closingErr = serverErr

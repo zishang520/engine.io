@@ -27,6 +27,7 @@ type polling struct {
 
 	closeTimeout time.Duration
 
+	req     atomic.Pointer[types.HttpContext]
 	dataCtx atomic.Pointer[types.HttpContext]
 
 	shouldClose atomic.Pointer[types.Callable]
@@ -56,12 +57,16 @@ func (p *polling) Construct(ctx *types.HttpContext) {
 	p.closeTimeout = 30 * 1000 * time.Millisecond
 }
 
-func (p *polling) Name() string {
-	return "polling"
+func (p *polling) Req() *types.HttpContext {
+	return p.req.Load()
 }
 
-func (p *polling) SupportsFraming() bool {
-	return false
+func (p *polling) SetReq(req *types.HttpContext) {
+	p.req.Store(req)
+}
+
+func (p *polling) Name() string {
+	return "polling"
 }
 
 // Overrides onRequest.
@@ -105,7 +110,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 	ctx.On("close", onClose)
 
 	p.SetWritable(true)
-	p.Emit("drain")
+	p.Emit("ready")
 
 	// if we're still writable but had a pending close, trigger an empty send
 	if p.Writable() && p.shouldClose.Load() != nil {
@@ -257,7 +262,10 @@ func (p *polling) Send(packets []*packet.Packet) {
 func (p *polling) write(ctx *types.HttpContext, data _types.BufferInterface, options *packet.Options) {
 	polling_log.Debug(`writing %#v`, data)
 	// Assert that the prototype is Polling.
-	p.Proto().(Polling).DoWrite(ctx, data, options, func(ctx *types.HttpContext) { ctx.Cleanup() })
+	p.Proto().(Polling).DoWrite(ctx, data, options, func(ctx *types.HttpContext) {
+		ctx.Cleanup()
+		p.Emit("drain")
+	})
 }
 
 // Performs the write.

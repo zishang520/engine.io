@@ -24,6 +24,7 @@ type transport struct {
 	httpCompression   *types.HttpCompression
 	perMessageDeflate *types.PerMessageDeflate
 
+	// The session ID.
 	sid      string
 	protocol int // 3
 
@@ -33,10 +34,9 @@ type transport struct {
 
 	parser parser.Parser // parser.PaserV3;
 
-	req atomic.Pointer[types.HttpContext]
-
 	supportsBinary bool
 
+	// Whether the transport is currently ready to send packets.
 	_writable atomic.Bool
 }
 
@@ -93,14 +93,6 @@ func (t *transport) Discarded() bool {
 
 func (t *transport) Parser() parser.Parser {
 	return t.parser
-}
-
-func (t *transport) Req() *types.HttpContext {
-	return t.req.Load()
-}
-
-func (t *transport) SetReq(req *types.HttpContext) {
-	t.req.Store(req)
 }
 
 func (t *transport) SupportsBinary() bool {
@@ -166,10 +158,7 @@ func (t *transport) Discard() {
 }
 
 // Called with an incoming HTTP request.
-func (t *transport) OnRequest(req *types.HttpContext) {
-	transport_log.Debug("setting request")
-	t.SetReq(req)
-}
+func (t *transport) OnRequest(req *types.HttpContext) {}
 
 // Closes the transport.
 func (t *transport) Close(fn ...types.Callable) {
@@ -211,21 +200,12 @@ func (t *transport) HandlesUpgrades() bool {
 	return false
 }
 
-// Advertise framing support.
-func (t *transport) SupportsFraming() bool {
-	return false
-}
-
 // The name of the transport.
 func (t *transport) Name() string {
 	return ""
 }
 
 // Sends an array of packets.
-func (t *transport) Send([]*packet.Packet) {
-	transport_log.Debug("Not implemented")
-}
+func (t *transport) Send([]*packet.Packet) {}
 
-func (t *transport) DoClose(types.Callable) {
-	transport_log.Debug("Not implemented")
-}
+func (t *transport) DoClose(types.Callable) {}

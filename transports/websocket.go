@@ -64,11 +64,6 @@ func (w *websocket) HandlesUpgrades() bool {
 	return true
 }
 
-// Advertise framing support.
-func (w *websocket) SupportsFraming() bool {
-	return true
-}
-
 func (w *websocket) _init() {
 	for {
 		mt, message, err := w.socket.NextReader()
@@ -120,8 +115,9 @@ func (w *websocket) onMessage(data _types.BufferInterface) {
 func (w *websocket) Send(packets []*packet.Packet) {
 	w.SetWritable(false)
 	defer func() {
-		w.SetWritable(true)
 		w.Emit("drain")
+		w.SetWritable(true)
+		w.Emit("ready")
 	}()
 
 	w.mu.Lock()
@@ -133,11 +129,7 @@ func (w *websocket) Send(packets []*packet.Packet) {
 		if packet.Options != nil {
 			compress = packet.Options.Compress
 
-			if packet.Options.WsPreEncoded != nil {
-				w.write(packet.Options.WsPreEncoded, compress)
-				return
-
-			} else if w.PerMessageDeflate() == nil && packet.Options.WsPreEncodedFrame != nil {
+			if w.PerMessageDeflate() == nil && packet.Options.WsPreEncodedFrame != nil {
 				mt := ws.BinaryMessage
 				if _, ok := packet.Options.WsPreEncodedFrame.(*_types.StringBuffer); ok {
 					mt = ws.TextMessage

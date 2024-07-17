@@ -47,6 +47,13 @@ func (w *webTransport) Construct(ctx *types.HttpContext) {
 	w.session = ctx.WebTransport
 	go w._init()
 
+	w.session.On("error", func(errors ...any) {
+		w.OnError("webtransport error", errors[0].(error))
+	})
+	w.session.On("close", func(...any) {
+		w.OnClose()
+	})
+
 	w.SetWritable(true)
 	w.SetPerMessageDeflate(nil)
 }
@@ -66,9 +73,9 @@ func (w *webTransport) _init() {
 		mt, message, err := w.session.NextReader()
 		if err != nil {
 			if webtransport.IsUnexpectedCloseError(err) {
-				w.OnClose()
+				w.session.Emit("close")
 			} else {
-				w.OnError("Error reading data", err)
+				w.session.Emit("error", err)
 			}
 			return
 		}
@@ -77,14 +84,14 @@ func (w *webTransport) _init() {
 		case webtransport.BinaryMessage:
 			read := _types.NewBytesBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
-				w.OnError("Error reading data", err)
+				w.session.Emit("error", err)
 			} else {
 				w.onMessage(read)
 			}
 		case webtransport.TextMessage:
 			read := _types.NewStringBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
-				w.OnError("Error reading data", err)
+				w.session.Emit("error", err)
 			} else {
 				w.onMessage(read)
 			}
@@ -126,12 +133,12 @@ func (w *webTransport) Send(packets []*packet.Packet) {
 				pm, err := webtransport.NewPreparedMessage(mt, packet.Options.WsPreEncodedFrame.Bytes())
 				if err != nil {
 					wt_log.Debug(`Send Error "%s"`, err.Error())
-					w.OnError("write error", err)
+					w.session.Emit("error", err)
 					return
 				}
 				if err := w.session.WritePreparedMessage(pm); err != nil {
 					wt_log.Debug(`Send Error "%s"`, err.Error())
-					w.OnError("write error", err)
+					w.session.Emit("error", err)
 					return
 				}
 				return
@@ -142,7 +149,7 @@ func (w *webTransport) Send(packets []*packet.Packet) {
 		data, err := w.Parser().EncodePacket(packet, w.SupportsBinary())
 		if err != nil {
 			wt_log.Debug(`Send Error "%s"`, err.Error())
-			w.OnError("write error", err)
+			w.session.Emit("error", err)
 			return
 		}
 		w.write(data, compress)
@@ -164,17 +171,17 @@ func (w *webTransport) write(data _types.BufferInterface, compress bool) {
 	}
 	write, err := w.session.NextWriter(mt)
 	if err != nil {
-		w.OnError("write error", err)
+		w.session.Emit("error", err)
 		return
 	}
 	defer func() {
 		if err := write.Close(); err != nil {
-			w.OnError("write error", err)
+			w.session.Emit("error", err)
 			return
 		}
 	}()
 	if _, err := io.Copy(write, data); err != nil {
-		w.OnError("write error", err)
+		w.session.Emit("error", err)
 		return
 	}
 }

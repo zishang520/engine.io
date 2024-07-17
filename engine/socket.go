@@ -524,7 +524,8 @@ func (s *socket) flush() {
 }
 
 // Get available upgrades for this socket.
-func (s *socket) getAvailableUpgrades() (availableUpgrades []string) {
+func (s *socket) getAvailableUpgrades() []string {
+	availableUpgrades := []string{}
 	for _, upg := range s.server.Upgrades(s.Transport().Name()).Keys() {
 		if s.server.Opts().Transports().Has(upg) {
 			availableUpgrades = append(availableUpgrades, upg)

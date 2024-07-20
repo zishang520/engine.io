@@ -2,6 +2,8 @@ module github.com/zishang520/engine.io/v2
 
 go 1.22.2
 
+retract v2.2.0
+
 require (
 	github.com/andybalholm/brotli v1.1.0
 	github.com/go-playground/validator/v10 v10.22.0

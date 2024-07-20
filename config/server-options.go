@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/zishang520/engine.io/v2/transports"
 	"github.com/zishang520/engine.io/v2/types"
 )
 
@@ -258,7 +259,7 @@ func (s *ServerOptions) GetRawTransports() *types.Set[string] {
 }
 func (s *ServerOptions) Transports() *types.Set[string] {
 	if s.transports == nil {
-		return types.NewSet("polling", "websocket")
+		return types.NewSet(transports.POLLING, transports.WEBSOCKET)
 	}
 	return s.transports
 }

@@ -10,11 +10,17 @@ type transports struct {
 	UpgradesTo      *types.Set[string]
 }
 
+const (
+	POLLING      string = "polling"
+	WEBSOCKET    string = "websocket"
+	WEBTRANSPORT string = "webtransport"
+)
+
 var _transports map[string]*transports
 
 func init() {
 	_transports = map[string]*transports{
-		"polling": {
+		POLLING: {
 			// Polling polymorphic New.
 			New: func(ctx *types.HttpContext) Transport {
 				if ctx.Query().Has("j") {
@@ -23,10 +29,10 @@ func init() {
 				return NewPolling(ctx)
 			},
 			HandlesUpgrades: false,
-			UpgradesTo:      types.NewSet("websocket", "webtransport"),
+			UpgradesTo:      types.NewSet(WEBSOCKET, WEBTRANSPORT),
 		},
 
-		"websocket": {
+		WEBSOCKET: {
 			New: func(ctx *types.HttpContext) Transport {
 				return NewWebSocket(ctx)
 			},
@@ -34,7 +40,7 @@ func init() {
 			UpgradesTo:      types.NewSet[string](),
 		},
 
-		"webtransport": {
+		WEBTRANSPORT: {
 			New: func(ctx *types.HttpContext) Transport {
 				return NewWebTransport(ctx)
 			},

@@ -60,7 +60,7 @@ func (w *webTransport) Construct(ctx *types.HttpContext) {
 
 // Transport name
 func (w *webTransport) Name() string {
-	return "webtransport"
+	return WEBTRANSPORT
 }
 
 // Advertise upgrade support.

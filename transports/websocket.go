@@ -56,7 +56,7 @@ func (w *websocket) Construct(ctx *types.HttpContext) {
 
 // Transport name
 func (w *websocket) Name() string {
-	return "websocket"
+	return WEBSOCKET
 }
 
 // Advertise upgrade support.

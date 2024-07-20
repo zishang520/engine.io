@@ -66,7 +66,7 @@ func (p *polling) SetReq(req *types.HttpContext) {
 }
 
 func (p *polling) Name() string {
-	return "polling"
+	return POLLING
 }
 
 // Overrides onRequest.

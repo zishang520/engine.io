@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/go-playground/validator/v10/translations/tr"
 	"github.com/zishang520/engine.io/v2/config"
 	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
@@ -154,7 +155,7 @@ func (bs *baseServer) Upgrades(transport string) *types.Set[string] {
 func (bs *baseServer) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]any) {
 	// transport check
 	transport := ctx.Query().Peek("transport")
-	if !bs.opts.Transports().Has(transport) || transport == "webtransport" {
+	if !bs.opts.Transports().Has(transport) || transport == transports.WEBTRANSPORT {
 		server_log.Debug(`unknown transport "%s"`, transport)
 		return UNKNOWN_TRANSPORT, map[string]any{"transport": transport}
 	}
@@ -184,7 +185,7 @@ func (bs *baseServer) Verify(ctx *types.HttpContext, upgrade bool) (int, map[str
 			return BAD_HANDSHAKE_METHOD, map[string]any{"method": method}
 		}
 
-		if transport == "websocket" && !upgrade {
+		if transport == transports.WEBSOCKET && !upgrade {
 			server_log.Debug("invalid transport upgrade")
 			return BAD_REQUEST, map[string]any{"name": "TRANSPORT_HANDSHAKE_ERROR"}
 		}
@@ -312,12 +313,12 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 		})
 		return BAD_REQUEST, nil
 	}
-	if "polling" == transportName {
+	if transports.POLLING == transportName {
 		transport.SetMaxHttpBufferSize(bs.opts.MaxHttpBufferSize())
 		transport.SetHttpCompression(bs.opts.HttpCompression())
-	} else if "websocket" == transportName {
+	} else if transports.WEBSOCKET == transportName {
 		transport.SetPerMessageDeflate(bs.opts.PerMessageDeflate())
-	} else if "webtransport" == transportName {
+	} else if transports.WEBTRANSPORT == transportName {
 		transport.SetMaxHttpBufferSize(bs.opts.MaxHttpBufferSize())
 	}
 

@@ -347,7 +347,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 
 	// we force a polling cycle to ensure a fast upgrade
 	check = func() {
-		if "polling" == s.Transport().Name() && s.Transport().Writable() {
+		if transports.POLLING == s.Transport().Name() && s.Transport().Writable() {
 			socket_log.Debug("writing a noop packet to polling for fast upgrade")
 			s.Transport().Send([]*packet.Packet{{Type: packet.NOOP}})
 		}

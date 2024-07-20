@@ -349,7 +349,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !websocket.IsWebSocketUpgrade(r) {
 		server_log.Debug(`intercepting request for path "%s"`, utils.CleanPath(r.URL.Path))
 		s.HandleRequest(types.NewHttpContext(w, r))
-	} else if s.Opts().Transports().Has("websocket") {
+	} else if s.Opts().Transports().Has(transports.WEBSOCKET) {
 		s.HandleUpgrade(types.NewHttpContext(w, r))
 	} else {
 		http.Error(w, "Not Implemented", http.StatusNotImplemented)

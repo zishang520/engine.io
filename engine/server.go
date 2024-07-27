@@ -207,10 +207,6 @@ func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 	}
 }
 
-type webTransportHandshake struct {
-	Sid string `json:"sid" mapstructure:"sid" msgpack:"sid"`
-}
-
 func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.Server) {
 	if allowRequest := s.Opts().AllowRequest(); allowRequest != nil {
 		if err := allowRequest(ctx); err != nil {
@@ -294,7 +290,10 @@ func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.
 		return
 	}
 
-	var wth *webTransportHandshake
+	var wth *struct {
+		Sid string `json:"sid"`
+	}
+
 	if json.NewDecoder(value.Data).Decode(&wth) != nil {
 		server_log.Debug("invalid WebTransport handshake")
 		abortUpgrade(ctx, BAD_REQUEST, nil)

@@ -8,15 +8,20 @@ import (
 
 type (
 	Cors struct {
-		Origin               any    `json:"origin,omitempty" mapstructure:"origin,omitempty" msgpack:"origin,omitempty"`
-		Methods              any    `json:"methods,omitempty" mapstructure:"methods,omitempty" msgpack:"methods,omitempty"`
-		AllowedHeaders       any    `json:"allowedHeaders,omitempty" mapstructure:"allowedHeaders,omitempty" msgpack:"allowedHeaders,omitempty"`
-		Headers              any    `json:"headers,omitempty" mapstructure:"headers,omitempty" msgpack:"headers,omitempty"`
-		ExposedHeaders       any    `json:"exposedHeaders,omitempty" mapstructure:"exposedHeaders,omitempty" msgpack:"exposedHeaders,omitempty"`
-		MaxAge               string `json:"maxAge,omitempty" mapstructure:"maxAge,omitempty" msgpack:"maxAge,omitempty"`
-		Credentials          bool   `json:"credentials,omitempty" mapstructure:"credentials,omitempty" msgpack:"credentials,omitempty"`
-		PreflightContinue    bool   `json:"preflightContinue,omitempty" mapstructure:"preflightContinue,omitempty" msgpack:"preflightContinue,omitempty"`
-		OptionsSuccessStatus int    `json:"optionsSuccessStatus,omitempty" mapstructure:"optionsSuccessStatus,omitempty" msgpack:"optionsSuccessStatus,omitempty"`
+		// Supported types: string, []any, *regexp.Regexp, bool
+		Origin any
+		// Supported types: string, []string
+		Methods any
+		// Supported types: nil, string, []string
+		AllowedHeaders any
+		// Supported types: nil, string, []string
+		Headers any
+		// Supported types: string, []string
+		ExposedHeaders       any
+		MaxAge               string
+		Credentials          bool
+		PreflightContinue    bool
+		OptionsSuccessStatus int
 	}
 
 	Kv struct {

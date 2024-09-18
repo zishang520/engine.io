@@ -13,8 +13,6 @@ import (
 
 var (
 	wt_log = log.NewLog("engine:webtransport")
-
-	BINARY_HEADER = []byte{0x36}
 )
 
 type webTransport struct {

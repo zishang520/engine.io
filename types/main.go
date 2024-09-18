@@ -1,9 +1,9 @@
 package types
 
 type (
-	Void struct{}
+	Void = struct{}
 
-	Callable func()
+	Callable = func()
 
 	HttpCompression struct {
 		Threshold int `json:"threshold,omitempty" msgpack:"threshold,omitempty"`

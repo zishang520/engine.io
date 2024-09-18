@@ -22,8 +22,6 @@ import (
 
 type server struct {
 	BaseServer
-	// Captures upgrade requests for a http.Handler, Need to handle server shutdown disconnecting client connections.
-	http.Handler
 
 	httpServer *types.HttpServer
 }

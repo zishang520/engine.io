@@ -5,7 +5,6 @@ import (
 )
 
 type msgPack struct {
-	sequenceNumber uint64
 }
 
 var defaultMsgpack = &msgPack{}

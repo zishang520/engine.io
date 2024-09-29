@@ -425,8 +425,9 @@ func (s *socket) clearTransport() {
 // Possible reasons: `ping timeout`, `client error`, `parse error`,
 // `transport error`, `server close`, `transport close`
 func (s *socket) OnClose(reason string, description ...any) {
-	description = append(description, nil)
 	if "closed" != s.ReadyState() {
+		description = append(description, nil)
+
 		s.SetReadyState("closed")
 
 		// clear timers

@@ -104,7 +104,7 @@ func main() {
         socket := sockets[0].(engine.Socket)
         socket.On("message", func(...any) {
         })
-        socket.On("close", func(...any) {
+        socket.Once("close", func(...any) {
             utils.Log().Println("client close.")
         })
     })
@@ -174,7 +174,7 @@ func main() {
         socket := sockets[0].(engine.Socket)
         socket.On("message", func(...any) {
         })
-        socket.On("close", func(...any) {
+        socket.Once("close", func(...any) {
             utils.Log().Println("client close.")
         })
     })
@@ -232,7 +232,7 @@ func main() {
         socket := sockets[0].(engine.Socket)
         socket.On("message", func(...any) {
         })
-        socket.On("close", func(...any) {
+        socket.Once("close", func(...any) {
             utils.Log().Println("client close.")
         })
     })
@@ -315,7 +315,7 @@ func main() {
         socket := sockets[0].(engine.Socket)
         socket.On("message", func(...any) {
         })
-        socket.On("close", func(...any) {
+        socket.Once("close", func(...any) {
             utils.Log().Println("client close.")
         })
     })

@@ -107,7 +107,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 		p.SetReq(nil)
 	}
 
-	ctx.On("close", onClose)
+	ctx.Once("close", onClose)
 
 	p.SetWritable(true)
 	p.Emit("ready")
@@ -154,7 +154,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		p.OnError("data request connection closed prematurely", nil)
 	}
 
-	ctx.On("close", onClose)
+	ctx.Once("close", onClose)
 
 	if ctx.Request().ContentLength > p.MaxHttpBufferSize() {
 		ctx.SetStatusCode(http.StatusRequestEntityTooLarge)

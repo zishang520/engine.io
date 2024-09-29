@@ -337,7 +337,7 @@ func (s *server) Attach(server *types.HttpServer, opts any) {
 	options, _ := opts.(config.AttachOptionsInterface)
 	path := s.ComputePath(options)
 
-	server.On("close", func(...any) {
+	server.Once("close", func(...any) {
 		s.Close()
 	})
 

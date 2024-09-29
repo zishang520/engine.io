@@ -3,6 +3,8 @@ package types
 import (
 	"encoding/json"
 	"sync"
+
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type Set[KType comparable] struct {
@@ -125,6 +127,40 @@ func (s *Set[KType]) UnmarshalJSON(data []byte) error {
 
 	// Unmarshal the JSON data into a slice of keys
 	if err := json.Unmarshal(data, &keys); err != nil {
+		return err
+	}
+
+	// Clear the current set and populate with the new keys
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.cache = make(map[KType]Void, len(keys))
+	for _, key := range keys {
+		s.cache[key] = NULL
+	}
+
+	return nil
+}
+
+// MarshalMsgpack implements the msgpack.Marshaler interface.
+func (s *Set[KType]) MarshalMsgpack() ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	keys := make([]KType, 0, len(s.cache))
+
+	for key := range s.cache {
+		keys = append(keys, key)
+	}
+
+	return msgpack.Marshal(keys)
+}
+
+// UnmarshalMsgpack implements the msgpack.Unmarshaler interface.
+func (s *Set[KType]) UnmarshalMsgpack(data []byte) error {
+	var keys []KType
+
+	// Unmarshal the MessagePack data into a slice of keys
+	if err := msgpack.Unmarshal(data, &keys); err != nil {
 		return err
 	}
 

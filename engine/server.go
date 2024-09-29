@@ -173,6 +173,9 @@ func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 	if len(id) == 0 {
 		if errorCode, t := s.Handshake(transportName, ctx); t == nil {
 			abortUpgrade(ctx, errorCode, nil)
+		} else {
+			// transport error handling takes over
+			wsc.RemoveListener("error", onUpgradeError)
 		}
 		return
 	}

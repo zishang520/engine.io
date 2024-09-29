@@ -192,6 +192,9 @@ func (t *transport) OnData(data _types.BufferInterface) {
 
 // Called upon transport close.
 func (t *transport) OnClose() {
+	if "closed" == t.ReadyState() {
+		return
+	}
 	t.SetReadyState("closed")
 	t.Emit("close")
 }

@@ -536,6 +536,12 @@ func (s *socket) getAvailableUpgrades() []string {
 
 // Closes the socket and underlying transport.
 func (s *socket) Close(discard bool) {
+	if discard &&
+		(s.ReadyState() == "open" || s.ReadyState() == "closing") {
+		s.closeTransport(discard)
+		return
+	}
+
 	if "open" != s.ReadyState() {
 		return
 	}
@@ -551,7 +557,7 @@ func (s *socket) Close(discard bool) {
 		return
 	}
 
-	socket_log.Debug("the buffer is empty, closing the transport right away (discard? %t)", discard)
+	socket_log.Debug("the buffer is empty, closing the transport right away")
 	s.closeTransport(discard)
 }
 

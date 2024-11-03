@@ -4,6 +4,7 @@ type Error struct {
 	Message     string
 	Description error
 	Type        string
+	errs        []error
 }
 
 func (e *Error) Err() error {
@@ -12,6 +13,10 @@ func (e *Error) Err() error {
 
 func (e *Error) Error() string {
 	return e.Message
+}
+
+func (e *Error) Unwrap() []error {
+	return e.errs
 }
 
 func New(message string) *Error {
@@ -23,5 +28,6 @@ func NewTransportError(reason string, description error) *Error {
 		Message:     reason,
 		Description: description,
 		Type:        "TransportError",
+		errs:        []error{description},
 	}
 }

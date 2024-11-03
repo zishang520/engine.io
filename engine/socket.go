@@ -424,7 +424,7 @@ func (s *socket) clearTransport() {
 // Called upon transport considered closed.
 // Possible reasons: `ping timeout`, `client error`, `parse error`,
 // `transport error`, `server close`, `transport close`
-func (s *socket) OnClose(reason string, description ...any) {
+func (s *socket) OnClose(reason string, description ...error) {
 	if "closed" != s.ReadyState() {
 		description = append(description, nil)
 

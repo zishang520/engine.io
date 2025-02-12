@@ -1,17 +1,17 @@
 package types
 
 import (
-	_webtransport "github.com/quic-go/webtransport-go"
-	"github.com/zishang520/engine.io/v2/events"
+	wt "github.com/quic-go/webtransport-go"
 	"github.com/zishang520/engine.io/v2/webtransport"
 )
 
 type WebTransportConn struct {
-	events.EventEmitter
+	EventEmitter
+
 	*webtransport.Conn
 }
 
-func (t *WebTransportConn) CloseWithError(code _webtransport.SessionErrorCode, msg string) error {
+func (t *WebTransportConn) CloseWithError(code wt.SessionErrorCode, msg string) error {
 	defer t.Emit("close")
 	return t.Conn.CloseWithError(code, msg)
 }

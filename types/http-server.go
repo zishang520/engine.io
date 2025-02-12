@@ -11,11 +11,10 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/webtransport-go"
 	"github.com/zishang520/engine.io/v2/errors"
-	"github.com/zishang520/engine.io/v2/events"
 )
 
 type HttpServer struct {
-	events.EventEmitter
+	EventEmitter
 	*ServeMux
 
 	servers *Slice[any]
@@ -23,7 +22,7 @@ type HttpServer struct {
 
 func NewWebServer(defaultHandler http.Handler) *HttpServer {
 	s := &HttpServer{
-		EventEmitter: events.New(),
+		EventEmitter: NewEventEmitter(),
 		ServeMux:     NewServeMux(defaultHandler),
 
 		servers: NewSlice[any](),

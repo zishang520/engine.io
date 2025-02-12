@@ -1,4 +1,4 @@
-package events
+package types
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var _event = New()
+var _event = NewEventEmitter()
 
 var testEvents = Events{
 	"user_created": []Listener{
@@ -64,7 +64,7 @@ func ExampleEvents() {
 }
 
 func TestEvents(t *testing.T) {
-	e := New()
+	e := NewEventEmitter()
 	expectedPayload := "this is my payload"
 
 	e.On("my_event", func(payload ...any) {
@@ -138,7 +138,7 @@ func TestEventsOnce(t *testing.T) {
 
 func TestRemoveListener(t *testing.T) {
 	// on default
-	e := New()
+	e := NewEventEmitter()
 
 	var count = 0
 	listener := func(payload ...any) {
@@ -186,7 +186,7 @@ func TestRemoveListener(t *testing.T) {
 }
 
 func BenchmarkConcurrentEmit(b *testing.B) {
-	emitter := New()
+	emitter := NewEventEmitter()
 	emitter.On("bench", func(...any) {})
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -198,7 +198,7 @@ func BenchmarkConcurrentEmit(b *testing.B) {
 
 // Test concurrent addition of listeners
 func TestConcurrentAddListeners(t *testing.T) {
-	emitter := New()
+	emitter := NewEventEmitter()
 	const numListeners = 100
 	var wg sync.WaitGroup
 
@@ -218,7 +218,7 @@ func TestConcurrentAddListeners(t *testing.T) {
 
 // Test concurrent event emission and listener removal
 func TestConcurrentEmitRemoveListener(t *testing.T) {
-	emitter := New()
+	emitter := NewEventEmitter()
 	var wg sync.WaitGroup
 
 	const numListeners = 50
@@ -255,7 +255,7 @@ func TestConcurrentEmitRemoveListener(t *testing.T) {
 
 // Test concurrent event emission
 func TestConcurrentEmit(t *testing.T) {
-	emitter := New()
+	emitter := NewEventEmitter()
 	var (
 		counter int32
 		wg      sync.WaitGroup
@@ -286,7 +286,7 @@ func TestConcurrentEmit(t *testing.T) {
 
 // Test concurrent execution of a one-time listener
 func TestConcurrentOnce(t *testing.T) {
-	emitter := New()
+	emitter := NewEventEmitter()
 	var (
 		counter int32
 		wg      sync.WaitGroup
@@ -313,7 +313,7 @@ func TestConcurrentOnce(t *testing.T) {
 
 // Test concurrent removal of all listeners
 func TestConcurrentRemoveAll(t *testing.T) {
-	emitter := New()
+	emitter := NewEventEmitter()
 	var wg sync.WaitGroup
 
 	// Add initial listeners
@@ -342,7 +342,7 @@ func TestConcurrentRemoveAll(t *testing.T) {
 
 // Test concurrent addition of listeners with max limit
 func TestMaxListenersConcurrent(t *testing.T) {
-	emitter := New()
+	emitter := NewEventEmitter()
 	const max = 10
 	emitter.SetMaxListeners(max)
 

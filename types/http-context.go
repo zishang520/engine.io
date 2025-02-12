@@ -10,12 +10,11 @@ import (
 	"sync/atomic"
 
 	"github.com/zishang520/engine.io/v2/errors"
-	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/utils"
 )
 
 type HttpContext struct {
-	events.EventEmitter
+	EventEmitter
 
 	Websocket    *WebSocketConn
 	WebTransport *WebTransportConn
@@ -45,7 +44,7 @@ type HttpContext struct {
 
 func NewHttpContext(w http.ResponseWriter, r *http.Request) *HttpContext {
 	c := &HttpContext{
-		EventEmitter:    events.New(),
+		EventEmitter:    NewEventEmitter(),
 		ctx:             r.Context(),
 		done:            make(chan Void),
 		request:         r,

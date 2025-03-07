@@ -10,7 +10,6 @@ import (
 	"github.com/quic-go/webtransport-go"
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io-go-parser/parser"
-	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/v2/config"
 	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
@@ -247,18 +246,18 @@ func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.
 		return
 	}
 
-	var data _types.BufferInterface
+	var data types.BufferInterface
 
 	switch mt {
 	case webtrans.BinaryMessage:
-		data = _types.NewBytesBuffer(nil)
+		data = types.NewBytesBuffer(nil)
 		if _, err := data.ReadFrom(message); err != nil {
 			server_log.Debug("WebTransport handshake data read failed: %s", err.Error())
 			abortUpgrade(ctx, BAD_REQUEST, nil)
 			return
 		}
 	case webtrans.TextMessage:
-		data = _types.NewStringBuffer(nil)
+		data = types.NewStringBuffer(nil)
 		if _, err := data.ReadFrom(message); err != nil {
 			server_log.Debug("WebTransport handshake data read failed: %s", err.Error())
 			abortUpgrade(ctx, BAD_REQUEST, nil)
@@ -283,7 +282,7 @@ func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.
 		return
 	}
 
-	if data, ok := value.Data.(_types.BufferInterface); ok && data.Len() == 0 {
+	if data, ok := value.Data.(types.BufferInterface); ok && data.Len() == 0 {
 		ctx.Query().Set("EIO", "4")
 		if errorCode, t := s.Handshake(ctx.Request().Proto, ctx); t == nil {
 			abortUpgrade(ctx, errorCode, nil)

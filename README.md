@@ -22,7 +22,6 @@ import (
     "strings"
     "syscall"
 
-    _types "github.com/zishang520/engine.io-go-parser/types"
     "github.com/zishang520/engine.io/v2/config"
     "github.com/zishang520/engine.io/v2/engine"
     "github.com/zishang520/engine.io/v2/types"
@@ -41,10 +40,10 @@ func main() {
     engineServer.On("connection", func(sockets ...any) {
         socket := sockets[0].(engine.Socket)
         socket.Send(strings.NewReader("utf 8 string"), nil, nil)
-        socket.Send(_types.NewBytesBuffer([]byte{0, 1, 2, 3, 4, 5}), nil, nil)
-        socket.Send(_types.NewBytesBufferString("BufferString by string"), nil, nil)
-        socket.Send(_types.NewStringBuffer([]byte("StringBuffer by byte")), nil, nil)
-        socket.Send(_types.NewStringBufferString("StringBuffer by string"), nil, nil)
+        socket.Send(types.NewBytesBuffer([]byte{0, 1, 2, 3, 4, 5}), nil, nil)
+        socket.Send(types.NewBytesBufferString("BufferString by string"), nil, nil)
+        socket.Send(types.NewStringBuffer([]byte("StringBuffer by byte")), nil, nil)
+        socket.Send(types.NewStringBufferString("StringBuffer by string"), nil, nil)
         socket.On("message", func(...any) {
             // socket.Send(strings.NewReader("utf 8 string"), nil, nil)
         })

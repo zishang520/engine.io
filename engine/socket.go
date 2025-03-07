@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/zishang520/engine.io-go-parser/packet"
-	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/log"
@@ -168,7 +167,7 @@ func (s *socket) onOpen() {
 	}
 	s.sendPacket(
 		packet.OPEN,
-		_types.NewStringBuffer(data),
+		types.NewStringBuffer(data),
 		nil, nil,
 	)
 

@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/zishang520/engine.io-go-parser/packet"
-	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/v2/log"
 	"github.com/zishang520/engine.io/v2/types"
 	"github.com/zishang520/engine.io/v2/webtransport"
@@ -82,7 +81,7 @@ func (w *webTransport) _init() {
 
 		switch mt {
 		case webtransport.BinaryMessage:
-			read := _types.NewBytesBuffer(nil)
+			read := types.NewBytesBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
 				if errors.Is(err, net.ErrClosed) {
 					w.session.Emit("close")
@@ -93,7 +92,7 @@ func (w *webTransport) _init() {
 				w.onMessage(read)
 			}
 		case webtransport.TextMessage:
-			read := _types.NewStringBuffer(nil)
+			read := types.NewStringBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
 				if errors.Is(err, net.ErrClosed) {
 					w.session.Emit("close")
@@ -110,7 +109,7 @@ func (w *webTransport) _init() {
 	}
 }
 
-func (w *webTransport) onMessage(data _types.BufferInterface) {
+func (w *webTransport) onMessage(data types.BufferInterface) {
 	wt_log.Debug(`webTransport received "%s"`, data)
 	w.Transport.OnData(data)
 }
@@ -135,7 +134,7 @@ func (w *webTransport) Send(packets []*packet.Packet) {
 
 			if w.PerMessageDeflate() == nil && packet.Options.WsPreEncodedFrame != nil {
 				mt := webtransport.BinaryMessage
-				if _, ok := packet.Options.WsPreEncodedFrame.(*_types.StringBuffer); ok {
+				if _, ok := packet.Options.WsPreEncodedFrame.(*types.StringBuffer); ok {
 					mt = webtransport.TextMessage
 				}
 				pm, err := webtransport.NewPreparedMessage(mt, packet.Options.WsPreEncodedFrame.Bytes())
@@ -176,7 +175,7 @@ func (w *webTransport) Send(packets []*packet.Packet) {
 	}
 }
 
-func (w *webTransport) write(data _types.BufferInterface, compress bool) {
+func (w *webTransport) write(data types.BufferInterface, compress bool) {
 	if w.PerMessageDeflate() != nil {
 		if data.Len() < w.PerMessageDeflate().Threshold {
 			compress = false
@@ -186,7 +185,7 @@ func (w *webTransport) write(data _types.BufferInterface, compress bool) {
 
 	// w.session.EnableWriteCompression(compress)
 	mt := webtransport.BinaryMessage
-	if _, ok := data.(*_types.StringBuffer); ok {
+	if _, ok := data.(*types.StringBuffer); ok {
 		mt = webtransport.TextMessage
 	}
 	write, err := w.session.NextWriter(mt)

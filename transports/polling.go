@@ -13,7 +13,6 @@ import (
 
 	"github.com/andybalholm/brotli"
 	"github.com/zishang520/engine.io-go-parser/packet"
-	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/log"
 	"github.com/zishang520/engine.io/v2/types"
@@ -163,11 +162,11 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		return
 	}
 
-	var packet _types.BufferInterface
+	var packet types.BufferInterface
 	if isBinary {
-		packet = _types.NewBytesBuffer(nil)
+		packet = types.NewBytesBuffer(nil)
 	} else {
-		packet = _types.NewStringBuffer(nil)
+		packet = types.NewStringBuffer(nil)
 	}
 	if rc, ok := ctx.Request().Body.(io.ReadCloser); ok && rc != nil {
 		packet.ReadFrom(rc)
@@ -192,7 +191,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 }
 
 // Processes the incoming data payload.
-func (p *polling) OnData(data _types.BufferInterface) {
+func (p *polling) OnData(data types.BufferInterface) {
 	polling_log.Debug(`received "%s"`, data)
 
 	packets, _ := p.Parser().DecodePayload(data)
@@ -259,7 +258,7 @@ func (p *polling) Send(packets []*packet.Packet) {
 }
 
 // Writes data as response to poll request.
-func (p *polling) write(ctx *types.HttpContext, data _types.BufferInterface, options *packet.Options) {
+func (p *polling) write(ctx *types.HttpContext, data types.BufferInterface, options *packet.Options) {
 	polling_log.Debug(`writing %#v`, data)
 	// Assert that the prototype is Polling.
 	p.Proto().(Polling).DoWrite(ctx, data, options, func(ctx *types.HttpContext) {
@@ -269,11 +268,11 @@ func (p *polling) write(ctx *types.HttpContext, data _types.BufferInterface, opt
 }
 
 // Performs the write.
-func (p *polling) DoWrite(ctx *types.HttpContext, data _types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
+func (p *polling) DoWrite(ctx *types.HttpContext, data types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
 	contentType := "application/octet-stream"
 	// explicit UTF-8 is required for pages not served under utf
 	switch data.(type) {
-	case *_types.StringBuffer:
+	case *types.StringBuffer:
 		contentType = "text/plain; charset=UTF-8"
 	}
 
@@ -281,7 +280,7 @@ func (p *polling) DoWrite(ctx *types.HttpContext, data _types.BufferInterface, o
 		"Content-Type": {contentType},
 	})
 
-	respond := func(data _types.BufferInterface, length string) {
+	respond := func(data types.BufferInterface, length string) {
 		headers.Set("Content-Length", length)
 		ctx.ResponseHeaders.With(p.headers(ctx, headers).All())
 		ctx.SetStatusCode(http.StatusOK)
@@ -312,9 +311,9 @@ func (p *polling) DoWrite(ctx *types.HttpContext, data _types.BufferInterface, o
 }
 
 // Compresses data.
-func (p *polling) compress(data _types.BufferInterface, encoding string) (_types.BufferInterface, error) {
+func (p *polling) compress(data types.BufferInterface, encoding string) (types.BufferInterface, error) {
 	polling_log.Debug("compressing")
-	buf := _types.NewBytesBuffer(nil)
+	buf := types.NewBytesBuffer(nil)
 	switch encoding {
 	case "gzip":
 		gz, err := gzip.NewWriterLevel(buf, 1)

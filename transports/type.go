@@ -3,7 +3,6 @@ package transports
 import (
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io-go-parser/parser"
-	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/types"
 )
@@ -90,7 +89,7 @@ type (
 		OnPacket(*packet.Packet)
 		// @protected
 		// Called with the encoded packet data.
-		OnData(_types.BufferInterface)
+		OnData(types.BufferInterface)
 		// @protected
 		// Called upon transport close.
 		OnClose()
@@ -115,7 +114,7 @@ type (
 		// @protected
 		Req() *types.HttpContext
 
-		DoWrite(*types.HttpContext, _types.BufferInterface, *packet.Options, func(*types.HttpContext))
+		DoWrite(*types.HttpContext, types.BufferInterface, *packet.Options, func(*types.HttpContext))
 	}
 
 	Jsonp interface {

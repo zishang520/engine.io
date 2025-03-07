@@ -5,7 +5,6 @@ import (
 
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io-go-parser/parser"
-	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/log"
@@ -185,7 +184,7 @@ func (t *transport) OnPacket(packet *packet.Packet) {
 }
 
 // Called with the encoded packet data.
-func (t *transport) OnData(data _types.BufferInterface) {
+func (t *transport) OnData(data types.BufferInterface) {
 	p, _ := t.parser.DecodePacket(data)
 	t.OnPacket(p)
 }

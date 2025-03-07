@@ -8,7 +8,6 @@ import (
 
 	ws "github.com/gorilla/websocket"
 	"github.com/zishang520/engine.io-go-parser/packet"
-	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io/v2/log"
 	"github.com/zishang520/engine.io/v2/types"
 )
@@ -80,7 +79,7 @@ func (w *websocket) _init() {
 
 		switch mt {
 		case ws.BinaryMessage:
-			read := _types.NewBytesBuffer(nil)
+			read := types.NewBytesBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
 				if errors.Is(err, net.ErrClosed) {
 					w.socket.Emit("close")
@@ -91,7 +90,7 @@ func (w *websocket) _init() {
 				w.onMessage(read)
 			}
 		case ws.TextMessage:
-			read := _types.NewStringBuffer(nil)
+			read := types.NewStringBuffer(nil)
 			if _, err := read.ReadFrom(message); err != nil {
 				if errors.Is(err, net.ErrClosed) {
 					w.socket.Emit("close")
@@ -116,7 +115,7 @@ func (w *websocket) _init() {
 	}
 }
 
-func (w *websocket) onMessage(data _types.BufferInterface) {
+func (w *websocket) onMessage(data types.BufferInterface) {
 	ws_log.Debug(`websocket received "%s"`, data)
 	w.Transport.OnData(data)
 }
@@ -141,7 +140,7 @@ func (w *websocket) Send(packets []*packet.Packet) {
 
 			if w.PerMessageDeflate() == nil && packet.Options.WsPreEncodedFrame != nil {
 				mt := ws.BinaryMessage
-				if _, ok := packet.Options.WsPreEncodedFrame.(*_types.StringBuffer); ok {
+				if _, ok := packet.Options.WsPreEncodedFrame.(*types.StringBuffer); ok {
 					mt = ws.TextMessage
 				}
 				pm, err := ws.NewPreparedMessage(mt, packet.Options.WsPreEncodedFrame.Bytes())
@@ -182,7 +181,7 @@ func (w *websocket) Send(packets []*packet.Packet) {
 	}
 }
 
-func (w *websocket) write(data _types.BufferInterface, compress bool) {
+func (w *websocket) write(data types.BufferInterface, compress bool) {
 	if w.PerMessageDeflate() != nil {
 		if data.Len() < w.PerMessageDeflate().Threshold {
 			compress = false
@@ -192,7 +191,7 @@ func (w *websocket) write(data _types.BufferInterface, compress bool) {
 
 	w.socket.EnableWriteCompression(compress)
 	mt := ws.BinaryMessage
-	if _, ok := data.(*_types.StringBuffer); ok {
+	if _, ok := data.(*types.StringBuffer); ok {
 		mt = ws.TextMessage
 	}
 	write, err := w.socket.NextWriter(mt)

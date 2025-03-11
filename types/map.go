@@ -21,19 +21,24 @@ import (
 // key is only ever written once but read many times, as in caches that only grow,
 // or (2) when multiple goroutines read, write, and overwrite entries for disjoint
 // sets of keys. In these two cases, use of a Map may significantly reduce lock
-// contention compared to a Go map paired with a separate Mutex or RWMutex.
+// contention compared to a Go map paired with a separate [Mutex] or [RWMutex].
 //
 // The zero Map is empty and ready for use. A Map must not be copied after first use.
 //
-// In the terminology of the Go memory model, Map arranges that a write operation
+// In the terminology of [the Go memory model], Map arranges that a write operation
 // “synchronizes before” any read operation that observes the effect of the write, where
 // read and write operations are defined as follows.
-// Load, LoadAndDelete, LoadOrStore, Swap, CompareAndSwap, and CompareAndDelete
-// are read operations; Delete, LoadAndDelete, Store, and Swap are write operations;
-// LoadOrStore is a write operation when it returns loaded set to false;
-// CompareAndSwap is a write operation when it returns swapped set to true;
-// and CompareAndDelete is a write operation when it returns deleted set to true.
+// [Map.Load], [Map.LoadAndDelete], [Map.LoadOrStore], [Map.Swap], [Map.CompareAndSwap],
+// and [Map.CompareAndDelete] are read operations;
+// [Map.Delete], [Map.LoadAndDelete], [Map.Store], and [Map.Swap] are write operations;
+// [Map.LoadOrStore] is a write operation when it returns loaded set to false;
+// [Map.CompareAndSwap] is a write operation when it returns swapped set to true;
+// and [Map.CompareAndDelete] is a write operation when it returns deleted set to true.
+//
+// [the Go memory model]: https://go.dev/ref/mem
 type Map[TKey comparable, TValue any] struct {
+	_ noCopy
+
 	mu sync.Mutex
 
 	// read contains the portion of the map's contents that are safe for
@@ -153,7 +158,7 @@ func (m *Map[TKey, TValue]) Store(key TKey, value TValue) {
 	_, _ = m.Swap(key, value)
 }
 
-// Clear deletes all the keys.
+// Clear deletes all the entries, resulting in an empty Map.
 func (m *Map[TKey, TValue]) Clear() {
 	read := m.loadReadOnly()
 	if len(read.m) == 0 && !read.amended {
@@ -170,7 +175,8 @@ func (m *Map[TKey, TValue]) Clear() {
 	}
 
 	clear(m.dirty)
-	m.misses = 0 // Don't immediately promote the newly-cleared dirty map on the next operation
+	// Don't immediately promote the newly-cleared dirty map on the next operation.
+	m.misses = 0
 }
 
 // tryCompareAndSwap compare the entry with the given old value and swaps
@@ -389,7 +395,7 @@ func (m *Map[TKey, TValue]) Swap(key TKey, value TValue) (previous TValue, loade
 // CompareAndSwap swaps the old and new values for key
 // if the value stored in the map is equal to old.
 // The old value must be of a comparable type.
-func (m *Map[TKey, TValue]) CompareAndSwap(key TKey, old TValue, new TValue) bool {
+func (m *Map[TKey, TValue]) CompareAndSwap(key TKey, old TValue, new TValue) (swapped bool) {
 	read := m.loadReadOnly()
 	if e, ok := read.m[key]; ok {
 		return e.tryCompareAndSwap(old, new)
@@ -400,7 +406,7 @@ func (m *Map[TKey, TValue]) CompareAndSwap(key TKey, old TValue, new TValue) boo
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	read = m.loadReadOnly()
-	swapped := false
+	swapped = false
 	if e, ok := read.m[key]; ok {
 		swapped = e.tryCompareAndSwap(old, new)
 	} else if e, ok := m.dirty[key]; ok {

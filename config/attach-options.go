@@ -68,7 +68,8 @@ func (a *AttachOptions) Assign(data AttachOptionsInterface) AttachOptionsInterfa
 }
 
 // name of the path to capture
-// @default "/engine.io"
+//
+// Default: "/engine.io"
 func (a *AttachOptions) SetPath(path string) {
 	a.path = &path
 }
@@ -84,7 +85,8 @@ func (a *AttachOptions) Path() string {
 }
 
 // destroy unhandled upgrade requests
-// @default true
+//
+// Default: true
 func (a *AttachOptions) SetDestroyUpgrade(destroyUpgrade bool) {
 	a.destroyUpgrade = &destroyUpgrade
 }
@@ -100,7 +102,8 @@ func (a *AttachOptions) DestroyUpgrade() bool {
 }
 
 // milliseconds after which unhandled requests are ended
-// @default 1000
+//
+// Default: 1000
 func (a *AttachOptions) SetDestroyUpgradeTimeout(destroyUpgradeTimeout time.Duration) {
 	a.destroyUpgradeTimeout = &destroyUpgradeTimeout
 }
@@ -116,7 +119,8 @@ func (a *AttachOptions) DestroyUpgradeTimeout() time.Duration {
 }
 
 // Whether we should add a trailing slash to the request path.
-// @default true
+//
+// Default: true
 func (a *AttachOptions) SetAddTrailingSlash(addTrailingSlash bool) {
 	a.addTrailingSlash = &addTrailingSlash
 }

@@ -1,5 +1,3 @@
-// Source: https://github.com/kataras/go-events
-// Package events provides simple EventEmitter support for Go Programming Language
 package types
 
 import (

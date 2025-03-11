@@ -1,6 +1,6 @@
 module github.com/zishang520/engine.io/v2
 
-go 1.23.1
+go 1.24.1
 
 retract v2.3.0
 
@@ -13,7 +13,7 @@ require (
 	github.com/quic-go/quic-go v0.50.0
 	github.com/quic-go/webtransport-go v0.0.0-20241018022711-4ac2c9250e66
 	github.com/vmihailenco/msgpack/v5 v5.4.1
-	github.com/zishang520/engine.io-go-parser v1.2.7
+	github.com/zishang520/engine.io-go-parser v1.3.0
 )
 
 require (

@@ -28,7 +28,7 @@ type socket struct {
 	//
 	// It is found in the `EIO` query parameters of the HTTP requests.
 	//
-	// @see https://github.com/socketio/engine.io-protocol
+	// See: https://github.com/socketio/engine.io-protocol
 	protocol int
 	// A reference to the first HTTP request of the session
 	//

@@ -9,16 +9,16 @@ import (
 
 type (
 	Transport interface {
-		// #extends
+		// Extends
 
 		events.EventEmitter
 
-		// #prototype
+		// Prototype
 
 		Prototype(Transport)
 		Proto() Transport
 
-		// #setters
+		// Setters
 
 		SetSid(string)
 		SetWritable(bool)
@@ -29,7 +29,7 @@ type (
 		SetPerMessageDeflate(*types.PerMessageDeflate)
 		SetMaxHttpBufferSize(int64)
 
-		// #getters
+		// Getters
 
 		// The session ID.
 		Sid() string
@@ -42,95 +42,103 @@ type (
 		//
 		// It is found in the `EIO` query parameters of the HTTP requests.
 		//
-		// @see https://github.com/socketio/engine.io-protocol
+		// See https://github.com/socketio/engine.io-protocol
 		Protocol() int
 		// Whether the transport is discarded and can be safely closed (used during upgrade).
 		//
-		// @protected
+		// Protected
 		Discarded() bool
 		// The parser to use (depends on the revision of the {@link Transport#protocol}.
 		//
-		// @protected
+		// Protected
 		Parser() parser.Parser
 		// Whether the transport supports binary payloads (else it will be base64-encoded)
 		//
-		// @protected
+		// Protected
 		SupportsBinary() bool
 		// The current state of the transport.
 		//
-		// @protected
+		// Protected
 		ReadyState() string
 		HttpCompression() *types.HttpCompression
 		PerMessageDeflate() *types.PerMessageDeflate
 		MaxHttpBufferSize() int64
-		// @abstract
+		// Abstract
 		HandlesUpgrades() bool
-		// @abstract
+		// Abstract
 		Name() string
 
-		// #methods
+		// Methods
 
-		// Construct() should be called after calling Prototype()
+		// [Transport.Construct] should be called after calling [Transport.Prototype]
 		Construct(*types.HttpContext)
-		// @private
+		// Private
+		//
 		// Flags the transport as discarded.
 		Discard()
-		// @protected
+		// Protected
+		//
 		// Called with an incoming HTTP request.
 		OnRequest(*types.HttpContext)
-		// @private
+		// Private
+		//
 		// Closes the transport.
 		Close(...types.Callable)
-		// @protected
+		// Protected
+		//
 		// Called with a transport error.
 		OnError(string, error)
-		// @protected
+		// Protected
+		//
 		// Called with parsed out a packets from the data stream.
 		OnPacket(*packet.Packet)
-		// @protected
+		// Protected
+		//
 		// Called with the encoded packet data.
 		OnData(types.BufferInterface)
-		// @protected
+		// Protected
+		//
 		// Called upon transport close.
 		OnClose()
-		// @protected
-		// @abstract
+		// Protected
+		//
 		// Writes a packet payload.
 		Send([]*packet.Packet)
-		// @protected
-		// @abstract
+		// Protected
+		//
 		// Closes the transport.
 		DoClose(types.Callable)
 	}
 
 	Polling interface {
-		// #extends
+		// Extends
 
 		Transport
 
-		// #methods
+		// Methods
+
 		SetReq(*types.HttpContext)
 
-		// @protected
+		// Protected
 		Req() *types.HttpContext
 
 		DoWrite(*types.HttpContext, types.BufferInterface, *packet.Options, func(*types.HttpContext))
 	}
 
 	Jsonp interface {
-		// #extends
+		// Extends
 
 		Polling
 	}
 
 	Websocket interface {
-		// #extends
+		// Extends
 
 		Transport
 	}
 
 	WebTransport interface {
-		// #extends
+		// Extends
 
 		Transport
 	}

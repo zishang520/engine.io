@@ -167,7 +167,8 @@ func (s *ServerOptions) Assign(data ServerOptionsInterface) ServerOptionsInterfa
 }
 
 // how many ms without a pong packet to consider the connection closed
-// @default 20_000
+//
+// Default: 20_000
 func (s *ServerOptions) SetPingTimeout(pingTimeout time.Duration) {
 	s.pingTimeout = &pingTimeout
 }
@@ -182,7 +183,8 @@ func (s *ServerOptions) PingTimeout() time.Duration {
 }
 
 // how many ms before sending a new ping packet
-// @default 25_000
+//
+// Default: 25_000
 func (s *ServerOptions) SetPingInterval(pingInterval time.Duration) {
 	s.pingInterval = &pingInterval
 }
@@ -198,7 +200,8 @@ func (s *ServerOptions) PingInterval() time.Duration {
 }
 
 // how many ms before an uncompleted transport upgrade is cancelled
-// @default 10_000
+//
+// Default: 10_000
 func (s *ServerOptions) SetUpgradeTimeout(upgradeTimeout time.Duration) {
 	s.upgradeTimeout = &upgradeTimeout
 }
@@ -213,7 +216,8 @@ func (s *ServerOptions) UpgradeTimeout() time.Duration {
 }
 
 // how many bytes or characters a message can be, before closing the session (to avoid DoS).
-// @default 1e5 (100 KB)
+//
+// Default: 1e5 (100 KB)
 func (s *ServerOptions) SetMaxHttpBufferSize(maxHttpBufferSize int64) {
 	s.maxHttpBufferSize = &maxHttpBufferSize
 }
@@ -250,7 +254,7 @@ func (s *ServerOptions) AllowRequest() AllowRequest {
 //	opts.SetTransports(types.NewSet("polling", "websocket", "webtransport"))
 //	NewServer(opts)
 //
-// @default ["polling", "websocket"]
+// Default: types.NewSet("polling", "websocket")
 func (s *ServerOptions) SetTransports(transports *types.Set[string]) {
 	s.transports = transports
 }
@@ -265,7 +269,8 @@ func (s *ServerOptions) Transports() *types.Set[string] {
 }
 
 // whether to allow transport upgrades
-// @default true
+//
+// Default: true
 func (s *ServerOptions) SetAllowUpgrades(allowUpgrades bool) {
 	s.allowUpgrades = &allowUpgrades
 }
@@ -280,7 +285,8 @@ func (s *ServerOptions) AllowUpgrades() bool {
 }
 
 // parameters of the WebSocket permessage-deflate extension (see ws module api docs). Set to false to disable.
-// @default nil
+//
+// Default: nil
 func (s *ServerOptions) SetPerMessageDeflate(perMessageDeflate *types.PerMessageDeflate) {
 	s.perMessageDeflate = perMessageDeflate
 }
@@ -292,7 +298,8 @@ func (s *ServerOptions) PerMessageDeflate() *types.PerMessageDeflate {
 }
 
 // parameters of the http compression for the polling transports (see zlib api docs). Set to false to disable.
-// @default true
+//
+// Default: true
 func (s *ServerOptions) SetHttpCompression(httpCompression *types.HttpCompression) {
 	s.httpCompression = httpCompression
 }
@@ -321,7 +328,8 @@ func (s *ServerOptions) InitialPacket() io.Reader {
 
 // configuration of the cookie that contains the client sid to send as part of handshake response headers. This cookie
 // might be used for sticky-session. Defaults to not sending any cookie.
-// @default false
+//
+// Default: false
 func (s *ServerOptions) SetCookie(cookie *http.Cookie) {
 	s.cookie = cookie
 }
@@ -344,7 +352,8 @@ func (s *ServerOptions) Cors() *types.Cors {
 }
 
 // whether to enable compatibility with Socket.IO v2 clients
-// @default false
+//
+// Default: false
 func (s *ServerOptions) SetAllowEIO3(allowEIO3 bool) {
 	s.allowEIO3 = &allowEIO3
 }

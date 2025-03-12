@@ -72,8 +72,9 @@ func (j *jsonp) DoWrite(ctx *types.HttpContext, data types.BufferInterface, opti
 	encoder := json.NewEncoder(res)
 	// we must output valid javascript, not valid json
 	// see: http://timelessrepo.com/json-isnt-a-javascript-subset
+	//
+	// Since 1.18 the following source code is very annoying '\n' bytes
 	if err := encoder.Encode(data.String()); err == nil {
-		// Since 1.18 the following source code is very annoying '\n' bytes
 		res.Truncate(res.Len() - 1) // '\n' 😑
 		res.WriteString(j.foot)
 		j.Polling.DoWrite(ctx, res, options, callback)

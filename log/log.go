@@ -1,7 +1,8 @@
 package log
 
 import (
-	_log "log"
+	"io"
+	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -10,10 +11,15 @@ import (
 	"github.com/gookit/color"
 )
 
-var DEBUG bool = false
+var (
+	DEBUG  bool      = false
+	Output io.Writer = os.Stderr
+	Prefix string    = ""
+	Flags  int       = 0
+)
 
 type Log struct {
-	*_log.Logger
+	*log.Logger
 
 	prefix          atomic.Pointer[string]
 	namespaceRegexp *regexp.Regexp
@@ -21,7 +27,7 @@ type Log struct {
 
 func NewLog(prefix string) *Log {
 	l := &Log{
-		Logger: _log.New(os.Stderr, "", 0),
+		Logger: log.New(Output, Prefix, Flags),
 	}
 
 	if prefix != "" {

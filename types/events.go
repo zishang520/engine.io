@@ -1,11 +1,10 @@
-// Source: https://github.com/kataras/go-events
-// Package events provides simple EventEmitter support for Go Programming Language
 package types
 
 import (
 	"fmt"
 	"reflect"
 	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -76,7 +75,7 @@ type (
 	}
 
 	emmiter struct {
-		maxListeners uint
+		maxListeners atomic.Uint32
 		evtListeners Map[EventName, *eventEntry]
 	}
 )
@@ -95,18 +94,20 @@ func (e Events) CopyTo(emitter EventEmitter) {
 
 // New returns a new, empty, EventEmitter
 func NewEventEmitter() EventEmitter {
-	return &emmiter{
-		maxListeners: EventDefaultMaxListeners,
+	emmiter := &emmiter{
 		evtListeners: Map[EventName, *eventEntry]{},
 	}
+	emmiter.SetMaxListeners(EventDefaultMaxListeners)
+
+	return emmiter
 }
 
 func (e *emmiter) SetMaxListeners(n uint) {
-	e.maxListeners = n
+	e.maxListeners.Store(uint32(n))
 }
 
 func (e *emmiter) GetMaxListeners() uint {
-	return e.maxListeners
+	return uint(e.maxListeners.Load())
 }
 
 func (e *emmiter) addListeners(evt EventName, listeners []*listener) error {
@@ -119,7 +120,7 @@ func (e *emmiter) addListeners(evt EventName, listeners []*listener) error {
 	evtEntry.mu.Lock()
 	defer evtEntry.mu.Unlock()
 
-	if e.maxListeners > 0 && len(evtEntry.listeners) >= int(e.maxListeners) {
+	if maxListeners := e.maxListeners.Load(); maxListeners > 0 && len(evtEntry.listeners) >= int(maxListeners) {
 		return fmt.Errorf("(events) warning: possible EventEmitter memory leak detected. %d listeners added. Use emitter.SetMaxListeners(n int) to increase limit.", len(evtEntry.listeners))
 	}
 

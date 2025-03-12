@@ -43,8 +43,8 @@ github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 h1:QldyIu/L63oPpyvQmHg
 github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778/go.mod h1:2MuV+tbUrU1zIOPMxZ5EncGwgmMJsa+9ucAQZXxsObs=
 github.com/xyproto/randomstring v1.0.5 h1:YtlWPoRdgMu3NZtP45drfy1GKoojuR7hmRcnhZqKjWU=
 github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3iGxZ18UQApw/E=
-github.com/zishang520/engine.io-go-parser v1.2.7 h1:pnJr/9kOmOLBJcUQpOnRfR1q3UJAQudkeF4wLyqbtnM=
-github.com/zishang520/engine.io-go-parser v1.2.7/go.mod h1:WRsjNz1Oi04dqGcvjpW0t6/B2KIuDSrTBvCZDs7r3XY=
+github.com/zishang520/engine.io-go-parser v1.3.0 h1:L38u/eDAO5FMCmT1xzusxfKI1npNO++tGhjUGODIBQw=
+github.com/zishang520/engine.io-go-parser v1.3.0/go.mod h1:fg/R4V7aytYwUTu4lGcPdjenDSXFWLlkDAGewWVOo3o=
 go.uber.org/mock v0.5.0 h1:KAMbZvZPyBPWgD14IrIQ38QCyjwpvVVV6K/bHl1IwQU=
 go.uber.org/mock v0.5.0/go.mod h1:ge71pBPLYDk7QIi1LupWxdAykm7KIEFchiOqd6z7qMM=
 golang.org/x/crypto v0.31.0 h1:ihbySMvVjLAeSH1IbfcRTkD/iNscyz8rGzjF/E5hV6U=

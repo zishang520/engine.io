@@ -20,76 +20,77 @@ type (
 	Middleware func(*types.HttpContext, func(error))
 
 	BaseServer interface {
-		// #extends
+		// Extends
 
 		events.EventEmitter
 
-		// #prototype
+		// Prototype
 
 		Prototype(BaseServer)
 		Proto() BaseServer
 
-		// #getters
+		// Getters
 
 		Opts() config.ServerOptionsInterface
-		// @protected
+		// Protected
 		Clients() *types.Map[string, Socket]
 		ClientsCount() uint64
-		// @protected
+		// Protected
 		Middlewares() []Middleware
 
-		// #methods
+		// Methods
 
 		// Construct() should be called after calling Prototype()
 		Construct(any)
-		// @protected
-		// @abstract
+		// Protected
+		//
 		Init()
-		// @protected
+		// Protected
+		//
 		// Compute the pathname of the requests that are handled by the server
 		ComputePath(config.AttachOptionsInterface) string
 		// Returns a list of available transports for upgrade given a certain transport.
 		Upgrades(string) *types.Set[string]
-		// @protected
+		// Protected
+		//
 		// Verifies a request.
 		Verify(*types.HttpContext, bool) (int, map[string]any)
 		// Adds a new middleware.
 		Use(Middleware)
-		// @protected
+		// Protected
 		// Apply the middlewares to the request.
 		ApplyMiddlewares(*types.HttpContext, func(error))
 		// Closes all clients.
 		Close() BaseServer
-		// @protected
-		// @abstract
+		// Protected
 		Cleanup()
 		// generate a socket id.
 		// Overwrite this method to generate your custom socket id
 		GenerateId(*types.HttpContext) (string, error)
-		// @protected
+		// Protected
+		//
 		// Handshakes a new client.
 		Handshake(string, *types.HttpContext) (int, transports.Transport)
-		// @protected
-		// @abstract
+		// Protected
 		CreateTransport(string, *types.HttpContext) (transports.Transport, error)
 	}
 
 	Server interface {
-		// #extends
+		// Extends
 
 		BaseServer
 		// Captures upgrade requests for a http.Handler, Need to handle server shutdown disconnecting client connections.
 		http.Handler
 
-		// #setters
+		// Setters
 
 		SetHttpServer(*types.HttpServer)
 
-		// #getters
+		// Getters
 
 		HttpServer() *types.HttpServer
 
-		// #methods
+		// Methods
 
 		CreateTransport(string, *types.HttpContext) (transports.Transport, error)
 		// Handles an Engine.IO HTTP request.
@@ -102,15 +103,15 @@ type (
 	}
 
 	Socket interface {
-		// #extends
+		// Extends
 
 		events.EventEmitter
 
-		// #setters
+		// Setters
 
 		SetReadyState(string)
 
-		// #getters
+		// Getters
 
 		Protocol() int
 		Request() *types.HttpContext
@@ -118,15 +119,16 @@ type (
 		Transport() transports.Transport
 		Id() string
 		ReadyState() string
-		// @private
+		// Private
 		Upgraded() bool
-		// @private
+		// Private
 		Upgrading() bool
 
-		// #methods
+		// Methods
 
 		Construct(string, BaseServer, transports.Transport, *types.HttpContext, int)
-		// @private
+		// Private
+		//
 		// Upgrades socket to the given transport
 		MaybeUpgrade(transports.Transport)
 		// Sends a message packet.

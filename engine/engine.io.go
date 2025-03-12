@@ -3,10 +3,11 @@ package engine
 import (
 	"net/http"
 
+	"github.com/zishang520/engine.io-go-parser/parser"
 	"github.com/zishang520/engine.io/v2/types"
 )
 
-const Protocol = 4
+const Protocol = parser.Protocol
 
 func New(server any, args ...any) Server {
 	switch s := server.(type) {

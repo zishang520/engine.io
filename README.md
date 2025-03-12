@@ -1,6 +1,6 @@
 # Engine.IO: the realtime engine for golang
 
-[![Build Status](https://github.com/zishang520/engine.io/workflows/Go/badge.svg?branch=main)](https://github.com/zishang520/engine.io/actions)
+[![Build Status](https://github.com/zishang520/engine.io/actions/workflows/go.yml/badge.svg)](https://github.com/zishang520/engine.io/actions/workflows/go.yml)
 [![GoDoc](https://pkg.go.dev/badge/github.com/zishang520/engine.io/v2?utm_source=godoc)](https://pkg.go.dev/github.com/zishang520/engine.io/v2)
 
 `Engine.IO` is the implementation of transport-based

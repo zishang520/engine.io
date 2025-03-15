@@ -123,43 +123,43 @@ func (s *ServerOptions) Assign(data ServerOptionsInterface) ServerOptionsInterfa
 		return s
 	}
 
-	if s.GetRawPingTimeout() == nil {
+	if data.GetRawPingTimeout() != nil {
 		s.SetPingTimeout(data.PingTimeout())
 	}
-	if s.GetRawPingInterval() == nil {
+	if data.GetRawPingInterval() != nil {
 		s.SetPingInterval(data.PingInterval())
 	}
-	if s.GetRawUpgradeTimeout() == nil {
+	if data.GetRawUpgradeTimeout() != nil {
 		s.SetUpgradeTimeout(data.UpgradeTimeout())
 	}
-	if s.GetRawMaxHttpBufferSize() == nil {
+	if data.GetRawMaxHttpBufferSize() != nil {
 		s.SetMaxHttpBufferSize(data.MaxHttpBufferSize())
 	}
-	if s.GetRawAllowRequest() == nil {
+	if data.GetRawAllowRequest() != nil {
 		s.SetAllowRequest(data.AllowRequest())
 	}
-	if s.GetRawTransports() == nil {
+	if data.GetRawTransports() != nil {
 		s.SetTransports(data.Transports())
 	}
-	if s.GetRawAllowUpgrades() == nil {
+	if data.GetRawAllowUpgrades() != nil {
 		s.SetAllowUpgrades(data.AllowUpgrades())
 	}
-	if s.GetRawPerMessageDeflate() == nil {
+	if data.GetRawPerMessageDeflate() != nil {
 		s.SetPerMessageDeflate(data.PerMessageDeflate())
 	}
-	if s.GetRawHttpCompression() == nil {
+	if data.GetRawHttpCompression() != nil {
 		s.SetHttpCompression(data.HttpCompression())
 	}
-	if s.GetRawInitialPacket() == nil {
+	if data.GetRawInitialPacket() != nil {
 		s.SetInitialPacket(data.InitialPacket())
 	}
-	if s.GetRawCookie() == nil {
+	if data.GetRawCookie() != nil {
 		s.SetCookie(data.Cookie())
 	}
-	if s.GetRawCors() == nil {
+	if data.GetRawCors() != nil {
 		s.SetCors(data.Cors())
 	}
-	if s.GetRawAllowEIO3() == nil {
+	if data.GetRawAllowEIO3() != nil {
 		s.SetAllowEIO3(data.AllowEIO3())
 	}
 

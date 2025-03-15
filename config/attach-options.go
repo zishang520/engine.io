@@ -48,19 +48,19 @@ func (a *AttachOptions) Assign(data AttachOptionsInterface) AttachOptionsInterfa
 		return a
 	}
 
-	if a.GetRawPath() == nil {
+	if data.GetRawPath() != nil {
 		a.SetPath(data.Path())
 	}
 
-	if a.GetRawDestroyUpgradeTimeout() == nil {
+	if data.GetRawDestroyUpgradeTimeout() != nil {
 		a.SetDestroyUpgradeTimeout(data.DestroyUpgradeTimeout())
 	}
 
-	if a.GetRawDestroyUpgrade() == nil {
+	if data.GetRawDestroyUpgrade() != nil {
 		a.SetDestroyUpgrade(data.DestroyUpgrade())
 	}
 
-	if a.GetRawAddTrailingSlash() == nil {
+	if data.GetRawAddTrailingSlash() != nil {
 		a.SetAddTrailingSlash(data.AddTrailingSlash())
 	}
 

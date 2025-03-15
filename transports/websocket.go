@@ -43,8 +43,6 @@ func (w *websocket) Construct(ctx *types.HttpContext) {
 
 	w.socket = ctx.Websocket
 
-	go w._init()
-
 	w.socket.On("error", func(errs ...any) {
 		w.OnError("websocket error", errs[0].(error))
 	})
@@ -53,6 +51,8 @@ func (w *websocket) Construct(ctx *types.HttpContext) {
 	})
 	w.SetWritable(true)
 	w.SetPerMessageDeflate(nil)
+
+	go w._init()
 }
 
 // Transport name

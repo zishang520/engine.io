@@ -44,7 +44,6 @@ func (w *webTransport) Construct(ctx *types.HttpContext) {
 	w.Transport.Construct(ctx)
 
 	w.session = ctx.WebTransport
-	go w._init()
 
 	w.session.On("error", func(errs ...any) {
 		w.OnError("webtransport error", errs[0].(error))
@@ -55,6 +54,8 @@ func (w *webTransport) Construct(ctx *types.HttpContext) {
 
 	w.SetWritable(true)
 	w.SetPerMessageDeflate(nil)
+
+	go w._init()
 }
 
 // Transport name

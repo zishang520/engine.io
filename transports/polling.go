@@ -72,9 +72,9 @@ func (p *polling) Name() string {
 func (p *polling) OnRequest(ctx *types.HttpContext) {
 	method := ctx.Method()
 
-	if http.MethodGet == method {
+	if method == http.MethodGet {
 		p.onPollRequest(ctx)
-	} else if http.MethodPost == method {
+	} else if method == http.MethodPost {
 		p.onDataRequest(ctx)
 	} else {
 		ctx.SetStatusCode(http.StatusInternalServerError)
@@ -132,7 +132,7 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 		return
 	}
 
-	isBinary := "application/octet-stream" == ctx.Headers().Peek("Content-Type")
+	isBinary := ctx.Headers().Peek("Content-Type") == "application/octet-stream"
 
 	if isBinary && p.Protocol() == 4 {
 		p.OnError("invalid content", nil)

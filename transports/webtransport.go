@@ -52,10 +52,10 @@ func (w *webTransport) Construct(ctx *types.HttpContext) {
 		w.OnClose()
 	})
 
+	go w._init()
+
 	w.SetWritable(true)
 	w.SetPerMessageDeflate(nil)
-
-	go w._init()
 }
 
 // Transport name

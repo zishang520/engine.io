@@ -188,7 +188,7 @@ func (s *socket) onOpen() {
 
 // Called upon transport packet.
 func (s *socket) onPacket(data *packet.Packet) {
-	if "open" != s.ReadyState() {
+	if s.ReadyState() != "open" {
 		socket_log.Debug("packet received with closed socket")
 		return
 	}
@@ -292,10 +292,8 @@ func (s *socket) setTransport(transport transports.Transport) {
 func (s *socket) onDrain() {
 	if seqFn, err := s.sentCallbackFn.Shift(); err == nil {
 		socket_log.Debug("executing batch send callback")
-		if seqFn != nil {
-			for _, fn := range seqFn {
-				fn(s.Transport())
-			}
+		for _, fn := range seqFn {
+			fn(s.Transport())
 		}
 	}
 }
@@ -314,7 +312,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		data := datas[0].(*packet.Packet)
 		sb := new(strings.Builder)
 		io.Copy(sb, data.Data)
-		if packet.PING == data.Type && "probe" == sb.String() {
+		if data.Type == packet.PING && sb.String() == "probe" {
 			socket_log.Debug("got probe ping packet, sending pong")
 			transport.Send([]*packet.Packet{{Type: packet.PONG, Data: strings.NewReader("probe")}})
 			s.Emit("upgrading", transport)
@@ -388,7 +386,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		socket_log.Debug("client did not complete upgrade - closing transport")
 		cleanup()
 		if transport != nil {
-			if "open" == transport.ReadyState() {
+			if transport.ReadyState() == "open" {
 				transport.Close()
 			}
 		}
@@ -424,7 +422,7 @@ func (s *socket) clearTransport() {
 // Possible reasons: `ping timeout`, `client error`, `parse error`,
 // `transport error`, `server close`, `transport close`
 func (s *socket) OnClose(reason string, description ...error) {
-	if "closed" != s.ReadyState() {
+	if s.ReadyState() != "closed" {
 		description = append(description, nil)
 
 		s.SetReadyState("closed")
@@ -477,7 +475,7 @@ func (s *socket) sendPacket(
 	callback SendCallback,
 ) {
 
-	if "closing" != s.ReadyState() && "closed" != s.ReadyState() {
+	if readystate := s.ReadyState(); readystate != "closing" && readystate != "closed" {
 		socket_log.Debug(`sending packet "%s" (%p)`, packetType, data)
 
 		if options == nil {
@@ -506,7 +504,7 @@ func (s *socket) sendPacket(
 
 // Attempts to flush the packets buffer.
 func (s *socket) flush() {
-	if "closed" != s.ReadyState() && s.Transport().Writable() {
+	if s.ReadyState() != "closed" && s.Transport().Writable() {
 		if wbuf := s.writeBuffer.AllAndClear(); len(wbuf) > 0 {
 			socket_log.Debug("flushing buffer to transport")
 			s.Emit("flush", wbuf)
@@ -542,7 +540,7 @@ func (s *socket) Close(discard bool) {
 		return
 	}
 
-	if "open" != s.ReadyState() {
+	if s.ReadyState() != "open" {
 		return
 	}
 

@@ -130,7 +130,7 @@ func (bs *baseServer) ComputePath(options config.AttachOptionsInterface) string 
 		if options.GetRawPath() != nil {
 			path = strings.TrimRight(options.Path(), "/")
 		}
-		if options.AddTrailingSlash() != false {
+		if options.AddTrailingSlash() {
 			// normalize path
 			path += "/"
 		}
@@ -174,13 +174,13 @@ func (bs *baseServer) Verify(ctx *types.HttpContext, upgrade bool) (int, map[str
 			server_log.Debug(`unknown sid "%s"`, sid)
 			return UNKNOWN_SID, map[string]any{"sid": sid}
 		}
-		if previousTransport := scoket.(Socket).Transport().Name(); !upgrade && previousTransport != transport {
+		if previousTransport := scoket.Transport().Name(); !upgrade && previousTransport != transport {
 			server_log.Debug("bad request: unexpected transport without upgrade")
 			return BAD_REQUEST, map[string]any{"name": "TRANSPORT_MISMATCH", "transport": transport, "previousTransport": previousTransport}
 		}
 	} else {
 		// handshake is GET only
-		if method := ctx.Method(); http.MethodGet != method {
+		if method := ctx.Method(); method != http.MethodGet {
 			return BAD_HANDSHAKE_METHOD, map[string]any{"method": method}
 		}
 

@@ -161,7 +161,7 @@ func (t *transport) OnRequest(req *types.HttpContext) {}
 
 // Closes the transport.
 func (t *transport) Close(fn ...types.Callable) {
-	if "closed" == t.ReadyState() || "closing" == t.ReadyState() {
+	if t.ReadyState() == "closed" || t.ReadyState() == "closing" {
 		return
 	}
 	t.SetReadyState("closing")
@@ -191,7 +191,7 @@ func (t *transport) OnData(data types.BufferInterface) {
 
 // Called upon transport close.
 func (t *transport) OnClose() {
-	if "closed" == t.ReadyState() {
+	if t.ReadyState() == "closed" {
 		return
 	}
 	t.SetReadyState("closed")

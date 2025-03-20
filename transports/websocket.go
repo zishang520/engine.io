@@ -49,10 +49,11 @@ func (w *websocket) Construct(ctx *types.HttpContext) {
 	w.socket.Once("close", func(...any) {
 		w.OnClose()
 	})
-	w.SetWritable(true)
-	w.SetPerMessageDeflate(nil)
 
 	go w._init()
+
+	w.SetWritable(true)
+	w.SetPerMessageDeflate(nil)
 }
 
 // Transport name

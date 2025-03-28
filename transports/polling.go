@@ -96,6 +96,7 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 	polling_log.Debug("setting request")
 
 	onClose := events.Listener(func(...any) {
+		p.SetWritable(false)
 		p.OnError("poll connection closed prematurely", nil)
 	})
 

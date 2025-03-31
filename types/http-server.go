@@ -9,7 +9,7 @@ import (
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
-	"github.com/quic-go/webtransport-go"
+	"github.com/zishang520/webtransport-go"
 	"github.com/zishang520/engine.io/v2/errors"
 )
 

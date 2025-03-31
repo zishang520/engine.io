@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/quic-go/webtransport-go"
+	"github.com/zishang520/webtransport-go"
 )
 
 // PreparedMessage caches on the wire representations of a message payload.

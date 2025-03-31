@@ -1,7 +1,7 @@
 package types
 
 import (
-	wt "github.com/quic-go/webtransport-go"
+	wt "github.com/zishang520/webtransport-go"
 	"github.com/zishang520/engine.io/v2/webtransport"
 )
 

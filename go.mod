@@ -4,16 +4,14 @@ go 1.24.1
 
 retract v2.3.0
 
-replace github.com/quic-go/webtransport-go => github.com/quic-go/webtransport-go v0.0.0-20241018022711-4ac2c9250e66
-
 require (
 	github.com/andybalholm/brotli v1.1.1
 	github.com/gookit/color v1.5.4
 	github.com/gorilla/websocket v1.5.3
 	github.com/quic-go/quic-go v0.50.1
-	github.com/quic-go/webtransport-go v0.0.0-20241018022711-4ac2c9250e66
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/zishang520/engine.io-go-parser v1.3.2
+	github.com/zishang520/webtransport-go v0.8.6
 )
 
 require (

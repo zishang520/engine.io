@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/quic-go/webtransport-go"
+	"github.com/zishang520/webtransport-go"
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io-go-parser/parser"
 	"github.com/zishang520/engine.io/v2/config"

@@ -56,14 +56,6 @@ func (p *polling) Construct(ctx *types.HttpContext) {
 	p.closeTimeout = 30 * 1000 * time.Millisecond
 }
 
-func (p *polling) Req() *types.HttpContext {
-	return p.req.Load()
-}
-
-func (p *polling) SetReq(req *types.HttpContext) {
-	p.req.Store(req)
-}
-
 func (p *polling) Name() string {
 	return POLLING
 }
@@ -84,7 +76,7 @@ func (p *polling) OnRequest(ctx *types.HttpContext) {
 
 // The client sends a request awaiting for us to send data.
 func (p *polling) onPollRequest(ctx *types.HttpContext) {
-	if p.Req() != nil {
+	if p.req.Load() != nil {
 		polling_log.Debug("request overlap")
 		// assert: p.res, '.req should be (un)set together'
 		p.OnError("overlap from client", nil)
@@ -100,11 +92,11 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 		p.OnError("poll connection closed prematurely", nil)
 	})
 
-	p.SetReq(ctx)
+	p.req.Store(ctx)
 
 	ctx.Cleanup = func() {
 		ctx.RemoveListener("close", onClose)
-		p.SetReq(nil)
+		p.req.Store(nil)
 	}
 
 	ctx.Once("close", onClose)
@@ -157,9 +149,10 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	ctx.Once("close", onClose)
 
 	if ctx.Request().ContentLength > p.MaxHttpBufferSize() {
+		cleanup() // The data is written synchronously, so the cleanup function needs to be executed first.
+
 		ctx.SetStatusCode(http.StatusRequestEntityTooLarge)
 		ctx.Write(nil)
-		cleanup()
 		return
 	}
 
@@ -169,9 +162,9 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	} else {
 		packet = types.NewStringBuffer(nil)
 	}
-	if rc, ok := ctx.Request().Body.(io.ReadCloser); ok && rc != nil {
-		packet.ReadFrom(rc)
-		rc.Close()
+	if body := ctx.Request().Body; body != nil {
+		packet.ReadFrom(body)
+		body.Close()
 	}
 	p.Proto().OnData(packet)
 
@@ -225,9 +218,9 @@ func (p *polling) Send(packets []*packet.Packet) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	ctx := p.Req()
-
+	ctx := p.req.Load()
 	if ctx == nil {
+		polling_log.Debug("request context unavailable")
 		return
 	}
 
@@ -282,11 +275,12 @@ func (p *polling) DoWrite(ctx *types.HttpContext, data types.BufferInterface, op
 	})
 
 	respond := func(data types.BufferInterface, length string) {
+		callback(ctx) // The data is written synchronously, so the callback function needs to be executed first
+
 		headers.Set("Content-Length", length)
 		ctx.ResponseHeaders.With(p.headers(ctx, headers).All())
 		ctx.SetStatusCode(http.StatusOK)
 		io.Copy(ctx, data)
-		callback(ctx)
 	}
 
 	if p.HttpCompression() == nil || options == nil || !options.Compress {
@@ -376,10 +370,10 @@ func (p *polling) DoClose(fn types.Callable) {
 	} else {
 		polling_log.Debug("transport not writable - buffering orderly close")
 		closeTimeoutTimer := utils.SetTimeout(onClose, p.closeTimeout)
-		shouldClose := types.Callable(func() {
+		shouldClose := func() {
 			utils.ClearTimeout(closeTimeoutTimer)
 			onClose()
-		})
+		}
 		p.shouldClose.Store(&shouldClose)
 	}
 }
@@ -388,7 +382,7 @@ func (p *polling) DoClose(fn types.Callable) {
 func (p *polling) headers(ctx *types.HttpContext, headers *utils.ParameterBag) *utils.ParameterBag {
 	// prevent XSS warnings on IE
 	// https://github.com/socketio/socket.io/pull/1333
-	if ua := ctx.UserAgent(); (len(ua) > 0) && ((strings.Index(ua, ";MSIE") > -1) || (strings.Index(ua, "Trident/") > -1)) {
+	if ua := ctx.UserAgent(); (len(ua) > 0) && (strings.Contains(ua, ";MSIE") || strings.Contains(ua, "Trident/")) {
 		headers.Set("X-XSS-Protection", "0")
 	}
 	headers.Set("Cache-Control", "no-store")

@@ -7,7 +7,7 @@ import (
 
 func TestSet(t *testing.T) {
 
-	s := NewSet[int](1, 2, 3)
+	s := NewSet(1, 2, 3)
 
 	s.Add(4, 5)
 	expectedLen := 5

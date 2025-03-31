@@ -115,13 +115,6 @@ type (
 
 		Transport
 
-		// Methods
-
-		SetReq(*types.HttpContext)
-
-		// Protected
-		Req() *types.HttpContext
-
 		DoWrite(*types.HttpContext, types.BufferInterface, *packet.Options, func(*types.HttpContext))
 	}
 

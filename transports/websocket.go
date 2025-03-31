@@ -50,7 +50,7 @@ func (w *websocket) Construct(ctx *types.HttpContext) {
 		w.OnClose()
 	})
 
-	go w._init()
+	go w.message()
 
 	w.SetWritable(true)
 	w.SetPerMessageDeflate(nil)
@@ -66,7 +66,8 @@ func (w *websocket) HandlesUpgrades() bool {
 	return true
 }
 
-func (w *websocket) _init() {
+// Receiving Messages
+func (w *websocket) message() {
 	for {
 		mt, message, err := w.socket.NextReader()
 		if err != nil {

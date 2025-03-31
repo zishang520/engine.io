@@ -52,7 +52,7 @@ func (w *webTransport) Construct(ctx *types.HttpContext) {
 		w.OnClose()
 	})
 
-	go w._init()
+	go w.message()
 
 	w.SetWritable(true)
 	w.SetPerMessageDeflate(nil)
@@ -68,7 +68,8 @@ func (w *webTransport) HandlesUpgrades() bool {
 	return true
 }
 
-func (w *webTransport) _init() {
+// Receiving Messages
+func (w *webTransport) message() {
 	for {
 		mt, message, err := w.session.NextReader()
 		if err != nil {
@@ -176,12 +177,12 @@ func (w *webTransport) Send(packets []*packet.Packet) {
 	}
 }
 
-func (w *webTransport) write(data types.BufferInterface, compress bool) {
-	if w.PerMessageDeflate() != nil {
-		if data.Len() < w.PerMessageDeflate().Threshold {
-			compress = false
-		}
-	}
+func (w *webTransport) write(data types.BufferInterface, _ bool) {
+	// if w.PerMessageDeflate() != nil {
+	// 	if data.Len() < w.PerMessageDeflate().Threshold {
+	// 		compress = false
+	// 	}
+	// }
 	wt_log.Debug(`writing %#s`, data)
 
 	// w.session.EnableWriteCompression(compress)

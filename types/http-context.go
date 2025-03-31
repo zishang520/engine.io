@@ -13,6 +13,11 @@ import (
 	"github.com/zishang520/engine.io/v2/utils"
 )
 
+var (
+	portRegexp = regexp.MustCompile(`:\d+$`)
+	hostRegexp = regexp.MustCompile(`(?:^\[)?[a-zA-Z0-9-:\]_]+\.?`)
+)
+
 type HttpContext struct {
 	EventEmitter
 
@@ -94,6 +99,7 @@ func (c *HttpContext) GetStatusCode() int {
 	return http.StatusOK
 }
 
+// Data synchronous writing
 func (c *HttpContext) Write(wb []byte) (int, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -168,10 +174,10 @@ func (c *HttpContext) Path() string {
 
 func (c *HttpContext) GetHost() (string, error) {
 	host := strings.TrimSpace(c.request.Host)
-	host = regexp.MustCompile(`:\d+$`).ReplaceAllString(host, "")
+	host = portRegexp.ReplaceAllString(host, "")
 
 	if host != "" {
-		if host = regexp.MustCompile(`(?:^\[)?[a-zA-Z0-9-:\]_]+\.?`).ReplaceAllString(host, ""); host != "" {
+		if host = hostRegexp.ReplaceAllString(host, ""); host != "" {
 			if !c.isHostValid {
 				return "", nil
 			}

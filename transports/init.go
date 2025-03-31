@@ -4,10 +4,58 @@ import (
 	"github.com/zishang520/engine.io/v2/types"
 )
 
-type transports struct {
-	New             func(*types.HttpContext) Transport
-	HandlesUpgrades bool
-	UpgradesTo      *types.Set[string]
+type WebSocketBuilder struct{}
+
+func (*WebSocketBuilder) New(ctx *types.HttpContext) Transport {
+	return NewWebSocket(ctx)
+}
+func (*WebSocketBuilder) Name() string {
+	return WEBSOCKET
+}
+func (*WebSocketBuilder) HandlesUpgrades() bool {
+	return true
+}
+
+// Todo: Return []string
+func (*WebSocketBuilder) UpgradesTo() *types.Set[string] {
+	return types.NewSet[string]()
+}
+
+type WebTransportBuilder struct{}
+
+func (*WebTransportBuilder) New(ctx *types.HttpContext) Transport {
+	return NewWebTransport(ctx)
+}
+func (*WebTransportBuilder) Name() string {
+	return WEBTRANSPORT
+}
+func (*WebTransportBuilder) HandlesUpgrades() bool {
+	return true
+}
+
+// Todo: Return []string
+func (*WebTransportBuilder) UpgradesTo() *types.Set[string] {
+	return types.NewSet[string]()
+}
+
+type PollingBuilder struct{}
+
+func (*PollingBuilder) New(ctx *types.HttpContext) Transport {
+	if ctx.Query().Has("j") {
+		return NewJSONP(ctx)
+	}
+	return NewPolling(ctx)
+}
+func (*PollingBuilder) Name() string {
+	return POLLING
+}
+func (*PollingBuilder) HandlesUpgrades() bool {
+	return false
+}
+
+// Todo: Return []string
+func (*PollingBuilder) UpgradesTo() *types.Set[string] {
+	return types.NewSet(WEBSOCKET, WEBTRANSPORT)
 }
 
 const (
@@ -16,40 +64,16 @@ const (
 	WEBTRANSPORT string = "webtransport"
 )
 
-var _transports map[string]*transports
+var transports map[string]TransportCtor
 
 func init() {
-	_transports = map[string]*transports{
-		POLLING: {
-			// Polling polymorphic New.
-			New: func(ctx *types.HttpContext) Transport {
-				if ctx.Query().Has("j") {
-					return NewJSONP(ctx)
-				}
-				return NewPolling(ctx)
-			},
-			HandlesUpgrades: false,
-			UpgradesTo:      types.NewSet(WEBSOCKET, WEBTRANSPORT),
-		},
-
-		WEBSOCKET: {
-			New: func(ctx *types.HttpContext) Transport {
-				return NewWebSocket(ctx)
-			},
-			HandlesUpgrades: true,
-			UpgradesTo:      types.NewSet[string](),
-		},
-
-		WEBTRANSPORT: {
-			New: func(ctx *types.HttpContext) Transport {
-				return NewWebTransport(ctx)
-			},
-			HandlesUpgrades: true,
-			UpgradesTo:      types.NewSet[string](),
-		},
+	transports = map[string]TransportCtor{
+		POLLING:      &PollingBuilder{},
+		WEBSOCKET:    &WebSocketBuilder{},
+		WEBTRANSPORT: &WebTransportBuilder{},
 	}
 }
 
-func Transports() map[string]*transports {
-	return _transports
+func Transports() map[string]TransportCtor {
+	return transports
 }

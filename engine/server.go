@@ -157,7 +157,7 @@ func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 	wsc.On("error", onUpgradeError)
 
 	transportName := ctx.Query().Peek("transport")
-	if transport, ok := transports.Transports()[transportName]; ok && !transport.HandlesUpgrades {
+	if transport, ok := transports.Transports()[transportName]; ok && !transport.HandlesUpgrades() {
 		server_log.Debug("transport doesnt handle upgraded requests")
 		wsc.Close()
 		return

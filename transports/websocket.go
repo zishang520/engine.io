@@ -125,6 +125,9 @@ func (w *websocket) onMessage(data types.BufferInterface) {
 // Writes a packet payload.
 func (w *websocket) Send(packets []*packet.Packet) {
 	w.SetWritable(false)
+	go w.send(packets)
+}
+func (w *websocket) send(packets []*packet.Packet) {
 	defer func() {
 		w.Emit("drain")
 		w.SetWritable(true)
@@ -182,7 +185,6 @@ func (w *websocket) Send(packets []*packet.Packet) {
 		w.write(data, compress)
 	}
 }
-
 func (w *websocket) write(data types.BufferInterface, compress bool) {
 	if w.PerMessageDeflate() != nil {
 		if data.Len() < w.PerMessageDeflate().Threshold {

@@ -119,6 +119,9 @@ func (w *webTransport) onMessage(data types.BufferInterface) {
 // Writes a packet payload.
 func (w *webTransport) Send(packets []*packet.Packet) {
 	w.SetWritable(false)
+	go w.send(packets)
+}
+func (w *webTransport) send(packets []*packet.Packet) {
 	defer func() {
 		w.Emit("drain")
 		w.SetWritable(true)

@@ -216,7 +216,9 @@ func (p *polling) OnClose() {
 // Writes a packet payload.
 func (p *polling) Send(packets []*packet.Packet) {
 	p.SetWritable(false)
-
+	go p.send(packets)
+}
+func (p *polling) send(packets []*packet.Packet) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -254,7 +256,6 @@ func (p *polling) write(data types.BufferInterface, options *packet.Options) {
 		p.OnError("polling write error", nil)
 		return
 	}
-	// Assert that the prototype is Polling.
 	p.Proto().(Polling).DoWrite(ctx, data, options, func(err error) {
 		if err != nil {
 			p.OnError("polling write error", err)

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/andybalholm/brotli"
+	"github.com/klauspost/compress/zstd"
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/log"
@@ -85,14 +86,14 @@ func (p *polling) onPollRequest(ctx *types.HttpContext) {
 		return
 	}
 
+	p.req.Store(ctx)
+
 	polling_log.Debug("setting request")
 
 	onClose := events.Listener(func(...any) {
 		p.SetWritable(false)
 		p.OnError("poll connection closed prematurely", nil)
 	})
-
-	p.req.Store(ctx)
 
 	ctx.Cleanup = func() {
 		ctx.RemoveListener("close", onClose)
@@ -134,22 +135,22 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 
 	p.dataCtx.Store(ctx)
 
-	var onClose events.Listener
+	var cleanup types.Callable
 
-	cleanup := func() {
-		ctx.RemoveListener("close", onClose)
-		p.dataCtx.Store(nil)
-	}
-
-	onClose = func(...any) {
+	onClose := func(...any) {
 		cleanup()
 		p.OnError("data request connection closed prematurely", nil)
+	}
+
+	cleanup = func() {
+		ctx.RemoveListener("close", onClose)
+		p.dataCtx.Store(nil)
 	}
 
 	ctx.Once("close", onClose)
 
 	if ctx.Request().ContentLength > p.MaxHttpBufferSize() {
-		cleanup() // The data is written synchronously, so the cleanup function needs to be executed first.
+		cleanup()
 
 		ctx.SetStatusCode(http.StatusRequestEntityTooLarge)
 		ctx.Write(nil)
@@ -168,15 +169,14 @@ func (p *polling) onDataRequest(ctx *types.HttpContext) {
 	}
 	p.Proto().OnData(packet)
 
+	cleanup()
+
 	headers := utils.NewParameterBag(map[string][]string{
 		// text/html is required instead of text/plain to avoid an
 		// unwanted download dialog on certain user-agents (GH-43)
 		"Content-Type":   {"text/html"},
 		"Content-Length": {"2"},
 	})
-
-	// After writing the data, close will be triggered, so it needs to be executed first.
-	cleanup()
 
 	// The following process in nodejs is asynchronous.
 	ctx.ResponseHeaders.With(p.headers(ctx, headers).All())
@@ -215,16 +215,11 @@ func (p *polling) OnClose() {
 
 // Writes a packet payload.
 func (p *polling) Send(packets []*packet.Packet) {
+	p.SetWritable(false)
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	ctx := p.req.Load()
-	if ctx == nil {
-		polling_log.Debug("request context unavailable")
-		return
-	}
-
-	p.SetWritable(false)
 	if shouldClose := p.shouldClose.Load(); shouldClose != nil {
 		polling_log.Debug("appending close packet to payload")
 		packets = append(packets, &packet.Packet{
@@ -244,25 +239,33 @@ func (p *polling) Send(packets []*packet.Packet) {
 
 	if p.Protocol() == 3 {
 		data, _ := p.Parser().EncodePayload(packets, p.SupportsBinary())
-		p.write(ctx, data, option)
+		p.write(data, option)
 	} else {
 		data, _ := p.Parser().EncodePayload(packets)
-		p.write(ctx, data, option)
+		p.write(data, option)
 	}
 }
 
 // Writes data as response to poll request.
-func (p *polling) write(ctx *types.HttpContext, data types.BufferInterface, options *packet.Options) {
+func (p *polling) write(data types.BufferInterface, options *packet.Options) {
 	polling_log.Debug(`writing %#v`, data)
+	ctx := p.req.Load()
+	if ctx == nil {
+		p.OnError("polling write error", nil)
+		return
+	}
 	// Assert that the prototype is Polling.
-	p.Proto().(Polling).DoWrite(ctx, data, options, func(ctx *types.HttpContext) {
-		ctx.Cleanup()
+	p.Proto().(Polling).DoWrite(ctx, data, options, func(err error) {
+		if err != nil {
+			p.OnError("polling write error", err)
+			return
+		}
 		p.Emit("drain")
 	})
 }
 
 // Performs the write.
-func (p *polling) DoWrite(ctx *types.HttpContext, data types.BufferInterface, options *packet.Options, callback func(*types.HttpContext)) {
+func (p *polling) DoWrite(ctx *types.HttpContext, data types.BufferInterface, options *packet.Options, callback func(error)) {
 	contentType := "application/octet-stream"
 	// explicit UTF-8 is required for pages not served under utf
 	switch data.(type) {
@@ -275,7 +278,8 @@ func (p *polling) DoWrite(ctx *types.HttpContext, data types.BufferInterface, op
 	})
 
 	respond := func(data types.BufferInterface, length string) {
-		callback(ctx) // The data is written synchronously, so the callback function needs to be executed first
+		ctx.Cleanup()
+		defer callback(nil)
 
 		headers.Set("Content-Length", length)
 		ctx.ResponseHeaders.With(p.headers(ctx, headers).All())
@@ -293,16 +297,24 @@ func (p *polling) DoWrite(ctx *types.HttpContext, data types.BufferInterface, op
 		return
 	}
 
-	encoding := utils.Contains(ctx.Headers().Peek("Accept-Encoding"), []string{"gzip", "deflate", "br"})
+	encoding := utils.Contains(ctx.Headers().Peek("Accept-Encoding"), []string{"gzip", "deflate", "br", "zstd"})
 	if encoding == "" {
 		respond(data, strconv.Itoa(data.Len()))
 		return
 	}
 
-	if buf, err := p.compress(data, encoding); err == nil {
-		headers.Set("Content-Encoding", encoding)
-		respond(buf, strconv.Itoa(buf.Len()))
+	buf, err := p.compress(data, encoding)
+	if err != nil {
+		ctx.Cleanup()
+		defer callback(err)
+
+		ctx.SetStatusCode(http.StatusInternalServerError)
+		ctx.Write(nil)
+		return
 	}
+
+	headers.Set("Content-Encoding", encoding)
+	respond(buf, strconv.Itoa(buf.Len()))
 }
 
 // Compresses data.
@@ -332,6 +344,15 @@ func (p *polling) compress(data types.BufferInterface, encoding string) (types.B
 		br := brotli.NewWriterLevel(buf, 1)
 		defer br.Close()
 		if _, err := io.Copy(br, data); err != nil {
+			return nil, err
+		}
+	case "zstd":
+		zd, err := zstd.NewWriter(buf, zstd.WithEncoderLevel(zstd.SpeedDefault))
+		if err != nil {
+			return nil, err
+		}
+		defer zd.Close()
+		if _, err := io.Copy(zd, data); err != nil {
 			return nil, err
 		}
 	}

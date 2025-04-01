@@ -78,7 +78,7 @@ func (a *AttachOptions) GetRawPath() *string {
 }
 func (a *AttachOptions) Path() string {
 	if a.path == nil {
-		return "/engine.io"
+		return ""
 	}
 
 	return *a.path
@@ -95,7 +95,7 @@ func (a *AttachOptions) GetRawDestroyUpgrade() *bool {
 }
 func (a *AttachOptions) DestroyUpgrade() bool {
 	if a.destroyUpgrade == nil {
-		return true
+		return false
 	}
 
 	return *a.destroyUpgrade
@@ -112,7 +112,7 @@ func (a *AttachOptions) GetRawDestroyUpgradeTimeout() *time.Duration {
 }
 func (a *AttachOptions) DestroyUpgradeTimeout() time.Duration {
 	if a.destroyUpgradeTimeout == nil {
-		return time.Duration(1000 * time.Millisecond)
+		return 0
 	}
 
 	return *a.destroyUpgradeTimeout
@@ -129,7 +129,7 @@ func (a *AttachOptions) GetRawAddTrailingSlash() *bool {
 }
 func (a *AttachOptions) AddTrailingSlash() bool {
 	if a.addTrailingSlash == nil {
-		return true
+		return false
 	}
 
 	return *a.addTrailingSlash

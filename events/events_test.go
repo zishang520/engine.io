@@ -339,32 +339,3 @@ func TestConcurrentRemoveAll(t *testing.T) {
 		t.Fatalf("Expected 0 listeners after removal, got %d", count)
 	}
 }
-
-// Test concurrent addition of listeners with max limit
-func TestMaxListenersConcurrent(t *testing.T) {
-	emitter := New()
-	const max = 10
-	emitter.SetMaxListeners(max)
-
-	var (
-		wg     sync.WaitGroup
-		errors int32
-	)
-
-	const numListeners = 20
-	wg.Add(numListeners)
-	for i := 0; i < numListeners; i++ {
-		go func() {
-			defer wg.Done()
-			if err := emitter.On("max", func(...any) {}); err != nil {
-				atomic.AddInt32(&errors, 1)
-			}
-		}()
-	}
-	wg.Wait()
-
-	// Expect failures beyond max limit
-	if expected := int32(numListeners - max); atomic.LoadInt32(&errors) != expected {
-		t.Fatalf("Expected %d errors, got %d", expected, errors)
-	}
-}

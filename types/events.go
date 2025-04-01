@@ -1,10 +1,8 @@
 package types
 
 import (
-	"fmt"
 	"reflect"
 	"sync"
-	"sync/atomic"
 )
 
 const (
@@ -14,6 +12,8 @@ const (
 	// default EventEmitters will print a warning if more than x listeners are
 	// added to it. This is a useful default which helps finding memory leaks.
 	// Defaults to 0, which means unlimited
+	//
+	// Deprecated: No longer limit the number of event listeners.
 	EventDefaultMaxListeners = 0
 )
 
@@ -64,25 +64,19 @@ type (
 		Len() int
 	}
 
-	listener struct {
+	eventEntry struct {
 		fn  Listener
 		ptr uintptr
 	}
 
-	eventEntry struct {
-		mu        sync.RWMutex
-		listeners []*listener
-	}
-
 	emmiter struct {
-		maxListeners atomic.Uint32
-		evtListeners Map[EventName, *eventEntry]
+		evtListeners Map[EventName, *Slice[*eventEntry]]
 	}
 )
 
 // CopyTo copies the event listeners to an EventEmitter
 func (e Events) CopyTo(emitter EventEmitter) {
-	if e != nil && len(e) > 0 {
+	if len(e) > 0 {
 		// register the events to/with their listeners
 		for evt, listeners := range e {
 			if len(listeners) > 0 {
@@ -95,36 +89,28 @@ func (e Events) CopyTo(emitter EventEmitter) {
 // New returns a new, empty, EventEmitter
 func NewEventEmitter() EventEmitter {
 	emmiter := &emmiter{
-		evtListeners: Map[EventName, *eventEntry]{},
+		evtListeners: Map[EventName, *Slice[*eventEntry]]{},
 	}
-	emmiter.SetMaxListeners(EventDefaultMaxListeners)
 
 	return emmiter
 }
 
+// Deprecated: No longer limit the number of event listeners.
 func (e *emmiter) SetMaxListeners(n uint) {
-	e.maxListeners.Store(uint32(n))
 }
 
+// Deprecated: No longer limit the number of event listeners.
 func (e *emmiter) GetMaxListeners() uint {
-	return uint(e.maxListeners.Load())
+	return EventDefaultMaxListeners
 }
 
-func (e *emmiter) addListeners(evt EventName, listeners []*listener) error {
+func (e *emmiter) addListeners(evt EventName, listeners []*eventEntry) error {
 	if len(listeners) == 0 {
 		return nil
 	}
 
-	evtEntry, _ := e.evtListeners.LoadOrStore(evt, &eventEntry{})
-
-	evtEntry.mu.Lock()
-	defer evtEntry.mu.Unlock()
-
-	if maxListeners := e.maxListeners.Load(); maxListeners > 0 && len(evtEntry.listeners) >= int(maxListeners) {
-		return fmt.Errorf("(events) warning: possible EventEmitter memory leak detected. %d listeners added. Use emitter.SetMaxListeners(n int) to increase limit.", len(evtEntry.listeners))
-	}
-
-	evtEntry.listeners = append(evtEntry.listeners, listeners...)
+	evtEntry, _ := e.evtListeners.LoadOrStore(evt, NewSlice[*eventEntry]())
+	evtEntry.Push(listeners...)
 	return nil
 }
 
@@ -133,9 +119,12 @@ func (e *emmiter) AddListener(evt EventName, listeners ...Listener) error {
 		return nil
 	}
 
-	events := make([]*listener, len(listeners))
+	events := make([]*eventEntry, len(listeners))
 	for i, event := range listeners {
-		events[i] = &listener{fn: event, ptr: reflect.ValueOf(event).Pointer()}
+		if event == nil {
+			continue
+		}
+		events[i] = &eventEntry{fn: event, ptr: reflect.ValueOf(event).Pointer()}
 	}
 
 	return e.addListeners(evt, events)
@@ -152,17 +141,11 @@ func (e *emmiter) Emit(evt EventName, data ...any) {
 		return
 	}
 
-	evtEntry.mu.RLock()
-	if len(evtEntry.listeners) == 0 {
-		evtEntry.mu.RUnlock()
+	if evtEntry.Len() == 0 {
 		return
 	}
 
-	listeners := make([]*listener, len(evtEntry.listeners))
-	copy(listeners, evtEntry.listeners)
-	evtEntry.mu.RUnlock()
-
-	for _, event := range listeners {
+	for _, event := range evtEntry.All() {
 		if event != nil {
 			event.fn(data...)
 		}
@@ -179,10 +162,7 @@ func (e *emmiter) ListenerCount(evt EventName) int {
 		return 0
 	}
 
-	evtEntry.mu.RLock()
-	defer evtEntry.mu.RUnlock()
-
-	return len(evtEntry.listeners)
+	return evtEntry.Len()
 }
 
 func (e *emmiter) Listeners(evt EventName) []Listener {
@@ -191,11 +171,9 @@ func (e *emmiter) Listeners(evt EventName) []Listener {
 		return nil
 	}
 
-	evtEntry.mu.RLock()
-	defer evtEntry.mu.RUnlock()
-
-	listeners := make([]Listener, len(evtEntry.listeners))
-	for i, l := range evtEntry.listeners {
+	datas := evtEntry.All()
+	listeners := make([]Listener, len(datas))
+	for i, l := range datas {
 		listeners[i] = l.fn
 	}
 
@@ -222,10 +200,13 @@ func (e *emmiter) Once(evt EventName, listeners ...Listener) error {
 		return nil
 	}
 
-	events := make([]*listener, len(listeners))
+	events := make([]*eventEntry, len(listeners))
 	for i, event := range listeners {
+		if event == nil {
+			continue
+		}
 		oneTime := &oneTimeListener{fired: &sync.Once{}, evt: evt, emitter: e, fn: event}
-		events[i] = &listener{fn: oneTime.execute, ptr: reflect.ValueOf(event).Pointer()}
+		events[i] = &eventEntry{fn: oneTime.execute, ptr: reflect.ValueOf(event).Pointer()}
 	}
 	return e.addListeners(evt, events)
 }
@@ -242,22 +223,16 @@ func (e *emmiter) RemoveListener(evt EventName, listener Listener) bool {
 		return false
 	}
 
-	evtEntry.mu.Lock()
-	defer evtEntry.mu.Unlock()
-
-	if len(evtEntry.listeners) == 0 {
+	if evtEntry.Len() == 0 {
 		return false
 	}
 
 	targetPtr := reflect.ValueOf(listener).Pointer()
 
-	for i, listener := range evtEntry.listeners {
-		if listener.ptr == targetPtr {
-			evtEntry.listeners = append(evtEntry.listeners[:i], evtEntry.listeners[i+1:]...)
-			return true
-		}
-	}
-	return false
+	remove, _ := evtEntry.RangeAndSplice(func(listener *eventEntry, i int) (bool, int, int, []*eventEntry) {
+		return listener.ptr == targetPtr, i, 1, nil
+	})
+	return len(remove) > 0
 }
 
 func (e *emmiter) RemoveAllListeners(evt EventName) bool {

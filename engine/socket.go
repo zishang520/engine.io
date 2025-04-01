@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -54,6 +55,8 @@ type socket struct {
 	cleanupFn         *types.Slice[types.Callable]
 	pingTimeoutTimer  atomic.Pointer[utils.Timer]
 	pingIntervalTimer atomic.Pointer[utils.Timer]
+
+	flushMu sync.Mutex
 }
 
 func (s *socket) Protocol() int {
@@ -435,7 +438,7 @@ func (s *socket) OnClose(reason string, description ...error) {
 		// clean writeBuffer in defer, so developers can still
 		// grab the writeBuffer on 'close' event
 		defer func() {
-			s.writeBuffer.Clear()
+			go s.writeBuffer.Clear()
 		}()
 
 		s.packetsFn.Clear()
@@ -474,7 +477,6 @@ func (s *socket) sendPacket(
 	options *packet.Options,
 	callback SendCallback,
 ) {
-
 	if readystate := s.ReadyState(); readystate != "closing" && readystate != "closed" {
 		socket_log.Debug(`sending packet "%s" (%p)`, packetType, data)
 
@@ -504,6 +506,9 @@ func (s *socket) sendPacket(
 
 // Attempts to flush the packets buffer.
 func (s *socket) flush() {
+	s.flushMu.Lock()
+	defer s.flushMu.Unlock()
+
 	if s.ReadyState() != "closed" && s.Transport().Writable() {
 		if wbuf := s.writeBuffer.AllAndClear(); len(wbuf) > 0 {
 			socket_log.Debug("flushing buffer to transport")

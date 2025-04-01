@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/zishang520/engine.io/v2/transports"
 	"github.com/zishang520/engine.io/v2/types"
 )
 
@@ -177,7 +176,7 @@ func (s *ServerOptions) GetRawPingTimeout() *time.Duration {
 }
 func (s *ServerOptions) PingTimeout() time.Duration {
 	if s.pingTimeout == nil {
-		return time.Duration(20_000 * time.Millisecond)
+		return 0
 	}
 	return *s.pingTimeout
 }
@@ -193,7 +192,7 @@ func (s *ServerOptions) GetRawPingInterval() *time.Duration {
 }
 func (s *ServerOptions) PingInterval() time.Duration {
 	if s.pingInterval == nil {
-		return time.Duration(25_000 * time.Millisecond)
+		return 0
 	}
 
 	return *s.pingInterval
@@ -210,7 +209,7 @@ func (s *ServerOptions) GetRawUpgradeTimeout() *time.Duration {
 }
 func (s *ServerOptions) UpgradeTimeout() time.Duration {
 	if s.upgradeTimeout == nil {
-		return time.Duration(10_000 * time.Millisecond)
+		return 0
 	}
 	return *s.upgradeTimeout
 }
@@ -226,7 +225,7 @@ func (s *ServerOptions) GetRawMaxHttpBufferSize() *int64 {
 }
 func (s *ServerOptions) MaxHttpBufferSize() int64 {
 	if s.maxHttpBufferSize == nil {
-		return 1e5
+		return 0
 	}
 	return *s.maxHttpBufferSize
 }
@@ -242,9 +241,6 @@ func (s *ServerOptions) GetRawAllowRequest() AllowRequest {
 	return s.allowRequest
 }
 func (s *ServerOptions) AllowRequest() AllowRequest {
-	if s.allowRequest == nil {
-		return nil
-	}
 	return s.allowRequest
 }
 
@@ -262,9 +258,6 @@ func (s *ServerOptions) GetRawTransports() *types.Set[string] {
 	return s.transports
 }
 func (s *ServerOptions) Transports() *types.Set[string] {
-	if s.transports == nil {
-		return types.NewSet(transports.POLLING, transports.WEBSOCKET)
-	}
 	return s.transports
 }
 
@@ -279,7 +272,7 @@ func (s *ServerOptions) GetRawAllowUpgrades() *bool {
 }
 func (s *ServerOptions) AllowUpgrades() bool {
 	if s.allowUpgrades == nil {
-		return true
+		return false
 	}
 	return *s.allowUpgrades
 }
@@ -307,11 +300,6 @@ func (s *ServerOptions) GetRawHttpCompression() *types.HttpCompression {
 	return s.httpCompression
 }
 func (s *ServerOptions) HttpCompression() *types.HttpCompression {
-	if s.httpCompression == nil {
-		return &types.HttpCompression{
-			Threshold: 1024,
-		}
-	}
 	return s.httpCompression
 }
 

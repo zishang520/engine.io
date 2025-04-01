@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/zishang520/webtransport-go"
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io-go-parser/parser"
 	"github.com/zishang520/engine.io/v2/config"
@@ -17,6 +16,7 @@ import (
 	"github.com/zishang520/engine.io/v2/types"
 	"github.com/zishang520/engine.io/v2/utils"
 	webtrans "github.com/zishang520/engine.io/v2/webtransport"
+	"github.com/zishang520/webtransport-go"
 )
 
 type server struct {
@@ -68,9 +68,9 @@ func (s *server) CreateTransport(transportName string, ctx *types.HttpContext) (
 func (s *server) HandleRequest(ctx *types.HttpContext) {
 	server_log.Debug(`handling "%s" http request "%s"`, ctx.Method(), ctx.Request().RequestURI)
 
-	callback := func(errorCode int, errorContext map[string]any) {
-		if errorContext != nil {
-			s.emitAbortRequest(ctx, errorCode, errorContext)
+	callback := func(codeMessage *types.CodeMessage, errorContext map[string]any) {
+		if codeMessage != nil {
+			s.emitAbortRequest(ctx, codeMessage, errorContext)
 			return
 		}
 
@@ -82,8 +82,8 @@ func (s *server) HandleRequest(ctx *types.HttpContext) {
 				abortRequest(ctx, UNKNOWN_SID, map[string]any{"sid": sid})
 			}
 		} else {
-			if errorCode, t := s.Handshake(ctx.Query().Peek("transport"), ctx); t == nil {
-				abortRequest(ctx, errorCode, nil)
+			if codeMessage, t := s.Handshake(ctx.Query().Peek("transport"), ctx); t == nil {
+				abortRequest(ctx, codeMessage, nil)
 			}
 		}
 	}
@@ -102,9 +102,9 @@ func (s *server) HandleRequest(ctx *types.HttpContext) {
 
 // Handles an Engine.IO HTTP Upgrade.
 func (s *server) HandleUpgrade(ctx *types.HttpContext) {
-	callback := func(errorCode int, errorContext map[string]any) {
-		if errorContext != nil {
-			s.emitAbortRequest(ctx, errorCode, errorContext)
+	callback := func(codeMessage *types.CodeMessage, errorContext map[string]any) {
+		if codeMessage != nil {
+			s.emitAbortRequest(ctx, codeMessage, errorContext)
 			return
 		}
 
@@ -128,13 +128,13 @@ func (s *server) HandleUpgrade(ctx *types.HttpContext) {
 		}
 
 		// delegate to ws
-		if conn, err := ws.Upgrade(ctx.Response(), ctx.Request(), ctx.ResponseHeaders.All()); err == nil {
+		if conn, err := ws.Upgrade(ctx.Response(), ctx.Request(), ctx.ResponseHeaders.All()); err != nil {
+			s.emitAbortRequest(ctx, BAD_REQUEST, map[string]any{"name": "UPGRADE_FAILURE"})
+			server_log.Debug("websocket error before upgrade: %s", err.Error())
+		} else {
 			conn.SetReadLimit(s.Opts().MaxHttpBufferSize())
 			wsc.Conn = conn
 			s.onWebSocket(ctx, wsc)
-		} else {
-			s.emitAbortRequest(ctx, BAD_REQUEST, map[string]any{"name": "UPGRADE_FAILURE"})
-			server_log.Debug("websocket error before upgrade: %s", err.Error())
 		}
 	}
 
@@ -170,8 +170,8 @@ func (s *server) onWebSocket(ctx *types.HttpContext, wsc *types.WebSocketConn) {
 	ctx.Websocket = wsc
 
 	if len(id) == 0 {
-		if errorCode, t := s.Handshake(transportName, ctx); t == nil {
-			abortUpgrade(ctx, errorCode, nil)
+		if codeMessage, t := s.Handshake(transportName, ctx); t == nil {
+			abortUpgrade(ctx, codeMessage, nil)
 		} else {
 			// transport error handling takes over
 			wsc.RemoveListener("error", onUpgradeError)
@@ -222,17 +222,17 @@ func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.
 		return
 	}
 
+	timeout := utils.SetTimeout(func() {
+		server_log.Debug("the client failed to establish a bidirectional stream in the given period")
+		session.CloseWithError(0, "")
+	}, s.Opts().UpgradeTimeout())
+
 	stream, err := session.AcceptStream(context.Background())
 	if err != nil {
 		server_log.Debug("session is closed")
 		abortUpgrade(ctx, BAD_REQUEST, nil)
 		return
 	}
-
-	timeout := utils.SetTimeout(func() {
-		server_log.Debug("the client failed to establish a bidirectional stream in the given period")
-		session.CloseWithError(0, "")
-	}, s.Opts().UpgradeTimeout())
 
 	wtc := webtrans.NewConn(session, stream, true, 0, 0, nil, nil, nil)
 	wtc.SetReadLimit(s.Opts().MaxHttpBufferSize())
@@ -284,8 +284,8 @@ func (s *server) OnWebTransportSession(ctx *types.HttpContext, wt *webtransport.
 
 	if data, ok := value.Data.(types.BufferInterface); ok && data.Len() == 0 {
 		ctx.Query().Set("EIO", "4")
-		if errorCode, t := s.Handshake(ctx.Request().Proto, ctx); t == nil {
-			abortUpgrade(ctx, errorCode, nil)
+		if codeMessage, t := s.Handshake(ctx.Request().Proto, ctx); t == nil {
+			abortUpgrade(ctx, codeMessage, nil)
 		}
 		return
 	}
@@ -340,6 +340,10 @@ func (s *server) Attach(server *types.HttpServer, opts any) {
 		s.Close()
 	})
 
+	server.Once("listening", func(...any) {
+		s.Proto().Init()
+	})
+
 	server.HandleFunc(path, s.ServeHTTP)
 }
 
@@ -356,13 +360,13 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Close the HTTP long-polling request
-func abortRequest(ctx *types.HttpContext, errorCode int, errorContext map[string]any) {
-	server_log.Debug("abortRequest %d, %+v", errorCode, errorContext)
+func abortRequest(ctx *types.HttpContext, codeMessage *types.CodeMessage, errorContext map[string]any) {
+	server_log.Debug("abortRequest %d, %+v", codeMessage.Code, errorContext)
 	statusCode := http.StatusBadRequest
-	if errorCode == FORBIDDEN {
+	if codeMessage == FORBIDDEN {
 		statusCode = http.StatusForbidden
 	}
-	message := errorMessages[errorCode]
+	message := codeMessage.Message
 	if errorContext != nil {
 		if m, ok := errorContext["message"]; ok {
 			message = m.(string)
@@ -370,32 +374,29 @@ func abortRequest(ctx *types.HttpContext, errorCode int, errorContext map[string
 	}
 	ctx.ResponseHeaders.Set("Content-Type", "application/json")
 	ctx.SetStatusCode(statusCode)
-	if b, err := json.Marshal(types.CodeMessage{Code: errorCode, Message: message}); err == nil {
+	if b, err := json.Marshal(types.CodeMessage{Code: codeMessage.Code, Message: message}); err == nil {
 		ctx.Write(b)
 		return
 	}
 	io.WriteString(ctx, `{"code":400,"message":"Bad request"}`)
 }
 
-func (s *server) emitAbortRequest(ctx *types.HttpContext, errorCode int, errorContext map[string]any) {
+func (s *server) emitAbortRequest(ctx *types.HttpContext, codeMessage *types.CodeMessage, errorContext map[string]any) {
 	s.Emit("connection_error", &types.ErrorMessage{
-		CodeMessage: &types.CodeMessage{
-			Code:    errorCode,
-			Message: errorMessages[errorCode],
-		},
-		Req:     ctx,
-		Context: errorContext,
+		CodeMessage: codeMessage,
+		Req:         ctx,
+		Context:     errorContext,
 	})
-	abortRequest(ctx, errorCode, errorContext)
+	abortRequest(ctx, codeMessage, errorContext)
 }
 
 // Close the WebSocket connection
-func abortUpgrade(ctx *types.HttpContext, errorCode int, errorContext map[string]any) {
+func abortUpgrade(ctx *types.HttpContext, codeMessage *types.CodeMessage, errorContext map[string]any) {
 	ctx.On("error", func(...any) {
 		server_log.Debug("ignoring error from closed connection")
 	})
 
-	message := errorMessages[errorCode]
+	message := codeMessage.Message
 	if errorContext != nil {
 		if m, ok := errorContext["message"]; ok {
 			message = m.(string)
@@ -413,14 +414,11 @@ func abortUpgrade(ctx *types.HttpContext, errorCode int, errorContext map[string
 	}
 }
 
-func (s *server) emitAbortUpgrade(ctx *types.HttpContext, errorCode int, errorContext map[string]any) {
+func (s *server) emitAbortUpgrade(ctx *types.HttpContext, codeMessage *types.CodeMessage, errorContext map[string]any) {
 	s.Emit("connection_error", &types.ErrorMessage{
-		CodeMessage: &types.CodeMessage{
-			Code:    errorCode,
-			Message: errorMessages[errorCode],
-		},
-		Req:     ctx,
-		Context: errorContext,
+		CodeMessage: codeMessage,
+		Req:         ctx,
+		Context:     errorContext,
 	})
-	abortUpgrade(ctx, errorCode, errorContext)
+	abortUpgrade(ctx, codeMessage, errorContext)
 }

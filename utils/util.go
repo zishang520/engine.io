@@ -15,7 +15,7 @@ func Value(value string, _default string) string {
 
 func Contains(haystack string, needles []string) string {
 	for _, needle := range needles {
-		if needle != "" && strings.Index(haystack, needle) > -1 {
+		if needle != "" && strings.Contains(haystack, needle) {
 			return needle
 		}
 	}

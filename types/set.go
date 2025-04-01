@@ -48,9 +48,7 @@ func (s *Set[KType]) Delete(keys ...KType) bool {
 	defer s.mu.Unlock()
 
 	for _, key := range keys {
-		if _, exists := s.cache[key]; exists {
-			delete(s.cache, key)
-		}
+		delete(s.cache, key)
 	}
 	return true
 }

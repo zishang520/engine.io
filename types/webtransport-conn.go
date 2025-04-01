@@ -1,8 +1,8 @@
 package types
 
 import (
-	wt "github.com/zishang520/webtransport-go"
 	"github.com/zishang520/engine.io/v2/webtransport"
+	wt "github.com/zishang520/webtransport-go"
 )
 
 type WebTransportConn struct {

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/zishang520/engine.io/v2/config"
 	"github.com/zishang520/engine.io/v2/errors"
@@ -14,42 +15,29 @@ import (
 	"github.com/zishang520/engine.io/v2/utils"
 )
 
-// Protocol errors mappings.
-const (
-	OK_REQUEST                   int = -1
-	UNKNOWN_TRANSPORT            int = 0
-	UNKNOWN_SID                  int = 1
-	BAD_HANDSHAKE_METHOD         int = 2
-	BAD_REQUEST                  int = 3
-	FORBIDDEN                    int = 4
-	UNSUPPORTED_PROTOCOL_VERSION int = 5
-)
-
 var (
 	server_log = log.NewLog("engine")
 
-	errorMessages map[int]string = map[int]string{
-		OK_REQUEST:                   `OK`,
-		UNKNOWN_TRANSPORT:            `Transport unknown`,
-		UNKNOWN_SID:                  `Session ID unknown`,
-		BAD_HANDSHAKE_METHOD:         `Bad handshake method`,
-		BAD_REQUEST:                  `Bad request`,
-		FORBIDDEN:                    `Forbidden`,
-		UNSUPPORTED_PROTOCOL_VERSION: "Unsupported protocol version",
-	}
+	// Protocol errors mappings.
+	UNKNOWN_TRANSPORT            = &types.CodeMessage{Code: 0, Message: `Transport unknown`}
+	UNKNOWN_SID                  = &types.CodeMessage{Code: 1, Message: `Session ID unknown`}
+	BAD_HANDSHAKE_METHOD         = &types.CodeMessage{Code: 2, Message: `Bad handshake method`}
+	BAD_REQUEST                  = &types.CodeMessage{Code: 3, Message: `Bad request`}
+	FORBIDDEN                    = &types.CodeMessage{Code: 4, Message: `Forbidden`}
+	UNSUPPORTED_PROTOCOL_VERSION = &types.CodeMessage{Code: 4, Message: `Unsupported protocol version`}
 )
 
 type baseServer struct {
-	clientsCount atomic.Uint64
-
 	events.EventEmitter
 
 	// Prototype interface, used to implement interface method rewriting
 	_proto_ BaseServer
 
-	clients     *types.Map[string, Socket]
-	middlewares []Middleware
-	opts        config.ServerOptionsInterface
+	opts config.ServerOptionsInterface
+
+	clients      *types.Map[string, Socket]
+	clientsCount atomic.Uint64
+	middlewares  []Middleware
 }
 
 func MakeBaseServer() BaseServer {
@@ -91,7 +79,19 @@ func (bs *baseServer) Middlewares() []Middleware {
 // BaseServer build.
 func (bs *baseServer) Construct(opt any) {
 	opts, _ := opt.(config.ServerOptionsInterface)
-	bs.opts = config.DefaultServerOptions().Assign(opts)
+
+	options := config.DefaultServerOptions()
+	options.SetPingTimeout(20_000 * time.Millisecond)
+	options.SetPingInterval(25_000 * time.Millisecond)
+	options.SetUpgradeTimeout(10_000 * time.Millisecond)
+	options.SetMaxHttpBufferSize(1e6)
+	options.SetTransports(types.NewSet(transports.POLLING, transports.WEBSOCKET))
+	options.SetAllowUpgrades(true)
+	options.SetHttpCompression(&types.HttpCompression{Threshold: 1024})
+	options.SetCors(nil)
+	options.SetAllowEIO3(false)
+
+	bs.opts = options.Assign(opts)
 
 	if opts != nil {
 		if cookie := opts.Cookie(); cookie != nil {
@@ -109,10 +109,10 @@ func (bs *baseServer) Construct(opt any) {
 			}
 			bs.opts.SetCookie(cookie)
 		}
+	}
 
-		if cors := bs.opts.Cors(); cors != nil {
-			bs.Use(types.MiddlewareWrapper(cors))
-		}
+	if cors := bs.opts.Cors(); cors != nil {
+		bs.Use(types.MiddlewareWrapper(cors))
 	}
 
 	bs._proto_.Init()
@@ -134,9 +134,6 @@ func (bs *baseServer) ComputePath(options config.AttachOptionsInterface) string 
 			// normalize path
 			path += "/"
 		}
-	} else {
-		// normalize path
-		path += "/"
 	}
 
 	return path
@@ -153,7 +150,7 @@ func (bs *baseServer) Upgrades(transport string) *types.Set[string] {
 }
 
 // Verifies a request.
-func (bs *baseServer) Verify(ctx *types.HttpContext, upgrade bool) (int, map[string]any) {
+func (bs *baseServer) Verify(ctx *types.HttpContext, upgrade bool) (*types.CodeMessage, map[string]any) {
 	// transport check
 	transport := ctx.Query().Peek("transport")
 	if !bs.opts.Transports().Has(transport) || transport == transports.WEBTRANSPORT {
@@ -198,7 +195,7 @@ func (bs *baseServer) Verify(ctx *types.HttpContext, upgrade bool) (int, map[str
 		}
 	}
 
-	return OK_REQUEST, nil
+	return nil, nil
 }
 
 // Adds a new middleware.
@@ -258,7 +255,7 @@ func (bs *baseServer) GenerateId(*types.HttpContext) (string, error) {
 }
 
 // Handshakes a new client.
-func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (int, transports.Transport) {
+func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (*types.CodeMessage, transports.Transport) {
 	protocol := 3 // 3rd revision by default
 	if ctx.Query().Peek("EIO") == "4" {
 		protocol = 4
@@ -267,11 +264,8 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 	if protocol == 3 && !bs.opts.AllowEIO3() {
 		server_log.Debug("unsupported protocol version")
 		bs.Emit("connection_error", &types.ErrorMessage{
-			CodeMessage: &types.CodeMessage{
-				Code:    UNSUPPORTED_PROTOCOL_VERSION,
-				Message: errorMessages[UNSUPPORTED_PROTOCOL_VERSION],
-			},
-			Req: ctx,
+			CodeMessage: UNSUPPORTED_PROTOCOL_VERSION,
+			Req:         ctx,
 			Context: map[string]any{
 				"protocol": protocol,
 			},
@@ -283,11 +277,8 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 	if err != nil {
 		server_log.Debug("error while generating an id")
 		bs.Emit("connection_error", &types.ErrorMessage{
-			CodeMessage: &types.CodeMessage{
-				Code:    BAD_REQUEST,
-				Message: errorMessages[BAD_REQUEST],
-			},
-			Req: ctx,
+			CodeMessage: BAD_REQUEST,
+			Req:         ctx,
 			Context: map[string]any{
 				"name":  "ID_GENERATION_ERROR",
 				"error": err,
@@ -302,11 +293,8 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 	if err != nil {
 		server_log.Debug(`handshaking client "%s" (%s)`, id, transportName)
 		bs.Emit("connection_error", &types.ErrorMessage{
-			CodeMessage: &types.CodeMessage{
-				Code:    BAD_REQUEST,
-				Message: errorMessages[BAD_REQUEST],
-			},
-			Req: ctx,
+			CodeMessage: BAD_REQUEST,
+			Req:         ctx,
 			Context: map[string]any{
 				"name":  "TRANSPORT_HANDSHAKE_ERROR",
 				"error": err,
@@ -323,8 +311,6 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 		transport.SetMaxHttpBufferSize(bs.opts.MaxHttpBufferSize())
 	}
 
-	socket := NewSocket(id, bs, transport, ctx, protocol)
-
 	transport.On("headers", func(args ...any) {
 		headers, req := args[0].(*utils.ParameterBag), args[1].(*types.HttpContext)
 		if !ctx.Query().Has("sid") {
@@ -338,6 +324,8 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 
 	transport.OnRequest(ctx)
 
+	socket := NewSocket(id, bs, transport, ctx, protocol)
+
 	bs.clients.Store(id, socket)
 	bs.clientsCount.Add(1)
 
@@ -348,7 +336,7 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 
 	bs.Emit("connection", socket)
 
-	return OK_REQUEST, transport
+	return nil, transport
 }
 
 // abstract

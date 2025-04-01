@@ -4,12 +4,12 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/zishang520/webtransport-go"
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io/v2/config"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/transports"
 	"github.com/zishang520/engine.io/v2/types"
+	"github.com/zishang520/webtransport-go"
 )
 
 type (
@@ -56,7 +56,7 @@ type (
 		// Protected
 		//
 		// Verifies a request.
-		Verify(*types.HttpContext, bool) (int, map[string]any)
+		Verify(*types.HttpContext, bool) (*types.CodeMessage, map[string]any)
 		// Adds a new middleware.
 		Use(Middleware)
 		// Protected
@@ -72,7 +72,7 @@ type (
 		// Protected
 		//
 		// Handshakes a new client.
-		Handshake(string, *types.HttpContext) (int, transports.Transport)
+		Handshake(string, *types.HttpContext) (*types.CodeMessage, transports.Transport)
 		// Protected
 		CreateTransport(string, *types.HttpContext) (transports.Transport, error)
 	}

@@ -115,7 +115,7 @@ type (
 
 		Transport
 
-		DoWrite(*types.HttpContext, types.BufferInterface, *packet.Options, func(*types.HttpContext))
+		DoWrite(*types.HttpContext, types.BufferInterface, *packet.Options, func(error))
 	}
 
 	Jsonp interface {

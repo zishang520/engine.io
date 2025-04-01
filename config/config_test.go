@@ -12,26 +12,26 @@ import (
 func TestAttachOptionsDefauleValue(t *testing.T) {
 	opts := AttachOptionsInterface(DefaultAttachOptions())
 	t.Run("path", func(t *testing.T) {
-		if path := opts.Path(); opts.GetRawPath() == nil && path != "/engine.io" {
-			t.Fatalf(`*AttachOptions.Path() = %q, want match for %#q`, path, "/engine.io")
+		if path := opts.Path(); opts.GetRawPath() == nil && path != "" {
+			t.Fatalf(`*AttachOptions.Path() = %q, want match for %#q`, path, "")
 		}
 	})
 
 	t.Run("destroyUpgrade", func(t *testing.T) {
-		if destroyUpgrade := opts.DestroyUpgrade(); opts.GetRawDestroyUpgrade() == nil && destroyUpgrade != true {
-			t.Fatalf(`*AttachOptions.DestroyUpgrade() = %t, want match for %t`, destroyUpgrade, true)
+		if destroyUpgrade := opts.DestroyUpgrade(); opts.GetRawDestroyUpgrade() == nil && destroyUpgrade != false {
+			t.Fatalf(`*AttachOptions.DestroyUpgrade() = %t, want match for %t`, destroyUpgrade, false)
 		}
 	})
 
 	t.Run("destroyUpgradeTimeout", func(t *testing.T) {
-		if destroyUpgradeTimeout := opts.DestroyUpgradeTimeout(); opts.GetRawDestroyUpgradeTimeout() == nil && destroyUpgradeTimeout != 1000*time.Millisecond {
-			t.Fatalf(`*AttachOptions.DestroyUpgradeTimeout() = %d, want match for %d`, destroyUpgradeTimeout, 1000*time.Millisecond)
+		if destroyUpgradeTimeout := opts.DestroyUpgradeTimeout(); opts.GetRawDestroyUpgradeTimeout() == nil && destroyUpgradeTimeout != 0*time.Millisecond {
+			t.Fatalf(`*AttachOptions.DestroyUpgradeTimeout() = %d, want match for %d`, destroyUpgradeTimeout, 0*time.Millisecond)
 		}
 	})
 
 	t.Run("addTrailingSlash", func(t *testing.T) {
-		if addTrailingSlash := opts.AddTrailingSlash(); opts.GetRawAddTrailingSlash() == nil && addTrailingSlash != true {
-			t.Fatalf(`*AttachOptions.AddTrailingSlash() = %t, want match for %t`, addTrailingSlash, true)
+		if addTrailingSlash := opts.AddTrailingSlash(); opts.GetRawAddTrailingSlash() == nil && addTrailingSlash != false {
+			t.Fatalf(`*AttachOptions.AddTrailingSlash() = %t, want match for %t`, addTrailingSlash, false)
 		}
 	})
 }
@@ -64,26 +64,26 @@ func TestServerOptionsDefauleValue(t *testing.T) {
 	opts := ServerOptionsInterface(DefaultServerOptions())
 
 	t.Run("pingTimeout", func(t *testing.T) {
-		if pingTimeout := opts.PingTimeout(); opts.GetRawPingTimeout() == nil && pingTimeout != 20000*time.Millisecond {
-			t.Fatalf(`*ServerOptions.PingTimeout() = %d, want match for %d`, pingTimeout, 20000*time.Millisecond)
+		if pingTimeout := opts.PingTimeout(); opts.GetRawPingTimeout() == nil && pingTimeout != 0*time.Millisecond {
+			t.Fatalf(`*ServerOptions.PingTimeout() = %d, want match for %d`, pingTimeout, 0*time.Millisecond)
 		}
 	})
 
 	t.Run("pingInterval", func(t *testing.T) {
-		if pingInterval := opts.PingInterval(); opts.GetRawPingInterval() == nil && pingInterval != 25000*time.Millisecond {
-			t.Fatalf(`*ServerOptions.PingInterval() = %d, want match for %d`, pingInterval, 25000*time.Millisecond)
+		if pingInterval := opts.PingInterval(); opts.GetRawPingInterval() == nil && pingInterval != 0*time.Millisecond {
+			t.Fatalf(`*ServerOptions.PingInterval() = %d, want match for %d`, pingInterval, 0*time.Millisecond)
 		}
 	})
 
 	t.Run("upgradeTimeout", func(t *testing.T) {
-		if upgradeTimeout := opts.UpgradeTimeout(); opts.GetRawUpgradeTimeout() == nil && upgradeTimeout != 10000*time.Millisecond {
-			t.Fatalf(`*ServerOptions.UpgradeTimeout() = %d, want match for %d`, upgradeTimeout, 10000*time.Millisecond)
+		if upgradeTimeout := opts.UpgradeTimeout(); opts.GetRawUpgradeTimeout() == nil && upgradeTimeout != 0*time.Millisecond {
+			t.Fatalf(`*ServerOptions.UpgradeTimeout() = %d, want match for %d`, upgradeTimeout, 0*time.Millisecond)
 		}
 	})
 
 	t.Run("maxHttpBufferSize", func(t *testing.T) {
-		if maxHttpBufferSize := opts.MaxHttpBufferSize(); opts.GetRawMaxHttpBufferSize() == nil && maxHttpBufferSize != 100000 {
-			t.Fatalf(`*ServerOptions.MaxHttpBufferSize() = %d, want match for %d`, maxHttpBufferSize, 100000)
+		if maxHttpBufferSize := opts.MaxHttpBufferSize(); opts.GetRawMaxHttpBufferSize() == nil && maxHttpBufferSize != 0 {
+			t.Fatalf(`*ServerOptions.MaxHttpBufferSize() = %d, want match for %d`, maxHttpBufferSize, 0)
 		}
 	})
 
@@ -100,8 +100,8 @@ func TestServerOptionsDefauleValue(t *testing.T) {
 	})
 
 	t.Run("allowUpgrades", func(t *testing.T) {
-		if allowUpgrades := opts.AllowUpgrades(); opts.GetRawAllowUpgrades() == nil && allowUpgrades != true {
-			t.Fatalf(`*ServerOptions.AllowUpgrades() = %t, want match for %t`, allowUpgrades, true)
+		if allowUpgrades := opts.AllowUpgrades(); opts.GetRawAllowUpgrades() == nil && allowUpgrades != false {
+			t.Fatalf(`*ServerOptions.AllowUpgrades() = %t, want match for %t`, allowUpgrades, false)
 		}
 	})
 

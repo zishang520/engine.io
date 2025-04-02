@@ -38,6 +38,8 @@ type (
 		EventNames() []EventName
 		// GetMaxListeners returns the max listeners for this emmiter
 		// see SetMaxListeners
+		//
+		// Deprecated: No longer limit the number of event listeners.
 		GetMaxListeners() uint
 		// ListenerCount returns the length of all registered listeners to a particular event
 		ListenerCount(EventName) int
@@ -59,6 +61,8 @@ type (
 		Clear()
 		// SetMaxListeners obviously this function allows the MaxListeners
 		// to be decrease or increase. Set to zero for unlimited
+		//
+		// Deprecated: No longer limit the number of event listeners.
 		SetMaxListeners(uint)
 		// Len returns the length of all registered events
 		Len() int

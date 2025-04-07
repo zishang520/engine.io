@@ -404,11 +404,12 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 
 // Clears listeners and timers associated with current transport.
 func (s *socket) clearTransport() {
-	s.cleanupFn.Range(func(cleanup types.Callable, _ int) bool {
-		cleanup()
-		return true
+	s.cleanupFn.DoWrite(func(cleanups []types.Callable) []types.Callable {
+		for _, cleanup := range cleanups {
+			cleanup()
+		}
+		return cleanups[:0]
 	})
-	s.cleanupFn.Clear()
 
 	// silence further transport errors and prevent uncaught exceptions
 	s.Transport().On("error", func(...any) {

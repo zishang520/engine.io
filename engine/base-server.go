@@ -130,7 +130,7 @@ func (bs *baseServer) ComputePath(options config.AttachOptionsInterface) string 
 		if options.GetRawPath() != nil {
 			path = strings.TrimRight(options.Path(), "/")
 		}
-		if options.AddTrailingSlash() {
+		if options.GetRawAddTrailingSlash() == nil || options.AddTrailingSlash() {
 			// normalize path
 			path += "/"
 		}

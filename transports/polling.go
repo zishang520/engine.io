@@ -324,7 +324,7 @@ func (p *polling) compress(data types.BufferInterface, encoding string) (types.B
 	buf := types.NewBytesBuffer(nil)
 	switch encoding {
 	case "gzip":
-		gz, err := gzip.NewWriterLevel(buf, 1)
+		gz, err := gzip.NewWriterLevel(buf, gzip.DefaultCompression)
 		if err != nil {
 			return nil, err
 		}
@@ -333,7 +333,7 @@ func (p *polling) compress(data types.BufferInterface, encoding string) (types.B
 			return nil, err
 		}
 	case "deflate":
-		fl, err := flate.NewWriter(buf, 1)
+		fl, err := flate.NewWriter(buf, flate.DefaultCompression)
 		if err != nil {
 			return nil, err
 		}
@@ -342,7 +342,7 @@ func (p *polling) compress(data types.BufferInterface, encoding string) (types.B
 			return nil, err
 		}
 	case "br":
-		br := brotli.NewWriterLevel(buf, 1)
+		br := brotli.NewWriterLevel(buf, brotli.DefaultCompression)
 		defer br.Close()
 		if _, err := io.Copy(br, data); err != nil {
 			return nil, err

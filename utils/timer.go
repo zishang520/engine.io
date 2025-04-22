@@ -23,11 +23,11 @@ func (t *Timer) Refresh() *Timer {
 }
 
 func (t *Timer) Unref() {
-	runtime.AddCleanup(t, func(t *Timer) {
-		if t.timer.Stop() {
+	runtime.AddCleanup(t, func(timer *time.Timer) {
+		if timer.Stop() {
 			close(t.stopCh)
 		}
-	}, t)
+	}, t.timer)
 }
 
 // Deprecated: this method will be removed in the next major release, please use SetTimeout instead.

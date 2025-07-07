@@ -9,16 +9,13 @@ require (
 	github.com/gookit/color v1.5.4
 	github.com/gorilla/websocket v1.5.3
 	github.com/klauspost/compress v1.18.0
-	github.com/quic-go/quic-go v0.52.0
+	github.com/quic-go/quic-go v0.53.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/zishang520/engine.io-go-parser v1.3.2
-	github.com/zishang520/webtransport-go v0.8.7
+	github.com/zishang520/webtransport-go v0.9.1
 )
 
 require (
-	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
-	github.com/google/pprof v0.0.0-20230821062121-407c9e7a662f // indirect
-	github.com/onsi/ginkgo/v2 v2.12.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect

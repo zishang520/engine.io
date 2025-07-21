@@ -294,11 +294,14 @@ func (s *socket) setTransport(transport transports.Transport) {
 // Upon transport "drain" event
 func (s *socket) onDrain() {
 	if seqFn, err := s.sentCallbackFn.Shift(); err == nil {
-		socket_log.Debug("executing batch send callback")
+		socket_log.Debug("executing batch send callback with %d callbacks", len(seqFn))
 		for _, fn := range seqFn {
 			fn(s.Transport())
 		}
 	}
+
+	// Ensure any buffered packets are sent after transport becomes writable again
+	s.flush()
 }
 
 // Upgrades socket to the given transport
@@ -512,7 +515,7 @@ func (s *socket) flush() {
 
 	if s.ReadyState() != "closed" && s.Transport().Writable() {
 		if wbuf := s.writeBuffer.AllAndClear(); len(wbuf) > 0 {
-			socket_log.Debug("flushing buffer to transport")
+			socket_log.Debug("flushing %d packets to transport", len(wbuf))
 			s.Emit("flush", wbuf)
 			s.server.Emit("flush", s, wbuf)
 			if packetsFn := s.packetsFn.AllAndClear(); len(packetsFn) > 0 {

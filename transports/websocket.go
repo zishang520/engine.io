@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	ws "github.com/gorilla/websocket"
 	"github.com/zishang520/engine.io-go-parser/packet"
@@ -128,16 +129,25 @@ func (w *websocket) Send(packets []*packet.Packet) {
 	go w.send(packets)
 }
 func (w *websocket) send(packets []*packet.Packet) {
+	startTime := time.Now()
+
+	var sendSuccess bool = false
 	defer func() {
-		w.Emit("drain")
-		w.SetWritable(true)
-		w.Emit("ready")
+		duration := time.Since(startTime)
+		if sendSuccess {
+			w.Emit("drain")
+			w.SetWritable(true)
+			w.Emit("ready")
+		} else {
+			ws_log.Debug("send() failed: after %v, keeping transport not writable", duration)
+			w.OnError("websocket send failed", nil)
+		}
 	}()
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	for _, packet := range packets {
+	for i, packet := range packets {
 		// always creates a new object since ws modifies it
 		compress := false
 		if packet.Options != nil {
@@ -150,7 +160,7 @@ func (w *websocket) send(packets []*packet.Packet) {
 				}
 				pm, err := ws.NewPreparedMessage(mt, packet.Options.WsPreEncodedFrame.Bytes())
 				if err != nil {
-					ws_log.Debug(`Send Error "%s"`, err.Error())
+					ws_log.Debug(`Send Error at packet %d: "%s"`, i, err.Error())
 					if errors.Is(err, net.ErrClosed) {
 						w.socket.Emit("close")
 					} else {
@@ -159,7 +169,7 @@ func (w *websocket) send(packets []*packet.Packet) {
 					return
 				}
 				if err := w.socket.WritePreparedMessage(pm); err != nil {
-					ws_log.Debug(`Send Error "%s"`, err.Error())
+					ws_log.Debug(`Send Error at packet %d: "%s"`, i, err.Error())
 					if errors.Is(err, net.ErrClosed) {
 						w.socket.Emit("close")
 					} else {
@@ -167,14 +177,13 @@ func (w *websocket) send(packets []*packet.Packet) {
 					}
 					return
 				}
-				return
-
+				continue
 			}
 		}
 
 		data, err := w.Parser().EncodePacket(packet, w.SupportsBinary())
 		if err != nil {
-			ws_log.Debug(`Send Error "%s"`, err.Error())
+			ws_log.Debug(`Send Error at packet %d: "%s"`, i, err.Error())
 			if errors.Is(err, net.ErrClosed) {
 				w.socket.Emit("close")
 			} else {
@@ -182,31 +191,40 @@ func (w *websocket) send(packets []*packet.Packet) {
 			}
 			return
 		}
-		w.write(data, compress)
+
+		if !w.write(data, compress) {
+			ws_log.Debug(`Write failed at packet %d`, i)
+			return
+		}
 	}
+
+	sendSuccess = true
 }
-func (w *websocket) write(data types.BufferInterface, compress bool) {
+func (w *websocket) write(data types.BufferInterface, compress bool) bool {
 	if w.PerMessageDeflate() != nil {
 		if data.Len() < w.PerMessageDeflate().Threshold {
 			compress = false
 		}
 	}
-	ws_log.Debug(`writing %#v`, data)
+	ws_log.Debug(`write() starting: data_len=%d, compress=%t`, data.Len(), compress)
 
 	w.socket.EnableWriteCompression(compress)
 	mt := ws.BinaryMessage
 	if _, ok := data.(*types.StringBuffer); ok {
 		mt = ws.TextMessage
 	}
+
 	write, err := w.socket.NextWriter(mt)
 	if err != nil {
+		ws_log.Debug(`write() failed to get writer: %s`, err.Error())
 		if errors.Is(err, net.ErrClosed) {
 			w.socket.Emit("close")
 		} else {
 			w.socket.Emit("error", err)
 		}
-		return
+		return false
 	}
+
 	defer func() {
 		if err := write.Close(); err != nil {
 			if errors.Is(err, net.ErrClosed) {
@@ -214,17 +232,18 @@ func (w *websocket) write(data types.BufferInterface, compress bool) {
 			} else {
 				w.socket.Emit("error", err)
 			}
-			return
 		}
 	}()
+
 	if _, err := io.Copy(write, data); err != nil {
 		if errors.Is(err, net.ErrClosed) {
 			w.socket.Emit("close")
 		} else {
 			w.socket.Emit("error", err)
 		}
-		return
+		return false
 	}
+	return true
 }
 
 // Closes the transport.

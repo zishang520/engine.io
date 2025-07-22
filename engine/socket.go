@@ -301,7 +301,11 @@ func (s *socket) onDrain() {
 	}
 
 	// Ensure any buffered packets are sent after transport becomes writable again
-	s.flush()
+	remainingBuffer := s.writeBuffer.Len()
+	if remainingBuffer > 0 {
+		socket_log.Debug("found %d remaining packets, async flush", remainingBuffer)
+		go s.flush()
+	}
 }
 
 // Upgrades socket to the given transport
@@ -524,8 +528,6 @@ func (s *socket) flush() {
 				s.sentCallbackFn.Push(nil)
 			}
 			s.Transport().Send(wbuf)
-			s.Emit("drain")
-			s.server.Emit("drain", s)
 		}
 	}
 }

@@ -294,11 +294,30 @@ func (s *socket) setTransport(transport transports.Transport) {
 // Upon transport "drain" event
 func (s *socket) onDrain() {
 	if seqFn, err := s.sentCallbackFn.Shift(); err == nil {
-		socket_log.Debug("executing batch send callback")
+		socket_log.Debug("executing batch send callback with %d callbacks", len(seqFn))
 		for _, fn := range seqFn {
 			fn(s.Transport())
 		}
 	}
+
+	// Check if there are more packets to flush.
+	// This is the most crucial part of the fix. We must not emit 'drain' if there's
+	// more work to be done, as the Close() method relies on this event to know
+	// when the buffer is truly empty.
+	if s.writeBuffer.Len() > 0 {
+		// If there are more packets, we simply trigger another flush cycle.
+		// The 'drain' event will be emitted later, in a subsequent onDrain call,
+		// once the buffer is actually empty.
+		socket_log.Debug("found remaining packets, starting new flush cycle")
+		go s.flush()
+		return
+	}
+
+	// Only when the transport is idle AND the write buffer is empty,
+	// can we safely emit the 'drain' event.
+	socket_log.Debug("transport is idle and buffer is empty, emitting drain event")
+	s.Emit("drain")
+	s.server.Emit("drain", s)
 }
 
 // Upgrades socket to the given transport
@@ -512,7 +531,7 @@ func (s *socket) flush() {
 
 	if s.ReadyState() != "closed" && s.Transport().Writable() {
 		if wbuf := s.writeBuffer.AllAndClear(); len(wbuf) > 0 {
-			socket_log.Debug("flushing buffer to transport")
+			socket_log.Debug("flushing %d packets to transport", len(wbuf))
 			s.Emit("flush", wbuf)
 			s.server.Emit("flush", s, wbuf)
 			if packetsFn := s.packetsFn.AllAndClear(); len(packetsFn) > 0 {
@@ -521,8 +540,6 @@ func (s *socket) flush() {
 				s.sentCallbackFn.Push(nil)
 			}
 			s.Transport().Send(wbuf)
-			s.Emit("drain")
-			s.server.Emit("drain", s)
 		}
 	}
 }
@@ -553,11 +570,28 @@ func (s *socket) Close(discard bool) {
 	s.SetReadyState("closing")
 
 	if length := s.writeBuffer.Len(); length > 0 {
-		socket_log.Debug("there are %d remaining packets in the buffer, waiting for the 'drain' event", length)
-		s.Once("drain", func(...any) {
-			socket_log.Debug("all packets have been sent, closing the transport")
-			s.closeTransport(discard)
-		})
+		socket_log.Debug("there are %d remaining packets in the buffer, waiting for the 'drain' or 'close' event", length)
+
+		var closeOnce sync.Once
+		var onDrain, onClose events.Listener
+
+		onDrain = func(...any) {
+			closeOnce.Do(func() {
+				socket_log.Debug("drain event received, all packets sent, closing the transport")
+				s.RemoveListener("close", onClose) // Clean up the other listener
+				s.closeTransport(discard)
+			})
+		}
+
+		onClose = func(...any) {
+			closeOnce.Do(func() {
+				socket_log.Debug("close event received while waiting for drain, cleaning up")
+				s.RemoveListener("drain", onDrain) // Clean up the other listener
+			})
+		}
+
+		s.Once("drain", onDrain)
+		s.Once("close", onClose)
 		return
 	}
 

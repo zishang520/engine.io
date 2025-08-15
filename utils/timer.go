@@ -42,6 +42,14 @@ func SetTimeout(fn func(), sleep time.Duration) *Timer {
 		stopCh: make(chan struct{}),
 	}
 	timer.fn = func() {
+		defer func() {
+			// Ensure channel is drained to prevent leaks
+			select {
+			case <-timer.stopCh:
+			default:
+			}
+		}()
+		
 		select {
 		case <-timer.timer.C:
 			fn()
@@ -61,7 +69,12 @@ func ClearTimeout(timer *Timer) {
 
 func (t *Timer) Stop() {
 	if t.timer.Stop() {
-		t.stopCh <- struct{}{}
+		// Use non-blocking send to avoid goroutine leak if no reader
+		select {
+		case t.stopCh <- struct{}{}:
+		default:
+			// Channel is full or no reader, timer already stopped
+		}
 	}
 }
 
@@ -72,6 +85,14 @@ func SetInterval(fn func(), sleep time.Duration) *Timer {
 		stopCh: make(chan struct{}),
 	}
 	timer.fn = func() {
+		defer func() {
+			// Ensure channel is drained to prevent leaks
+			select {
+			case <-timer.stopCh:
+			default:
+			}
+		}()
+		
 		for {
 			select {
 			case <-timer.timer.C:
